@@ -1,0 +1,16 @@
+# Dossiers d'analyse UML (local uniquement)
+01_Cas_Utilisation/
+02_Classes/
+03_Sequences/
+04_Activites/
+05_Etats/
+06_Composants/
+07_Deploiement/
+08_Gestion_Projet/
+
+# Backup SQL
+backup.sql
+
+# Env files
+.env
+*.env.local
