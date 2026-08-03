@@ -1,29 +1,84 @@
 import { Test, TestingModule } from '@nestjs/testing';
-import { INestApplication } from '@nestjs/common';
+import { INestApplication, ValidationPipe } from '@nestjs/common';
 import request from 'supertest';
 import { App } from 'supertest/types';
 import { AppModule } from './../src/app.module';
 
-describe('AppController (e2e)', () => {
+describe('Auth (e2e)', () => {
   let app: INestApplication<App>;
 
-  beforeEach(async () => {
+  beforeAll(async () => {
     const moduleFixture: TestingModule = await Test.createTestingModule({
       imports: [AppModule],
     }).compile();
 
     app = moduleFixture.createNestApplication();
+    app.setGlobalPrefix('api');
+    app.useGlobalPipes(new ValidationPipe({ whitelist: true, transform: true }));
     await app.init();
   });
 
-  it('/ (GET)', () => {
-    return request(app.getHttpServer())
-      .get('/')
-      .expect(200)
-      .expect('Hello World!');
+  afterAll(async () => {
+    await app.close();
   });
 
-  afterEach(async () => {
-    await app.close();
+  describe('POST /api/auth/login', () => {
+    it('doit rejeter sans email', () => {
+      return request(app.getHttpServer())
+        .post('/api/auth/login')
+        .send({ password: 'password' })
+        .expect(400);
+    });
+
+    it('doit rejeter sans mot de passe', () => {
+      return request(app.getHttpServer())
+        .post('/api/auth/login')
+        .send({ email: 'test@test.com' })
+        .expect(400);
+    });
+
+    it('doit rejeter un email invalide', () => {
+      return request(app.getHttpServer())
+        .post('/api/auth/login')
+        .send({ email: 'invalid', password: 'password' })
+        .expect(400);
+    });
+  });
+
+  describe('POST /api/auth/register', () => {
+    it('doit rejeter sans champs obligatoires', () => {
+      return request(app.getHttpServer())
+        .post('/api/auth/register')
+        .send({ email: 'test@test.com' })
+        .expect(400);
+    });
+
+    it('doit rejeter un mot de passe trop court', () => {
+      return request(app.getHttpServer())
+        .post('/api/auth/register')
+        .send({
+          email: 'test@test.com',
+          password: '123',
+          nom: 'Test',
+          prenom: 'User',
+        })
+        .expect(400);
+    });
+  });
+
+  describe('GET /api/auth/profile', () => {
+    it('doit rejeter sans token', () => {
+      return request(app.getHttpServer())
+        .get('/api/auth/profile')
+        .expect(401);
+    });
+  });
+
+  describe('GET /api/users', () => {
+    it('doit rejeter sans token', () => {
+      return request(app.getHttpServer())
+        .get('/api/users')
+        .expect(401);
+    });
   });
 });
