@@ -87,7 +87,7 @@ export const ventesApi = {
     axios.get('/ventes/stats').then((r) => r.data),
 
   getCreances: (clientId?: string) =>
-    axios.get<Creance[]>('/ventes/creances', { params: { clientId } }).then((r) => r.data),
+    axios.get<Creance[]>('/ventes/creances', { params: clientId ? { clientId } : {} }).then((r) => r.data),
 
   payerCreance: (id: string) =>
     axios.patch(`/ventes/creances/${id}/payer`).then((r) => r.data),

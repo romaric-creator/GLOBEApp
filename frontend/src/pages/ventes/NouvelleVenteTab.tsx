@@ -131,14 +131,14 @@ export default function NouvelleVenteTab() {
       title: 'P.U.',
       key: 'prix',
       width: 100,
-      render: (_: unknown, record: LignePanier) => `${record.prixUnitaire} DA`,
+      render: (_: unknown, record: LignePanier) => `${record.prixUnitaire} FCFA`,
     },
     {
       title: 'Total',
       key: 'total',
       width: 120,
       render: (_: unknown, record: LignePanier) =>
-        `${record.quantite * record.prixUnitaire - record.remise} DA`,
+        `${record.quantite * record.prixUnitaire - record.remise} FCFA`,
     },
     {
       title: '',
@@ -239,7 +239,7 @@ export default function NouvelleVenteTab() {
 
             <Statistic title="Sous-total" value={sousTotal} suffix="DA" />
             {remiseGlobale > 0 && (
-              <Tag color="orange">Remise: -{remiseGlobale} DA</Tag>
+              <Tag color="orange">Remise: -{remiseGlobale} FCFA</Tag>
             )}
             <Statistic
               title="TOTAL"

@@ -52,16 +52,16 @@ export default function CaisseTab() {
       render: (d: string) => new Date(d).toLocaleDateString('fr-FR'),
     },
     { title: 'Caissier', key: 'user', render: (_: unknown, r: ClotureCaisse) => r.user ? `${r.user.nom} ${r.user.prenom}` : '-' },
-    { title: 'Ouverture', dataIndex: 'montantOuverture', key: 'ouv', render: (v: number) => `${Number(v).toLocaleString()} DA` },
-    { title: 'Cloture', dataIndex: 'montantCloture', key: 'clot', render: (v: number) => Number(v) > 0 ? `${Number(v).toLocaleString()} DA` : '-' },
+    { title: 'Ouverture', dataIndex: 'montantOuverture', key: 'ouv', render: (v: number) => `${Number(v).toLocaleString()} FCFA` },
+    { title: 'Cloture', dataIndex: 'montantCloture', key: 'clot', render: (v: number) => Number(v) > 0 ? `${Number(v).toLocaleString()} FCFA` : '-' },
     {
       title: 'Ecart',
       dataIndex: 'ecart',
       key: 'ecart',
       render: (v: number) => {
         const n = Number(v);
-        if (n === 0) return <Tag color="green">0 DA</Tag>;
-        return <Tag color={n > 0 ? 'blue' : 'red'}>{n > 0 ? '+' : ''}{n} DA</Tag>;
+        if (n === 0) return <Tag color="green">0 FCFA</Tag>;
+        return <Tag color={n > 0 ? 'blue' : 'red'}>{n > 0 ? '+' : ''}{n} FCFA</Tag>;
       },
     },
   ];

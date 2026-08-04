@@ -42,7 +42,7 @@ export class VentesController {
 
   @Get('creances')
   getCreances(@Query('clientId') clientId?: string) {
-    return this.ventesService.getCreances(clientId);
+    return this.ventesService.getCreances(clientId || undefined);
   }
 
   @Get(':id')
