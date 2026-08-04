@@ -8,6 +8,8 @@ import { ClientsModule } from './modules/clients/clients.module';
 import { ProduitsModule } from './modules/produits/produits.module';
 import { VentesModule } from './modules/ventes/ventes.module';
 import { CaisseModule } from './modules/caisse/caisse.module';
+import { PersonnelModule } from './modules/personnel/personnel.module';
+import { HotelModule } from './modules/hotel/hotel.module';
 import { RestaurantModule } from './modules/restaurant/restaurant.module';
 
 @Module({
@@ -21,6 +23,8 @@ import { RestaurantModule } from './modules/restaurant/restaurant.module';
     ProduitsModule,
     VentesModule,
     CaisseModule,
+    PersonnelModule,
+    HotelModule,
     RestaurantModule,
   ],
 })
