@@ -349,6 +349,7 @@ model Client {
   reservations       Reservation[]
   ticketsPiscine     TicketPiscine[]
   abonnementsLoisir  AbonnementLoisir[]
+  reservationsSalle  ReservationSalle[]
 
   @@map("clients")
 }
@@ -792,6 +793,35 @@ model Livraison {
   vente   Vente  @relation(fields: [venteId], references: [id])
 
   @@map("livraisons")
+}
+
+// ========================
+// Salle de Fete
+// ========================
+
+enum StatutReservationSalle {
+  EN_ATTENTE
+  CONFIRMEE
+  ANNULEE
+  TERMINEE
+}
+
+model ReservationSalle {
+  id          String                 @id @default(uuid()) @db.Uuid
+  dateEvent   DateTime               @db.Date
+  heureDebut  String
+  heureFin    String
+  nbInvites   Int
+  motif       String
+  montant     Decimal                @db.Decimal(10, 2)
+  statut      StatutReservationSalle @default(EN_ATTENTE)
+  notes       String?
+  createdAt   DateTime               @default(now())
+
+  clientId String @db.Uuid
+  client   Client @relation(fields: [clientId], references: [id])
+
+  @@map("reservations_salle")
 }
 
 // ========================

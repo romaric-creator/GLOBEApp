@@ -12,6 +12,8 @@ import VentesPage from './pages/ventes/VentesPage';
 import PersonnelPage from './pages/personnel/PersonnelPage';
 import HotelPage from './pages/hotel/HotelPage';
 import RestaurantPage from './pages/restaurant/RestaurantPage';
+import PiscinePage from './pages/piscine/PiscinePage';
+import SalleFetePage from './pages/salle-fete/SalleFetePage';
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -52,6 +54,8 @@ export default function App() {
                 <Route path="/personnel" element={<PersonnelPage />} />
                 <Route path="/hotel" element={<HotelPage />} />
                 <Route path="/restaurant" element={<RestaurantPage />} />
+                <Route path="/piscine" element={<PiscinePage />} />
+                <Route path="/salle-fete" element={<SalleFetePage />} />
               </Route>
               <Route path="*" element={<Navigate to="/dashboard" replace />} />
             </Routes>

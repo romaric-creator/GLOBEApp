@@ -11,6 +11,8 @@ import { CaisseModule } from './modules/caisse/caisse.module';
 import { PersonnelModule } from './modules/personnel/personnel.module';
 import { HotelModule } from './modules/hotel/hotel.module';
 import { RestaurantModule } from './modules/restaurant/restaurant.module';
+import { PiscineModule } from './modules/piscine/piscine.module';
+import { SalleFeteModule } from './modules/salle-fete/salle-fete.module';
 
 @Module({
   imports: [
@@ -26,6 +28,8 @@ import { RestaurantModule } from './modules/restaurant/restaurant.module';
     PersonnelModule,
     HotelModule,
     RestaurantModule,
+    PiscineModule,
+    SalleFeteModule,
   ],
 })
 export class AppModule {}
