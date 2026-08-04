@@ -4,8 +4,10 @@ import { Table, Button, Select, InputNumber, Card, Space, Tag, App, Divider, Row
 import { PlusOutlined, DeleteOutlined, ShoppingCartOutlined } from '@ant-design/icons';
 import { ventesApi } from '../../api/ventes';
 import { produitsApi } from '../../api/produits';
+import { clientsApi } from '../../api/clients';
 import type { CreateLigneDto } from '../../api/ventes';
 import type { Produit } from '../../api/produits';
+import type { Client } from '../../api/clients';
 
 interface LignePanier {
   produit: Produit;
@@ -32,10 +34,7 @@ export default function NouvelleVenteTab() {
 
   const { data: clients } = useQuery({
     queryKey: ['clients-list'],
-    queryFn: async () => {
-      const res = await fetch('/api/clients');
-      return res.json();
-    },
+    queryFn: () => clientsApi.findAll().then((r) => r.data),
   });
 
   const createVente = useMutation({
@@ -202,7 +201,7 @@ export default function NouvelleVenteTab() {
                 value={clientId}
                 onChange={setClientId}
                 optionFilterProp="label"
-                options={clients?.map((c: { id: string; nom: string; prenom?: string }) => ({
+                options={clients?.map((c: Client) => ({
                   value: c.id,
                   label: `${c.nom} ${c.prenom || ''}`,
                 })) || []}
