@@ -1,4 +1,11 @@
-import { IsString, IsOptional, IsNumber, IsUUID, IsEnum, Min } from 'class-validator';
+import {
+  IsString,
+  IsOptional,
+  IsNumber,
+  IsUUID,
+  IsEnum,
+  Min,
+} from 'class-validator';
 import { TypeMouvement } from '@prisma/client';
 
 export class CreateMouvementDto {

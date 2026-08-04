@@ -134,7 +134,10 @@ describe('AuthService', () => {
 
     it('doit creer un utilisateur avec le role employe', async () => {
       mockPrisma.user.findUnique.mockResolvedValue(null);
-      mockPrisma.role.findFirst.mockResolvedValue({ id: 'role-1', nom: 'employe' });
+      mockPrisma.role.findFirst.mockResolvedValue({
+        id: 'role-1',
+        nom: 'employe',
+      });
       mockPrisma.user.create.mockResolvedValue({
         id: '1',
         email: 'new@test.com',
