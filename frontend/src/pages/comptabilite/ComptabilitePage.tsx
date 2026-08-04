@@ -4,7 +4,6 @@ import { Table, Button, Modal, Form, Input, InputNumber, Select, Tabs, Card, Row
 import { PlusOutlined, DollarOutlined } from '@ant-design/icons';
 import { comptabiliteApi } from '../../api/comptabilite';
 import type { Compte, Ecriture, CategorieCompta } from '../../api/comptabilite';
-import dayjs from 'dayjs';
 
 const TYPE_COMPTE_COLORS: Record<string, string> = {
   ACTIF: 'blue',
