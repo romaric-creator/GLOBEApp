@@ -1,4 +1,8 @@
-import { Injectable, NotFoundException, BadRequestException } from '@nestjs/common';
+import {
+  Injectable,
+  NotFoundException,
+  BadRequestException,
+} from '@nestjs/common';
 import { PrismaService } from '../../prisma/prisma.service';
 import { CreateProduitDto } from './dto/create-produit.dto';
 import { UpdateProduitDto } from './dto/update-produit.dto';
@@ -32,7 +36,8 @@ export class ProduitsService {
       include: { _count: { select: { produits: true } } },
     });
     if (!cat) throw new NotFoundException('Categorie introuvable');
-    if (cat._count.produits > 0) throw new BadRequestException('Categorie contient des produits');
+    if (cat._count.produits > 0)
+      throw new BadRequestException('Categorie contient des produits');
     return this.prisma.categorie.delete({ where: { id } });
   }
 
@@ -54,7 +59,10 @@ export class ProduitsService {
   async findOneProduit(id: string) {
     const produit = await this.prisma.produit.findUnique({
       where: { id },
-      include: { categorie: true, mouvementsStock: { orderBy: { date: 'desc' }, take: 20 } },
+      include: {
+        categorie: true,
+        mouvementsStock: { orderBy: { date: 'desc' }, take: 20 },
+      },
     });
     if (!produit) throw new NotFoundException('Produit introuvable');
     return produit;
@@ -87,24 +95,37 @@ export class ProduitsService {
   // --- Mouvements de stock ---
 
   async createMouvement(dto: CreateMouvementDto) {
-    const produit = await this.prisma.produit.findUnique({ where: { id: dto.produitId } });
+    const produit = await this.prisma.produit.findUnique({
+      where: { id: dto.produitId },
+    });
     if (!produit) throw new NotFoundException('Produit introuvable');
 
     if (dto.type === 'SORTIE' && produit.stockActuel < dto.quantite) {
       throw new BadRequestException('Stock insuffisant');
     }
 
-    const stockUpdate = dto.type === 'ENTREE'
-      ? { increment: dto.quantite }
-      : dto.type === 'SORTIE'
-        ? { decrement: dto.quantite }
-        : undefined;
+    const stockUpdate =
+      dto.type === 'ENTREE'
+        ? { increment: dto.quantite }
+        : dto.type === 'SORTIE'
+          ? { decrement: dto.quantite }
+          : undefined;
 
     const [mouvement] = await this.prisma.$transaction([
       this.prisma.mouvementStock.create({ data: dto }),
       ...(stockUpdate
-        ? [this.prisma.produit.update({ where: { id: dto.produitId }, data: { stockActuel: stockUpdate } })]
-        : [this.prisma.produit.update({ where: { id: dto.produitId }, data: { stockActuel: dto.quantite } })]),
+        ? [
+            this.prisma.produit.update({
+              where: { id: dto.produitId },
+              data: { stockActuel: stockUpdate },
+            }),
+          ]
+        : [
+            this.prisma.produit.update({
+              where: { id: dto.produitId },
+              data: { stockActuel: dto.quantite },
+            }),
+          ]),
     ]);
 
     return mouvement;
