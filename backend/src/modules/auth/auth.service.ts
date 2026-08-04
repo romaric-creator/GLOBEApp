@@ -37,7 +37,9 @@ export class AuthService {
     }
 
     if (user.tentativesEchouees >= this.MAX_TENTATIVES) {
-      throw new UnauthorizedException('Compte verrouille. Contactez un administrateur');
+      throw new UnauthorizedException(
+        'Compte verrouille. Contactez un administrateur',
+      );
     }
 
     const passwordValid = await bcrypt.compare(dto.password, user.passwordHash);
@@ -57,7 +59,11 @@ export class AuthService {
       data: { tentativesEchouees: 0, dernierLogin: new Date() },
     });
 
-    const tokens = await this.generateTokens(user.id, user.email, user.role.nom);
+    const tokens = await this.generateTokens(
+      user.id,
+      user.email,
+      user.role.nom,
+    );
 
     await this.prisma.session.create({
       data: {
@@ -129,7 +135,10 @@ export class AuthService {
       where: { id: userId },
     });
 
-    const passwordValid = await bcrypt.compare(dto.ancienMotDePasse, user.passwordHash);
+    const passwordValid = await bcrypt.compare(
+      dto.ancienMotDePasse,
+      user.passwordHash,
+    );
     if (!passwordValid) {
       throw new BadRequestException('Ancien mot de passe incorrect');
     }
@@ -186,7 +195,9 @@ export class AuthService {
   async getProfile(userId: string) {
     const user = await this.prisma.user.findUniqueOrThrow({
       where: { id: userId },
-      include: { role: { include: { permissions: { include: { permission: true } } } } },
+      include: {
+        role: { include: { permissions: { include: { permission: true } } } },
+      },
     });
 
     return {
