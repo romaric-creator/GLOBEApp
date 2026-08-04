@@ -43,7 +43,7 @@ export default function CreancesTab() {
       title: 'Montant',
       dataIndex: 'montant',
       key: 'montant',
-      render: (v: number) => `${Number(v).toLocaleString()} DA`,
+      render: (v: number) => `${Number(v).toLocaleString()} FCFA`,
     },
     {
       title: 'Echeance',

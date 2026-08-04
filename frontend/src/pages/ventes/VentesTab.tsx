@@ -81,7 +81,7 @@ export default function VentesTab() {
       dataIndex: 'total',
       key: 'total',
       width: 120,
-      render: (t: number) => `${Number(t).toLocaleString()} DA`,
+      render: (t: number) => `${Number(t).toLocaleString()} FCFA`,
     },
     {
       title: 'Paiement',
@@ -157,12 +157,12 @@ export default function VentesTab() {
               columns={[
                 { title: 'Produit', dataIndex: ['produit', 'nom'], key: 'nom' },
                 { title: 'Qte', dataIndex: 'quantite', key: 'qte', width: 60 },
-                { title: 'P.U.', dataIndex: 'prixUnitaire', key: 'pu', width: 80, render: (v: number) => `${Number(v)} DA` },
-                { title: 'Total', dataIndex: 'totalLigne', key: 'tl', width: 100, render: (v: number) => `${Number(v)} DA` },
+                { title: 'P.U.', dataIndex: 'prixUnitaire', key: 'pu', width: 80, render: (v: number) => `${Number(v)} FCFA` },
+                { title: 'Total', dataIndex: 'totalLigne', key: 'tl', width: 100, render: (v: number) => `${Number(v)} FCFA` },
               ]}
             />
             <div className="text-right mt-3 text-lg font-bold">
-              Total: {Number(detailVente.total).toLocaleString()} DA
+              Total: {Number(detailVente.total).toLocaleString()} FCFA
             </div>
           </>
         )}

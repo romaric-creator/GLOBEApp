@@ -206,7 +206,7 @@ export class VentesService {
     if (!vente) throw new NotFoundException('Vente introuvable');
 
     const lignesTexte = vente.lignes
-      .map((l) => `${l.quantite}x ${l.produit.nom}: ${Number(l.totalLigne)} DA`)
+      .map((l) => `${l.quantite}x ${l.produit.nom}: ${Number(l.totalLigne)} FCFA`)
       .join('\n');
 
     const contenu = [
@@ -220,9 +220,9 @@ export class VentesService {
       '--------------------------------',
       lignesTexte,
       '--------------------------------',
-      `Sous-total: ${Number(vente.sousTotal)} DA`,
-      Number(vente.remise) > 0 ? `Remise: -${Number(vente.remise)} DA` : '',
-      `TOTAL: ${Number(vente.total)} DA`,
+      `Sous-total: ${Number(vente.sousTotal)} FCFA`,
+      Number(vente.remise) > 0 ? `Remise: -${Number(vente.remise)} FCFA` : '',
+      `TOTAL: ${Number(vente.total)} FCFA`,
       `Paiement: ${vente.modePaiement}`,
       '================================',
       'Merci de votre visite!',

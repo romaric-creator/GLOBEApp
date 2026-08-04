@@ -849,7 +849,7 @@ async function main() {
   await prisma.ticket.create({
     data: {
       numeroTicket: 'TKT-2026-0001',
-      contenu: 'RESIDENCE GLOBE\n---\nVNT-2026-0001\n4x Heineken 33cl: 1200 DA\n4x Jus orange 1L: 720 DA\n3x Sprite 1.5L: 480 DA\n---\nTOTAL: 2400 DA\nPaiement: Especes\nMerci de votre visite!',
+      contenu: 'RESIDENCE GLOBE\n---\nVNT-2026-0001\n4x Heineken 33cl: 1200 FCFA\n4x Jus orange 1L: 720 FCFA\n3x Sprite 1.5L: 480 FCFA\n---\nTOTAL: 2400 FCFA\nPaiement: Especes\nMerci de votre visite!',
       imprime: true,
       venteId: vente1.id,
     },
