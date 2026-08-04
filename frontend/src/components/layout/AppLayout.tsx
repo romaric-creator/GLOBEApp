@@ -31,7 +31,7 @@ const menuItems = [
   { key: '/personnel', icon: <UserOutlined />, label: 'Personnel' },
   { key: '/hotel', icon: <HomeOutlined />, label: 'Hotel' },
   { key: '/restaurant', icon: <CoffeeOutlined />, label: 'Bar & Restaurant' },
-  { key: '/piscine', icon: <SafetyCertificateOutlined />, label: 'Piscine & Loisirs' },
+  { key: '/piscine', icon: <SafetyCertificateOutlined />, label: 'Piscine' },
   { key: '/salle-fete', icon: <CalendarOutlined />, label: 'Salle de fete' },
   { key: '/comptabilite', icon: <AccountBookOutlined />, label: 'Comptabilite' },
   { key: '/rapports', icon: <BarChartOutlined />, label: 'Rapports' },
