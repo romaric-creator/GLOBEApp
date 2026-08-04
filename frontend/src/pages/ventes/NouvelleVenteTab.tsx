@@ -237,14 +237,14 @@ export default function NouvelleVenteTab() {
 
             <Divider />
 
-            <Statistic title="Sous-total" value={sousTotal} suffix="DA" />
+            <Statistic title="Sous-total" value={sousTotal} suffix="FCFA" />
             {remiseGlobale > 0 && (
               <Tag color="orange">Remise: -{remiseGlobale} FCFA</Tag>
             )}
             <Statistic
               title="TOTAL"
               value={total}
-              suffix="DA"
+              suffix="FCFA"
               valueStyle={{ color: '#1677ff', fontWeight: 'bold', fontSize: 28 }}
             />
 
