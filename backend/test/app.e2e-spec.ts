@@ -14,7 +14,9 @@ describe('Auth (e2e)', () => {
 
     app = moduleFixture.createNestApplication();
     app.setGlobalPrefix('api');
-    app.useGlobalPipes(new ValidationPipe({ whitelist: true, transform: true }));
+    app.useGlobalPipes(
+      new ValidationPipe({ whitelist: true, transform: true }),
+    );
     await app.init();
   });
 
@@ -68,17 +70,13 @@ describe('Auth (e2e)', () => {
 
   describe('GET /api/auth/profile', () => {
     it('doit rejeter sans token', () => {
-      return request(app.getHttpServer())
-        .get('/api/auth/profile')
-        .expect(401);
+      return request(app.getHttpServer()).get('/api/auth/profile').expect(401);
     });
   });
 
   describe('GET /api/users', () => {
     it('doit rejeter sans token', () => {
-      return request(app.getHttpServer())
-        .get('/api/users')
-        .expect(401);
+      return request(app.getHttpServer()).get('/api/users').expect(401);
     });
   });
 });

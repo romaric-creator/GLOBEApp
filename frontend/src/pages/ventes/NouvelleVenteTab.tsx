@@ -24,10 +24,11 @@ export default function NouvelleVenteTab() {
   const [clientId, setClientId] = useState<string | null>(null);
   const [remiseGlobale, setRemiseGlobale] = useState(0);
 
-  const { data: produits } = useQuery({
+  const { data: produitsRes } = useQuery({
     queryKey: ['produits'],
-    queryFn: () => produitsApi.getAll(),
+    queryFn: () => produitsApi.findAll(),
   });
+  const produits = produitsRes?.data;
 
   const { data: clients } = useQuery({
     queryKey: ['clients-list'],

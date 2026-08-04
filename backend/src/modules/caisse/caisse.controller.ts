@@ -1,4 +1,12 @@
-import { Controller, Get, Post, Body, Query, UseGuards, Request } from '@nestjs/common';
+import {
+  Controller,
+  Get,
+  Post,
+  Body,
+  Query,
+  UseGuards,
+  Request,
+} from '@nestjs/common';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { CaisseService } from './caisse.service';
 import { OuvrirCaisseDto, CloturerCaisseDto } from './dto/cloture-caisse.dto';
@@ -9,12 +17,18 @@ export class CaisseController {
   constructor(private readonly caisseService: CaisseService) {}
 
   @Post('ouvrir')
-  ouvrir(@Body() dto: OuvrirCaisseDto, @Request() req: { user: { id: string } }) {
+  ouvrir(
+    @Body() dto: OuvrirCaisseDto,
+    @Request() req: { user: { id: string } },
+  ) {
     return this.caisseService.ouvrir(dto, req.user.id);
   }
 
   @Post('cloturer')
-  cloturer(@Body() dto: CloturerCaisseDto, @Request() req: { user: { id: string } }) {
+  cloturer(
+    @Body() dto: CloturerCaisseDto,
+    @Request() req: { user: { id: string } },
+  ) {
     return this.caisseService.cloturer(dto, req.user.id);
   }
 

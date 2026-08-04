@@ -157,8 +157,8 @@ export default function VentesTab() {
               columns={[
                 { title: 'Produit', dataIndex: ['produit', 'nom'], key: 'nom' },
                 { title: 'Qte', dataIndex: 'quantite', key: 'qte', width: 60 },
-                { title: 'P.U.', key: 'pu', width: 80, render: (_: unknown, r: { prixUnitaire: number }) => `${Number(r.prixUnitaire)} DA` },
-                { title: 'Total', key: 'tl', width: 100, render: (_: unknown, r: { totalLigne: number }) => `${Number(r.totalLigne)} DA` },
+                { title: 'P.U.', dataIndex: 'prixUnitaire', key: 'pu', width: 80, render: (v: number) => `${Number(v)} DA` },
+                { title: 'Total', dataIndex: 'totalLigne', key: 'tl', width: 100, render: (v: number) => `${Number(v)} DA` },
               ]}
             />
             <div className="text-right mt-3 text-lg font-bold">
