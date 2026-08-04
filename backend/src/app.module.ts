@@ -13,6 +13,9 @@ import { HotelModule } from './modules/hotel/hotel.module';
 import { RestaurantModule } from './modules/restaurant/restaurant.module';
 import { PiscineModule } from './modules/piscine/piscine.module';
 import { SalleFeteModule } from './modules/salle-fete/salle-fete.module';
+import { ComptabiliteModule } from './modules/comptabilite/comptabilite.module';
+import { RapportsModule } from './modules/rapports/rapports.module';
+import { SauvegardeModule } from './modules/sauvegarde/sauvegarde.module';
 
 @Module({
   imports: [
@@ -30,6 +33,9 @@ import { SalleFeteModule } from './modules/salle-fete/salle-fete.module';
     RestaurantModule,
     PiscineModule,
     SalleFeteModule,
+    ComptabiliteModule,
+    RapportsModule,
+    SauvegardeModule,
   ],
 })
 export class AppModule {}
