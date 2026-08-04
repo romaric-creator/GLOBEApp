@@ -1,0 +1,47 @@
+import {
+  IsArray,
+  IsInt,
+  IsOptional,
+  IsString,
+  IsUUID,
+  Min,
+  ValidateNested,
+} from 'class-validator';
+import { Type } from 'class-transformer';
+
+export class LigneCommandeDto {
+  @IsUUID()
+  produitId: string;
+
+  @IsInt()
+  @Min(1)
+  quantite: number;
+
+  @IsString()
+  @IsOptional()
+  notes?: string;
+}
+
+export class CreateCommandeDto {
+  @IsUUID()
+  tableId: string;
+
+  @IsUUID()
+  serveurId: string;
+
+  @IsString()
+  @IsOptional()
+  notes?: string;
+
+  @IsArray()
+  @ValidateNested({ each: true })
+  @Type(() => LigneCommandeDto)
+  lignes: LigneCommandeDto[];
+}
+
+export class AjouterLignesDto {
+  @IsArray()
+  @ValidateNested({ each: true })
+  @Type(() => LigneCommandeDto)
+  lignes: LigneCommandeDto[];
+}
