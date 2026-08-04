@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { Table, Button, Modal, Form, Select, DatePicker, TimePicker, Tag, Card, Row, Col, Statistic, App } from 'antd';
-import { PlusOutlined, CheckCircleOutlined, CloseCircleOutlined } from '@ant-design/icons';
+import { Table, Button, Modal, Form, Select, DatePicker, TimePicker, Tag, Card, Row, Col, Statistic, Alert, App } from 'antd';
+import { PlusOutlined, CheckCircleOutlined, CloseCircleOutlined, ToolOutlined } from '@ant-design/icons';
 import { personnelApi } from '../../api/personnel';
 import type { Pointage, Presence } from '../../api/personnel';
 import dayjs from 'dayjs';
@@ -84,6 +84,15 @@ export default function PointagesTab() {
 
   return (
     <>
+      <Alert
+        message="Pointage biometrique en cours de construction"
+        description="L'integration du lecteur d'empreintes digitales est prevue prochainement. En attendant, le pointage se fait manuellement."
+        type="warning"
+        showIcon
+        icon={<ToolOutlined />}
+        className="mb-4"
+      />
+
       <Row gutter={16} className="mb-4">
         <Col span={6}>
           <Card>
