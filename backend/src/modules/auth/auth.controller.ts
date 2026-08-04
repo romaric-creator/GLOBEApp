@@ -19,7 +19,10 @@ export class AuthController {
   constructor(private authService: AuthService) {}
 
   @Post('login')
-  async login(@Body() dto: LoginDto, @Req() req: { ip: string; headers: Record<string, string> }) {
+  async login(
+    @Body() dto: LoginDto,
+    @Req() req: { ip: string; headers: Record<string, string> },
+  ) {
     const ip = req.ip;
     const userAgent = req.headers['user-agent'];
     return this.authService.login(dto, ip, userAgent);

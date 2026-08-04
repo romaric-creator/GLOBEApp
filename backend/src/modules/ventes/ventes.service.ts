@@ -1,6 +1,10 @@
-import { Injectable, BadRequestException, NotFoundException } from '@nestjs/common';
+import {
+  Injectable,
+  BadRequestException,
+  NotFoundException,
+} from '@nestjs/common';
 import { PrismaService } from '../../prisma/prisma.service';
-import { CreateVenteDto } from './dto/create-vente.dto';
+import { CreateVenteDto, ModePaiementDto } from './dto/create-vente.dto';
 import { CreateAvoirDto } from './dto/create-avoir.dto';
 
 @Injectable()
@@ -10,10 +14,17 @@ export class VentesService {
   async create(dto: CreateVenteDto, userId: string) {
     const lignes = await Promise.all(
       dto.lignes.map(async (ligne) => {
-        const produit = await this.prisma.produit.findUnique({ where: { id: ligne.produitId } });
-        if (!produit) throw new BadRequestException(`Produit ${ligne.produitId} introuvable`);
+        const produit = await this.prisma.produit.findUnique({
+          where: { id: ligne.produitId },
+        });
+        if (!produit)
+          throw new BadRequestException(
+            `Produit ${ligne.produitId} introuvable`,
+          );
         if (produit.stockActuel < ligne.quantite) {
-          throw new BadRequestException(`Stock insuffisant pour ${produit.nom} (dispo: ${produit.stockActuel})`);
+          throw new BadRequestException(
+            `Stock insuffisant pour ${produit.nom} (dispo: ${produit.stockActuel})`,
+          );
         }
         const remise = ligne.remise || 0;
         const totalLigne = ligne.quantite * ligne.prixUnitaire - remise;
@@ -67,7 +78,7 @@ export class VentesService {
         });
       }
 
-      if (dto.modePaiement === 'CREDIT' && dto.clientId) {
+      if (dto.modePaiement === ModePaiementDto.CREDIT && dto.clientId) {
         await tx.client.update({
           where: { id: dto.clientId },
           data: { soldeCreance: { increment: total } },
@@ -95,7 +106,11 @@ export class VentesService {
         skip,
         take: limit,
         orderBy: { date: 'desc' },
-        include: { lignes: { include: { produit: true } }, client: true, user: true },
+        include: {
+          lignes: { include: { produit: true } },
+          client: true,
+          user: true,
+        },
       }),
       this.prisma.vente.count(),
     ]);
@@ -124,7 +139,10 @@ export class VentesService {
       include: { lignes: true },
     });
     if (!vente) throw new NotFoundException('Vente introuvable');
-    if (vente.statut !== 'VALIDEE') throw new BadRequestException('Seule une vente validee peut etre annulee');
+    if (vente.statut !== 'VALIDEE')
+      throw new BadRequestException(
+        'Seule une vente validee peut etre annulee',
+      );
 
     return this.prisma.$transaction(async (tx) => {
       for (const ligne of vente.lignes) {
@@ -151,10 +169,16 @@ export class VentesService {
   }
 
   async createAvoir(dto: CreateAvoirDto) {
-    const vente = await this.prisma.vente.findUnique({ where: { id: dto.venteId } });
+    const vente = await this.prisma.vente.findUnique({
+      where: { id: dto.venteId },
+    });
     if (!vente) throw new NotFoundException('Vente introuvable');
-    if (vente.statut !== 'VALIDEE') throw new BadRequestException('Avoir possible uniquement sur vente validee');
-    if (dto.montant > Number(vente.total)) throw new BadRequestException('Montant avoir superieur au total vente');
+    if (vente.statut !== 'VALIDEE')
+      throw new BadRequestException(
+        'Avoir possible uniquement sur vente validee',
+      );
+    if (dto.montant > Number(vente.total))
+      throw new BadRequestException('Montant avoir superieur au total vente');
 
     return this.prisma.$transaction(async (tx) => {
       const avoir = await tx.avoir.create({
@@ -190,7 +214,9 @@ export class VentesService {
       '================================',
       `N°: ${vente.numero}`,
       `Date: ${vente.date.toLocaleDateString('fr-FR')}`,
-      vente.client ? `Client: ${vente.client.nom} ${vente.client.prenom || ''}` : '',
+      vente.client
+        ? `Client: ${vente.client.nom} ${vente.client.prenom || ''}`
+        : '',
       '--------------------------------',
       lignesTexte,
       '--------------------------------',
@@ -214,7 +240,12 @@ export class VentesService {
   }
 
   async getCreances(clientId?: string) {
-    const where = clientId ? { clientId, statut: { in: ['EN_COURS' as const, 'EN_RETARD' as const] } } : { statut: { in: ['EN_COURS' as const, 'EN_RETARD' as const] } };
+    const where = clientId
+      ? {
+          clientId,
+          statut: { in: ['EN_COURS' as const, 'EN_RETARD' as const] },
+        }
+      : { statut: { in: ['EN_COURS' as const, 'EN_RETARD' as const] } };
     return this.prisma.creance.findMany({
       where,
       include: { client: true, vente: true },
@@ -248,7 +279,7 @@ export class VentesService {
     const today = new Date();
     today.setHours(0, 0, 0, 0);
 
-    const [ventesJour, totalJour, ventesCount] = await Promise.all([
+    const [, totalJour, ventesCount] = await Promise.all([
       this.prisma.vente.findMany({
         where: { date: { gte: today }, statut: 'VALIDEE' },
         include: { lignes: true },

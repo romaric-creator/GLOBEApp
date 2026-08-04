@@ -13,7 +13,8 @@ export class CaisseService {
     const existing = await this.prisma.clotureCaisse.findFirst({
       where: { userId, date: { gte: today } },
     });
-    if (existing) throw new BadRequestException('Caisse deja ouverte aujourd\'hui');
+    if (existing)
+      throw new BadRequestException("Caisse deja ouverte aujourd'hui");
 
     return this.prisma.clotureCaisse.create({
       data: {
@@ -33,8 +34,10 @@ export class CaisseService {
       where: { userId, date: { gte: today } },
       orderBy: { date: 'desc' },
     });
-    if (!caisse) throw new BadRequestException('Aucune caisse ouverte aujourd\'hui');
-    if (Number(caisse.montantCloture) > 0) throw new BadRequestException('Caisse deja cloturee');
+    if (!caisse)
+      throw new BadRequestException("Aucune caisse ouverte aujourd'hui");
+    if (Number(caisse.montantCloture) > 0)
+      throw new BadRequestException('Caisse deja cloturee');
 
     const ventesJour = await this.prisma.vente.aggregate({
       where: {
@@ -46,7 +49,8 @@ export class CaisseService {
       _sum: { total: true },
     });
 
-    const totalAttendu = Number(caisse.montantOuverture) + Number(ventesJour._sum.total || 0);
+    const totalAttendu =
+      Number(caisse.montantOuverture) + Number(ventesJour._sum.total || 0);
     const ecart = dto.montantCloture - totalAttendu;
 
     return this.prisma.clotureCaisse.update({

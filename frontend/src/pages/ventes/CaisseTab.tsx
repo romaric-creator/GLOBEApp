@@ -151,7 +151,7 @@ export default function CaisseTab() {
         )}
       </Card>
 
-      <Divider orientation="left">Historique des clotures</Divider>
+      <Divider>Historique des clotures</Divider>
       <Table
         dataSource={historique?.data || []}
         columns={columns}

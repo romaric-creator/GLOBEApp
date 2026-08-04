@@ -1,4 +1,14 @@
-import { Controller, Get, Post, Param, Body, Query, UseGuards, Request, Patch } from '@nestjs/common';
+import {
+  Controller,
+  Get,
+  Post,
+  Param,
+  Body,
+  Query,
+  UseGuards,
+  Request,
+  Patch,
+} from '@nestjs/common';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { VentesService } from './ventes.service';
 import { CreateVenteDto } from './dto/create-vente.dto';
@@ -10,7 +20,10 @@ export class VentesController {
   constructor(private readonly ventesService: VentesService) {}
 
   @Post()
-  create(@Body() dto: CreateVenteDto, @Request() req: { user: { id: string } }) {
+  create(
+    @Body() dto: CreateVenteDto,
+    @Request() req: { user: { id: string } },
+  ) {
     return this.ventesService.create(dto, req.user.id);
   }
 
