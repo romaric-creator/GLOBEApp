@@ -8,6 +8,7 @@ import { ClientsModule } from './modules/clients/clients.module';
 import { ProduitsModule } from './modules/produits/produits.module';
 import { VentesModule } from './modules/ventes/ventes.module';
 import { CaisseModule } from './modules/caisse/caisse.module';
+import { HotelModule } from './modules/hotel/hotel.module';
 
 @Module({
   imports: [
@@ -20,6 +21,7 @@ import { CaisseModule } from './modules/caisse/caisse.module';
     ProduitsModule,
     VentesModule,
     CaisseModule,
+    HotelModule,
   ],
 })
 export class AppModule {}
