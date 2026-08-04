@@ -84,7 +84,7 @@ export default function CaisseTab() {
             <Statistic
               title="Fond de caisse"
               value={etat?.montantOuverture || 0}
-              suffix="DA"
+              suffix="FCFA"
               prefix={<DollarOutlined />}
             />
           </Card>
@@ -94,7 +94,7 @@ export default function CaisseTab() {
             <Statistic
               title="Ventes du jour"
               value={etat?.totalVentes || 0}
-              suffix="DA"
+              suffix="FCFA"
               valueStyle={{ color: '#1677ff' }}
             />
           </Card>
@@ -111,7 +111,7 @@ export default function CaisseTab() {
           <Row gutter={16}>
             {etat.ventesParMode.map((v) => (
               <Col key={v.mode} span={4}>
-                <Statistic title={v.mode} value={v.total} suffix="DA" />
+                <Statistic title={v.mode} value={v.total} suffix="FCFA" />
                 <Tag>{v.count} vente(s)</Tag>
               </Col>
             ))}
@@ -127,7 +127,7 @@ export default function CaisseTab() {
               min={0}
               value={montantOuverture}
               onChange={(v) => setMontantOuverture(v || 0)}
-              addonAfter="DA"
+              addonAfter="FCFA"
               style={{ width: 200 }}
             />
             <Button type="primary" icon={<UnlockOutlined />} onClick={() => ouvrirMutation.mutate()} loading={ouvrirMutation.isPending}>
@@ -141,7 +141,7 @@ export default function CaisseTab() {
               min={0}
               value={montantCloture}
               onChange={(v) => setMontantCloture(v || 0)}
-              addonAfter="DA"
+              addonAfter="FCFA"
               style={{ width: 200 }}
             />
             <Button type="primary" danger icon={<LockOutlined />} onClick={() => cloturerMutation.mutate()} loading={cloturerMutation.isPending}>
