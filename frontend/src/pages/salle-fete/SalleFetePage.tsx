@@ -190,9 +190,9 @@ export default function SalleFetePage() {
             <Select
               showSearch
               optionFilterProp="label"
-              options={clients?.map((c: { id: string; nom: string; prenom: string }) => ({
+              options={clients?.map((c: { id: string; nom: string; prenom?: string }) => ({
                 value: c.id,
-                label: `${c.nom} ${c.prenom}`,
+                label: `${c.nom} ${c.prenom || ''}`.trim(),
               })) || []}
             />
           </Form.Item>

@@ -1,8 +1,7 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { Table, Button, Card, Row, Col, Statistic, Tag, Space, App } from 'antd';
+import { Table, Button, Card, Row, Col, Statistic, Tag, App } from 'antd';
 import { CloudOutlined, DatabaseOutlined, ReloadOutlined } from '@ant-design/icons';
 import { sauvegardeApi } from '../../api/sauvegarde';
-import type { Sauvegarde } from '../../api/sauvegarde';
 
 const STATUT_COLORS: Record<string, string> = {
   EN_COURS: 'processing',

@@ -1,9 +1,8 @@
 import { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
-import { Card, Row, Col, Statistic, Table, DatePicker, Select, Tabs, App } from 'antd';
-import { BarChartOutlined, TeamOutlined, HomeOutlined, RiseOutlined } from '@ant-design/icons';
+import { Card, Row, Col, Statistic, Table, DatePicker, Select, Tabs } from 'antd';
+import { TeamOutlined, HomeOutlined, RiseOutlined } from '@ant-design/icons';
 import { rapportsApi } from '../../api/rapports';
-import type { TopProduit } from '../../api/rapports';
 import dayjs from 'dayjs';
 
 export default function RapportsPage() {
