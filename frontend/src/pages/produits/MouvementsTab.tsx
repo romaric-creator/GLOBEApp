@@ -3,7 +3,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { Table, Button, Modal, Form, InputNumber, Select, Input, Tag, App } from 'antd';
 import { PlusOutlined } from '@ant-design/icons';
 import { produitsApi } from '../../api/produits';
-import type { MouvementStock, CreateMouvementDto, Produit } from '../../api/produits';
+import type { CreateMouvementDto, Produit } from '../../api/produits';
 
 const typeColors: Record<string, string> = {
   ENTREE: 'green',
