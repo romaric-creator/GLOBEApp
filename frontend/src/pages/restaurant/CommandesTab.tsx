@@ -183,7 +183,7 @@ export default function CommandesTab() {
           onFinish={(values) => {
             createMutation.mutate({
               tableId: values.tableId,
-              serveurId: user?.id || '',
+              serveurId: user!.id,
               notes: values.notes || undefined,
               lignes: values.lignes.map((l: { produitId: string; quantite: number; notes?: string }) => ({
                 produitId: l.produitId,
