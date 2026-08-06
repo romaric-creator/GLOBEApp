@@ -68,13 +68,14 @@ export default function CreancesTab() {
     {
       title: 'Actions',
       key: 'actions',
-      render: (_: unknown, record: Creance) => (
-        <Popconfirm title="Marquer comme payee ?" onConfirm={() => payerMutation.mutate(record.id)}>
-          <Button size="small" type="primary" icon={<CheckOutlined />}>
-            Payer
-          </Button>
-        </Popconfirm>
-      ),
+      render: (_: unknown, record: Creance) =>
+        record.statut === 'EN_COURS' || record.statut === 'EN_RETARD' ? (
+          <Popconfirm title="Marquer comme payee ?" onConfirm={() => payerMutation.mutate(record.id)}>
+            <Button size="small" type="primary" icon={<CheckOutlined />}>
+              Payer
+            </Button>
+          </Popconfirm>
+        ) : null,
     },
   ];
 

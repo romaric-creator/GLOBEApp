@@ -51,7 +51,7 @@ export class HotelService {
         type: dto.type,
         prixNuit: dto.prixNuit,
         capacite: dto.capacite,
-        etage: dto.etage || null,
+        etage: dto.etage ?? null,
       },
     });
   }
@@ -131,39 +131,48 @@ export class HotelService {
       );
     }
 
-    const conflit = await this.prisma.reservation.findFirst({
-      where: {
-        chambreId: dto.chambreId,
-        statut: { in: ['EN_ATTENTE', 'CONFIRMEE', 'EN_COURS'] },
-        dateArrivee: { lt: dateDepart },
-        dateDepart: { gt: dateArrivee },
-      },
-    });
-    if (conflit) {
-      throw new ConflictException(
-        'La chambre est deja reservee pour ces dates',
+    return this.prisma.$transaction(async (tx) => {
+      const conflit = await tx.reservation.findFirst({
+        where: {
+          chambreId: dto.chambreId,
+          statut: { in: ['EN_ATTENTE', 'CONFIRMEE', 'EN_COURS'] },
+          dateArrivee: { lt: dateDepart },
+          dateDepart: { gt: dateArrivee },
+        },
+      });
+      if (conflit) {
+        throw new ConflictException(
+          'La chambre est deja reservee pour ces dates',
+        );
+      }
+
+      const nbNuits = Math.ceil(
+        (dateDepart.getTime() - dateArrivee.getTime()) / (1000 * 60 * 60 * 24),
       );
-    }
+      const montantTotal = Number(chambre.prixNuit) * nbNuits;
 
-    const nbNuits = Math.ceil(
-      (dateDepart.getTime() - dateArrivee.getTime()) / (1000 * 60 * 60 * 24),
-    );
-    const montantTotal = Number(chambre.prixNuit) * nbNuits;
+      const reservation = await tx.reservation.create({
+        data: {
+          dateArrivee,
+          dateDepart,
+          nbPersonnes: dto.nbPersonnes,
+          montantTotal,
+          notes: dto.notes || null,
+          chambreId: dto.chambreId,
+          clientId: dto.clientId,
+        },
+        include: {
+          chambre: { select: { numero: true, type: true } },
+          client: { select: { nom: true, prenom: true } },
+        },
+      });
 
-    return this.prisma.reservation.create({
-      data: {
-        dateArrivee,
-        dateDepart,
-        nbPersonnes: dto.nbPersonnes,
-        montantTotal,
-        notes: dto.notes || null,
-        chambreId: dto.chambreId,
-        clientId: dto.clientId,
-      },
-      include: {
-        chambre: { select: { numero: true, type: true } },
-        client: { select: { nom: true, prenom: true } },
-      },
+      await tx.chambre.update({
+        where: { id: dto.chambreId },
+        data: { statut: 'RESERVEE' },
+      });
+
+      return reservation;
     });
   }
 
@@ -174,6 +183,11 @@ export class HotelService {
         'Seule une reservation en attente peut etre confirmee',
       );
     }
+    await this.prisma.chambre.update({
+      where: { id: reservation.chambreId },
+      data: { statut: 'RESERVEE' },
+    });
+
     return this.prisma.reservation.update({
       where: { id },
       data: { statut: 'CONFIRMEE' },
@@ -188,7 +202,15 @@ export class HotelService {
       );
     }
 
-    if (reservation.statut === 'EN_COURS') {
+    const hasOtherActiveReservation = await this.prisma.reservation.findFirst({
+      where: {
+        chambreId: reservation.chambreId,
+        id: { not: id },
+        statut: { in: ['EN_ATTENTE', 'CONFIRMEE', 'EN_COURS'] },
+      },
+    });
+
+    if (!hasOtherActiveReservation) {
       await this.prisma.chambre.update({
         where: { id: reservation.chambreId },
         data: { statut: 'DISPONIBLE' },

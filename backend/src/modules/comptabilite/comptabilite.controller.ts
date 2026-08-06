@@ -7,13 +7,15 @@ import {
   UseGuards,
 } from '@nestjs/common';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
+import { RolesGuard } from '../../common/guards/roles.guard';
+import { Roles } from '../../common/decorators/roles.decorator';
 import { ComptabiliteService } from './comptabilite.service';
 import { CreateCompteDto } from './dto/create-compte.dto';
 import { CreateEcritureDto } from './dto/create-ecriture.dto';
 import { CreateCategorieComptaDto } from './dto/create-categorie-compta.dto';
 
 @Controller('comptabilite')
-@UseGuards(JwtAuthGuard)
+@UseGuards(JwtAuthGuard, RolesGuard)
 export class ComptabiliteController {
   constructor(private readonly comptabiliteService: ComptabiliteService) {}
 
@@ -56,6 +58,7 @@ export class ComptabiliteController {
   }
 
   @Post('cloture')
+  @Roles('admin', 'comptable')
   cloturerPeriode(@Body('periode') periode: string) {
     return this.comptabiliteService.cloturerPeriode(periode);
   }

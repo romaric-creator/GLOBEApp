@@ -12,6 +12,26 @@ export class VentesService {
   constructor(private prisma: PrismaService) {}
 
   async create(dto: CreateVenteDto, userId: string) {
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const caisse = await this.prisma.clotureCaisse.findFirst({
+      where: { userId, date: { gte: today } },
+      orderBy: { date: 'desc' },
+    });
+    if (!caisse || Number(caisse.montantCloture) > 0) {
+      throw new BadRequestException(
+        'La caisse doit etre ouverte pour enregistrer une vente',
+      );
+    }
+
+    const quantitesParProduit = new Map<string, number>();
+    for (const ligne of dto.lignes) {
+      quantitesParProduit.set(
+        ligne.produitId,
+        (quantitesParProduit.get(ligne.produitId) || 0) + ligne.quantite,
+      );
+    }
+
     const lignes = await Promise.all(
       dto.lignes.map(async (ligne) => {
         const produit = await this.prisma.produit.findUnique({
@@ -21,9 +41,10 @@ export class VentesService {
           throw new BadRequestException(
             `Produit ${ligne.produitId} introuvable`,
           );
-        if (produit.stockActuel < ligne.quantite) {
+        const totalNeeded = quantitesParProduit.get(ligne.produitId) || ligne.quantite;
+        if (produit.stockActuel < totalNeeded) {
           throw new BadRequestException(
-            `Stock insuffisant pour ${produit.nom} (dispo: ${produit.stockActuel})`,
+            `Stock insuffisant pour ${produit.nom} (dispo: ${produit.stockActuel}, demande: ${totalNeeded})`,
           );
         }
         const remise = ligne.remise || 0;
@@ -36,9 +57,8 @@ export class VentesService {
     const remiseGlobale = dto.remise || 0;
     const total = sousTotal - remiseGlobale;
 
-    const numero = await this.generateNumero();
-
     const vente = await this.prisma.$transaction(async (tx) => {
+      const numero = await this.generateNumero(tx);
       const v = await tx.vente.create({
         data: {
           numero,
@@ -64,6 +84,18 @@ export class VentesService {
       });
 
       for (const ligne of lignes) {
+        const stockResult = (await tx.$queryRawUnsafe(
+          'SELECT "stockActuel" FROM produits WHERE id = $1 FOR UPDATE',
+          ligne.produitId,
+        )) as Array<{ stockActuel: number }>;
+        const stockActuel = Number(stockResult[0]?.stockActuel ?? 0);
+
+        if (stockActuel < ligne.quantite) {
+          throw new BadRequestException(
+            `Stock insuffisant pour ${ligne.produit.nom} (dispo: ${stockActuel})`,
+          );
+        }
+
         await tx.produit.update({
           where: { id: ligne.produitId },
           data: { stockActuel: { decrement: ligne.quantite } },
@@ -136,7 +168,7 @@ export class VentesService {
   async annuler(id: string) {
     const vente = await this.prisma.vente.findUnique({
       where: { id },
-      include: { lignes: true },
+      include: { lignes: true, creances: true, client: true },
     });
     if (!vente) throw new NotFoundException('Vente introuvable');
     if (vente.statut !== 'VALIDEE')
@@ -157,6 +189,17 @@ export class VentesService {
             motif: `Annulation vente ${vente.numero}`,
             produitId: ligne.produitId,
           },
+        });
+      }
+
+      if (vente.modePaiement === 'CREDIT' && vente.clientId) {
+        await tx.creance.updateMany({
+          where: { venteId: id },
+          data: { statut: 'ANNULEE' },
+        });
+        await tx.client.update({
+          where: { id: vente.clientId },
+          data: { soldeCreance: { decrement: Number(vente.total) } },
         });
       }
 
@@ -206,7 +249,9 @@ export class VentesService {
     if (!vente) throw new NotFoundException('Vente introuvable');
 
     const lignesTexte = vente.lignes
-      .map((l) => `${l.quantite}x ${l.produit.nom}: ${Number(l.totalLigne)} FCFA`)
+      .map(
+        (l) => `${l.quantite}x ${l.produit.nom}: ${Number(l.totalLigne)} FCFA`,
+      )
       .join('\n');
 
     const contenu = [
@@ -259,6 +304,12 @@ export class VentesService {
       include: { client: true },
     });
     if (!creance) throw new NotFoundException('Creance introuvable');
+    if (creance.statut === 'PAYEE') {
+      throw new BadRequestException('Cette creance est deja payee');
+    }
+    if (creance.statut === 'ANNULEE') {
+      throw new BadRequestException('Cette creance est annulee');
+    }
 
     return this.prisma.$transaction(async (tx) => {
       await tx.creance.update({
@@ -299,9 +350,10 @@ export class VentesService {
     };
   }
 
-  private async generateNumero(): Promise<string> {
+  private async generateNumero(tx?: { vente: { findFirst: typeof this.prisma.vente.findFirst } }): Promise<string> {
+    const client = tx || this.prisma;
     const year = new Date().getFullYear();
-    const last = await this.prisma.vente.findFirst({
+    const last = await client.vente.findFirst({
       where: { numero: { startsWith: `VNT-${year}` } },
       orderBy: { numero: 'desc' },
     });

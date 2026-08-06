@@ -181,7 +181,7 @@ export default function VentesTab() {
             <Input value={avoirMotif} onChange={(e) => setAvoirMotif(e.target.value)} placeholder="Raison de l'avoir..." />
           </div>
           <div>
-            <label>Montant (DA)</label>
+            <label>Montant (FCFA)</label>
             <Input type="number" value={avoirMontant} onChange={(e) => setAvoirMontant(Number(e.target.value))} />
           </div>
         </Space>

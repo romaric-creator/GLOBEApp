@@ -193,6 +193,20 @@ export class PersonnelService {
         'La date de fin doit etre apres la date de debut',
       );
 
+    const chevauchement = await this.prisma.conge.findFirst({
+      where: {
+        employeId: dto.employeId,
+        statut: { in: ['EN_ATTENTE', 'APPROUVE'] },
+        dateDebut: { lt: fin },
+        dateFin: { gt: debut },
+      },
+    });
+    if (chevauchement) {
+      throw new ConflictException(
+        'Un conge existe deja sur cette periode pour cet employe',
+      );
+    }
+
     return this.prisma.conge.create({
       data: {
         type: dto.type,

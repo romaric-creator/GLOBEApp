@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { Table, Button, Modal, Form, Input, Select, InputNumber, Tag, Card, Row, Col, Statistic, App, Popconfirm } from 'antd';
+import { Button, Modal, Form, Input, Select, InputNumber, Tag, Card, Row, Col, Statistic, App, Popconfirm, Tooltip } from 'antd';
 import { PlusOutlined, HomeOutlined, CheckCircleOutlined, CloseCircleOutlined, ToolOutlined } from '@ant-design/icons';
 import { hotelApi } from '../../api/hotel';
 import type { Chambre } from '../../api/hotel';
@@ -12,11 +12,11 @@ const TYPE_COLORS: Record<string, string> = {
   VIP: 'gold',
 };
 
-const STATUT_COLORS: Record<string, string> = {
-  DISPONIBLE: 'green',
-  OCCUPEE: 'red',
-  MAINTENANCE: 'orange',
-  RESERVEE: 'blue',
+const STATUT_BG: Record<string, string> = {
+  DISPONIBLE: 'border-green-400 bg-green-50',
+  OCCUPEE: 'border-red-400 bg-red-50',
+  MAINTENANCE: 'border-orange-400 bg-orange-50',
+  RESERVEE: 'border-blue-400 bg-blue-50',
 };
 
 export default function ChambresTab() {
@@ -55,6 +55,7 @@ export default function ChambresTab() {
       message.success('Chambre modifiee');
       closeModal();
       queryClient.invalidateQueries({ queryKey: ['chambres'] });
+      queryClient.invalidateQueries({ queryKey: ['hotel-stats'] });
     },
     onError: (err: { response?: { data?: { message?: string } } }) => {
       message.error(err.response?.data?.message || 'Erreur');
@@ -85,74 +86,75 @@ export default function ChambresTab() {
     setModalOpen(true);
   };
 
-  const columns = [
-    { title: 'Numero', dataIndex: 'numero', key: 'numero', width: 80 },
-    {
-      title: 'Type',
-      dataIndex: 'type',
-      key: 'type',
-      width: 100,
-      render: (t: string) => <Tag color={TYPE_COLORS[t]}>{t}</Tag>,
-    },
-    { title: 'Capacite', dataIndex: 'capacite', key: 'capacite', width: 80, render: (c: number) => `${c} pers.` },
-    { title: 'Prix/nuit', dataIndex: 'prixNuit', key: 'prix', width: 120, render: (p: number) => `${Number(p).toLocaleString()} FCFA` },
-    { title: 'Etage', dataIndex: 'etage', key: 'etage', width: 70, render: (e: number | null) => e ?? '-' },
-    {
-      title: 'Statut',
-      dataIndex: 'statut',
-      key: 'statut',
-      width: 110,
-      render: (s: string) => <Tag color={STATUT_COLORS[s]}>{s}</Tag>,
-    },
-    {
-      title: 'Actions',
-      key: 'actions',
-      width: 160,
-      render: (_: unknown, r: Chambre) => (
-        <div className="flex gap-1">
-          <Button size="small" onClick={() => openEdit(r)}>Modifier</Button>
-          <Popconfirm title="Supprimer cette chambre ?" onConfirm={() => deleteMutation.mutate(r.id)}>
-            <Button size="small" danger>Suppr.</Button>
-          </Popconfirm>
-        </div>
-      ),
-    },
-  ];
-
   return (
     <>
       <Row gutter={16} className="mb-4">
         <Col span={5}>
-          <Card><Statistic title="Total chambres" value={stats?.total || 0} prefix={<HomeOutlined />} /></Card>
+          <Card size="small"><Statistic title="Total" value={stats?.total || 0} prefix={<HomeOutlined />} /></Card>
         </Col>
         <Col span={5}>
-          <Card><Statistic title="Disponibles" value={stats?.disponibles || 0} prefix={<CheckCircleOutlined />} valueStyle={{ color: '#52c41a' }} /></Card>
+          <Card size="small"><Statistic title="Disponibles" value={stats?.disponibles || 0} prefix={<CheckCircleOutlined />} valueStyle={{ color: '#52c41a' }} /></Card>
         </Col>
         <Col span={5}>
-          <Card><Statistic title="Occupees" value={stats?.occupees || 0} prefix={<CloseCircleOutlined />} valueStyle={{ color: '#ff4d4f' }} /></Card>
+          <Card size="small"><Statistic title="Occupees" value={stats?.occupees || 0} prefix={<CloseCircleOutlined />} valueStyle={{ color: '#ff4d4f' }} /></Card>
         </Col>
         <Col span={5}>
-          <Card><Statistic title="Maintenance" value={stats?.maintenance || 0} prefix={<ToolOutlined />} valueStyle={{ color: '#faad14' }} /></Card>
+          <Card size="small"><Statistic title="Maintenance" value={stats?.maintenance || 0} prefix={<ToolOutlined />} valueStyle={{ color: '#faad14' }} /></Card>
         </Col>
         <Col span={4}>
-          <Card><Statistic title="Taux occup." value={stats?.tauxOccupation || 0} suffix="%" /></Card>
+          <Card size="small"><Statistic title="Taux" value={stats?.tauxOccupation || 0} suffix="%" /></Card>
         </Col>
       </Row>
 
-      <div className="mb-3">
+      <div className="mb-4 flex items-center justify-between">
+        <div className="flex gap-3 text-xs">
+          <span className="flex items-center gap-1"><span className="w-3 h-3 rounded bg-green-400 inline-block" /> Disponible</span>
+          <span className="flex items-center gap-1"><span className="w-3 h-3 rounded bg-red-400 inline-block" /> Occupee</span>
+          <span className="flex items-center gap-1"><span className="w-3 h-3 rounded bg-blue-400 inline-block" /> Reservee</span>
+          <span className="flex items-center gap-1"><span className="w-3 h-3 rounded bg-orange-400 inline-block" /> Maintenance</span>
+        </div>
         <Button type="primary" icon={<PlusOutlined />} onClick={() => setModalOpen(true)}>
           Nouvelle chambre
         </Button>
       </div>
 
-      <Table dataSource={chambres || []} columns={columns} rowKey="id" loading={isLoading} size="small" />
+      {isLoading ? (
+        <div className="text-center py-8 text-slate-400">Chargement...</div>
+      ) : (
+        <Row gutter={[12, 12]}>
+          {(chambres || []).map((chambre) => (
+            <Col key={chambre.id} xs={12} sm={8} md={6} lg={4}>
+              <Tooltip title={`${Number(chambre.prixNuit).toLocaleString()} FCFA/nuit`}>
+                <Card
+                  size="small"
+                  className={`border-2 cursor-pointer transition-all hover:shadow-md ${STATUT_BG[chambre.statut] || ''}`}
+                  onClick={() => openEdit(chambre)}
+                >
+                  <div className="text-center">
+                    <div className="text-lg font-bold">{chambre.numero}</div>
+                    <Tag color={TYPE_COLORS[chambre.type]} className="mt-1">{chambre.type}</Tag>
+                    <div className="text-xs text-slate-500 mt-1">{chambre.capacite} pers.</div>
+                  </div>
+                </Card>
+              </Tooltip>
+            </Col>
+          ))}
+        </Row>
+      )}
 
       <Modal
-        title={editingChambre ? 'Modifier la chambre' : 'Nouvelle chambre'}
+        title={editingChambre ? `Chambre ${editingChambre.numero}` : 'Nouvelle chambre'}
         open={modalOpen}
         onCancel={closeModal}
-        onOk={() => form.submit()}
-        confirmLoading={createMutation.isPending || updateMutation.isPending}
+        footer={editingChambre ? [
+          <Popconfirm key="del" title="Supprimer cette chambre ?" onConfirm={() => { deleteMutation.mutate(editingChambre.id); closeModal(); }}>
+            <Button danger>Supprimer</Button>
+          </Popconfirm>,
+          <Button key="cancel" onClick={closeModal}>Annuler</Button>,
+          <Button key="ok" type="primary" onClick={() => form.submit()} loading={updateMutation.isPending}>Enregistrer</Button>,
+        ] : undefined}
+        onOk={editingChambre ? undefined : () => form.submit()}
+        confirmLoading={createMutation.isPending}
       >
         <Form
           form={form}
@@ -184,6 +186,14 @@ export default function ChambresTab() {
           <Form.Item name="prixNuit" label="Prix par nuit (FCFA)" rules={[{ required: true }]}>
             <InputNumber min={0} className="w-full" />
           </Form.Item>
+          {editingChambre && (
+            <Form.Item name="statut" label="Statut">
+              <Select options={[
+                { value: 'DISPONIBLE', label: 'Disponible' },
+                { value: 'MAINTENANCE', label: 'Maintenance' },
+              ]} />
+            </Form.Item>
+          )}
           <Form.Item name="etage" label="Etage">
             <InputNumber className="w-full" />
           </Form.Item>
