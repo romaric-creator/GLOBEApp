@@ -198,10 +198,10 @@ export default function ComptabilitePage() {
 
       <Row gutter={16} className="mb-4">
         <Col span={6}>
-          <Card><Statistic title="Recettes du mois" value={stats?.recettesMois || 0} suffix="FCFA" prefix={<DollarOutlined />} valueStyle={{ color: '#3f8600' }} /></Card>
+          <Card><Statistic title="Recettes du mois" value={stats?.totalRecettes || 0} suffix="FCFA" prefix={<DollarOutlined />} valueStyle={{ color: '#3f8600' }} /></Card>
         </Col>
         <Col span={6}>
-          <Card><Statistic title="Depenses du mois" value={stats?.depensesMois || 0} suffix="FCFA" valueStyle={{ color: '#cf1322' }} /></Card>
+          <Card><Statistic title="Depenses du mois" value={stats?.totalDepenses || 0} suffix="FCFA" valueStyle={{ color: '#cf1322' }} /></Card>
         </Col>
         <Col span={6}>
           <Card><Statistic title="Solde general" value={stats?.soldeGeneral || 0} suffix="FCFA" /></Card>

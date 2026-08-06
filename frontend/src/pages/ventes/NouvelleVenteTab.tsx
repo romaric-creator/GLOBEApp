@@ -1,7 +1,7 @@
-import { useState } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { Table, Button, Select, InputNumber, Card, Space, Tag, App, Divider, Row, Col, Statistic } from 'antd';
-import { PlusOutlined, DeleteOutlined, ShoppingCartOutlined } from '@ant-design/icons';
+import { Table, Button, Select, InputNumber, Card, Space, Tag, App, Divider, Row, Col, Statistic, Alert } from 'antd';
+import { PlusOutlined, DeleteOutlined, ShoppingCartOutlined, CheckCircleOutlined } from '@ant-design/icons';
 import { ventesApi } from '../../api/ventes';
 import { produitsApi } from '../../api/produits';
 import { clientsApi } from '../../api/clients';
@@ -26,21 +26,29 @@ export default function NouvelleVenteTab() {
   const [clientId, setClientId] = useState<string | null>(null);
   const [remiseGlobale, setRemiseGlobale] = useState(0);
 
-  const { data: produitsRes } = useQuery({
+  const { data: produits } = useQuery({
     queryKey: ['produits'],
-    queryFn: () => produitsApi.findAll(),
+    queryFn: () => produitsApi.findAll().then((r) => r.data),
   });
-  const produits = produitsRes?.data;
 
   const { data: clients } = useQuery({
     queryKey: ['clients-list'],
     queryFn: () => clientsApi.findAll().then((r) => r.data),
   });
 
+  const { data: etatCaisse } = useQuery({
+    queryKey: ['caisse-etat'],
+    queryFn: ventesApi.getEtatCaisse,
+  });
+
   const createVente = useMutation({
     mutationFn: ventesApi.create,
     onSuccess: (vente) => {
-      message.success(`Vente ${vente.numero} creee avec succes`);
+      message.success({
+        content: `Vente ${vente.numero} validee - ${Number(vente.total).toLocaleString()} FCFA`,
+        icon: <CheckCircleOutlined style={{ color: '#52c41a' }} />,
+        duration: 4,
+      });
       setPanier([]);
       setRemiseGlobale(0);
       setClientId(null);
@@ -89,6 +97,23 @@ export default function NouvelleVenteTab() {
 
   const sousTotal = panier.reduce((sum, l) => sum + l.quantite * l.prixUnitaire - l.remise, 0);
   const total = sousTotal - remiseGlobale;
+
+  const validerVenteRef = useCallback(() => {
+    if (panier.length > 0 && !createVente.isPending) {
+      validerVente();
+    }
+  }, [panier, createVente.isPending]);
+
+  useEffect(() => {
+    const handler = (e: KeyboardEvent) => {
+      if (e.key === 'F8') {
+        e.preventDefault();
+        validerVenteRef();
+      }
+    };
+    window.addEventListener('keydown', handler);
+    return () => window.removeEventListener('keydown', handler);
+  }, [validerVenteRef]);
 
   const validerVente = () => {
     if (panier.length === 0) {
@@ -156,6 +181,16 @@ export default function NouvelleVenteTab() {
   ];
 
   return (
+    <div>
+      {etatCaisse && !etatCaisse.caisseOuverte && (
+        <Alert
+          message="Caisse fermee"
+          description="Ouvrez la caisse dans l'onglet Caisse avant d'enregistrer des ventes."
+          type="warning"
+          showIcon
+          className="mb-4"
+        />
+      )}
     <Row gutter={16}>
       <Col span={16}>
         <Card title="Panier" size="small">
@@ -225,7 +260,7 @@ export default function NouvelleVenteTab() {
             </div>
 
             <div>
-              <label className="text-sm text-gray-500">Remise globale (DA)</label>
+              <label className="text-sm text-gray-500">Remise globale (FCFA)</label>
               <InputNumber
                 className="w-full"
                 min={0}
@@ -259,9 +294,13 @@ export default function NouvelleVenteTab() {
             >
               Valider la vente
             </Button>
+            <div className="text-center text-xs text-slate-400 mt-2">
+              <kbd className="rounded bg-slate-100 px-1.5 py-0.5">F8</kbd> pour valider rapidement
+            </div>
           </Space>
         </Card>
       </Col>
     </Row>
+    </div>
   );
 }

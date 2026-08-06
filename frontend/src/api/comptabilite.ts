@@ -24,8 +24,8 @@ export interface CategorieCompta {
 }
 
 export interface ComptaStats {
-  recettesMois: number;
-  depensesMois: number;
+  totalRecettes: number;
+  totalDepenses: number;
   soldeGeneral: number;
   nbEcritures: number;
 }
