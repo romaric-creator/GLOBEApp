@@ -3,6 +3,7 @@ import {
   Get,
   Post,
   Patch,
+  Delete,
   Param,
   Body,
   Query,
@@ -11,12 +12,35 @@ import {
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { SalleFeteService } from './salle-fete.service';
 import { CreateReservationSalleDto } from './dto/create-reservation-salle.dto';
+import { CreateTypeReservationDto } from './dto/create-type-reservation.dto';
 
 @Controller('salle-fete')
 @UseGuards(JwtAuthGuard)
 export class SalleFeteController {
   constructor(private readonly salleFeteService: SalleFeteService) {}
 
+  // Types de reservation
+  @Get('types')
+  findAllTypes() {
+    return this.salleFeteService.findAllTypes();
+  }
+
+  @Post('types')
+  createType(@Body() dto: CreateTypeReservationDto) {
+    return this.salleFeteService.createType(dto);
+  }
+
+  @Patch('types/:id')
+  updateType(@Param('id') id: string, @Body() dto: CreateTypeReservationDto) {
+    return this.salleFeteService.updateType(id, dto);
+  }
+
+  @Delete('types/:id')
+  deleteType(@Param('id') id: string) {
+    return this.salleFeteService.deleteType(id);
+  }
+
+  // Reservations
   @Get('reservations')
   findAll(@Query('statut') statut?: string) {
     return this.salleFeteService.findAll(statut || undefined);

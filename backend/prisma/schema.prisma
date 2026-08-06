@@ -877,6 +877,20 @@ enum StatutReservationSalle {
   TERMINEE
 }
 
+model TypeReservationSalle {
+  id          String   @id @default(uuid()) @db.Uuid
+  nom         String   @unique
+  description String?
+  inclusions  String?
+  prixBase    Decimal  @db.Decimal(10, 2) @default(0)
+  actif       Boolean  @default(true)
+  createdAt   DateTime @default(now())
+
+  reservations ReservationSalle[]
+
+  @@map("types_reservation_salle")
+}
+
 model ReservationSalle {
   id          String                 @id @default(uuid()) @db.Uuid
   dateEvent   DateTime               @db.Date
@@ -891,6 +905,9 @@ model ReservationSalle {
 
   clientId String @db.Uuid
   client   Client @relation(fields: [clientId], references: [id])
+
+  typeId String? @db.Uuid
+  type   TypeReservationSalle? @relation(fields: [typeId], references: [id])
 
   @@map("reservations_salle")
 }
