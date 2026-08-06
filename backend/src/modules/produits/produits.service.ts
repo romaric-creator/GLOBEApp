@@ -109,7 +109,11 @@ export class ProduitsService {
         ? { increment: dto.quantite }
         : dto.type === 'SORTIE'
           ? { decrement: dto.quantite }
-          : undefined;
+          : dto.type === 'AJUSTEMENT'
+            ? dto.quantite >= 0
+              ? { increment: dto.quantite }
+              : { decrement: Math.abs(dto.quantite) }
+            : undefined;
 
     const [mouvement] = await this.prisma.$transaction([
       this.prisma.mouvementStock.create({ data: dto }),

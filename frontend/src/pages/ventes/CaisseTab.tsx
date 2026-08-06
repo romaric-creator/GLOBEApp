@@ -1,12 +1,12 @@
 import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { Card, Button, InputNumber, Space, Statistic, Row, Col, Table, Tag, App, Divider } from 'antd';
-import { LockOutlined, UnlockOutlined, DollarOutlined } from '@ant-design/icons';
+import { LockOutlined, UnlockOutlined, DollarOutlined, ExclamationCircleOutlined } from '@ant-design/icons';
 import { ventesApi } from '../../api/ventes';
 import type { ClotureCaisse } from '../../api/ventes';
 
 export default function CaisseTab() {
-  const { message } = App.useApp();
+  const { message, modal } = App.useApp();
   const queryClient = useQueryClient();
   const [montantOuverture, setMontantOuverture] = useState(0);
   const [montantCloture, setMontantCloture] = useState(0);
@@ -130,7 +130,16 @@ export default function CaisseTab() {
               addonAfter="FCFA"
               style={{ width: 200 }}
             />
-            <Button type="primary" icon={<UnlockOutlined />} onClick={() => ouvrirMutation.mutate()} loading={ouvrirMutation.isPending}>
+            <Button type="primary" icon={<UnlockOutlined />} onClick={() => {
+              modal.confirm({
+                title: 'Confirmer l\'ouverture de caisse',
+                icon: <ExclamationCircleOutlined />,
+                content: `Ouvrir la caisse avec un fond de ${montantOuverture.toLocaleString()} FCFA ?`,
+                okText: 'Ouvrir',
+                cancelText: 'Annuler',
+                onOk: () => ouvrirMutation.mutateAsync(),
+              });
+            }} loading={ouvrirMutation.isPending}>
               Ouvrir la caisse
             </Button>
           </Space>
@@ -144,7 +153,17 @@ export default function CaisseTab() {
               addonAfter="FCFA"
               style={{ width: 200 }}
             />
-            <Button type="primary" danger icon={<LockOutlined />} onClick={() => cloturerMutation.mutate()} loading={cloturerMutation.isPending}>
+            <Button type="primary" danger icon={<LockOutlined />} onClick={() => {
+              modal.confirm({
+                title: 'Confirmer la cloture de caisse',
+                icon: <ExclamationCircleOutlined />,
+                content: `Cloturer la caisse avec ${montantCloture.toLocaleString()} FCFA ? Cette action est irreversible.`,
+                okText: 'Cloturer',
+                okButtonProps: { danger: true },
+                cancelText: 'Annuler',
+                onOk: () => cloturerMutation.mutateAsync(),
+              });
+            }} loading={cloturerMutation.isPending}>
               Cloturer la caisse
             </Button>
           </Space>

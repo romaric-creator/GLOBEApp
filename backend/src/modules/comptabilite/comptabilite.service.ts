@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, BadRequestException, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../../prisma/prisma.service';
 import { CreateCompteDto } from './dto/create-compte.dto';
 import { CreateEcritureDto } from './dto/create-ecriture.dto';
@@ -44,7 +44,21 @@ export class ComptabiliteService {
   }
 
   async createEcriture(dto: CreateEcritureDto) {
+    if (dto.compteDebitId === dto.compteCreditId) {
+      throw new BadRequestException('Le compte debit et credit doivent etre differents');
+    }
+
+    if (dto.montant <= 0) {
+      throw new BadRequestException('Le montant doit etre positif');
+    }
+
     return this.prisma.$transaction(async (tx) => {
+      const compteDebit = await tx.compte.findUnique({ where: { id: dto.compteDebitId } });
+      const compteCredit = await tx.compte.findUnique({ where: { id: dto.compteCreditId } });
+
+      if (!compteDebit) throw new NotFoundException(`Compte debit ${dto.compteDebitId} introuvable`);
+      if (!compteCredit) throw new NotFoundException(`Compte credit ${dto.compteCreditId} introuvable`);
+
       const ecriture = await tx.ecriture.create({
         data: {
           montant: dto.montant,
@@ -60,14 +74,18 @@ export class ComptabiliteService {
         },
       });
 
+      // En comptabilite: debit augmente ACTIF/CHARGE, diminue PASSIF/PRODUIT
+      const debitSign = (compteDebit.type === 'ACTIF' || compteDebit.type === 'CHARGE') ? 1 : -1;
       await tx.compte.update({
         where: { id: dto.compteDebitId },
-        data: { solde: { increment: dto.montant } },
+        data: { solde: { increment: dto.montant * debitSign } },
       });
 
+      // En comptabilite: credit augmente PASSIF/PRODUIT, diminue ACTIF/CHARGE
+      const creditSign = (compteCredit.type === 'PASSIF' || compteCredit.type === 'PRODUIT') ? 1 : -1;
       await tx.compte.update({
         where: { id: dto.compteCreditId },
-        data: { solde: { decrement: dto.montant } },
+        data: { solde: { increment: dto.montant * creditSign } },
       });
 
       return ecriture;

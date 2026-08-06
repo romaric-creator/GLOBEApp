@@ -5,12 +5,11 @@ import ReservationsTab from './ReservationsTab';
 export default function HotelPage() {
   return (
     <div>
-      <h2 className="text-xl font-semibold mb-4">Hotel</h2>
       <Tabs
-        defaultActiveKey="chambres"
+        defaultActiveKey="reservations"
         items={[
-          { key: 'chambres', label: 'Chambres', children: <ChambresTab /> },
           { key: 'reservations', label: 'Reservations', children: <ReservationsTab /> },
+          { key: 'chambres', label: 'Chambres', children: <ChambresTab /> },
         ]}
       />
     </div>

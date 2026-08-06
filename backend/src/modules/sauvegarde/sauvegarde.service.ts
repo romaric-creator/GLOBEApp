@@ -2,11 +2,9 @@ import { Injectable, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { PrismaService } from '../../prisma/prisma.service';
 import { CreateSauvegardeDto } from './dto/create-sauvegarde.dto';
-import { exec } from 'child_process';
+import { execFile } from 'child_process';
 import { promisify } from 'util';
-import { stat } from 'fs/promises';
-
-const execAsync = promisify(exec);
+import { stat, mkdir } from 'fs/promises';
 
 @Injectable()
 export class SauvegardeService {
@@ -18,9 +16,13 @@ export class SauvegardeService {
   ) {}
 
   async findAll() {
-    return this.prisma.sauvegarde.findMany({
+    const sauvegardes = await this.prisma.sauvegarde.findMany({
       orderBy: { date: 'desc' },
     });
+    return sauvegardes.map((s) => ({
+      ...s,
+      taille: s.taille ? Number(s.taille) : null,
+    }));
   }
 
   async create(dto: CreateSauvegardeDto) {
@@ -37,7 +39,12 @@ export class SauvegardeService {
 
     try {
       const databaseUrl = this.configService.get<string>('DATABASE_URL');
-      await execAsync(`pg_dump ${databaseUrl} > ${chemin}`);
+      if (!databaseUrl) {
+        throw new Error('DATABASE_URL non configuree');
+      }
+      await mkdir('/backups', { recursive: true });
+      const execFileAsync = promisify(execFile);
+      await execFileAsync('pg_dump', ['--dbname', databaseUrl, '-f', chemin]);
 
       const fileStats = await stat(chemin);
 
@@ -59,10 +66,12 @@ export class SauvegardeService {
   }
 
   async getLatest() {
-    return this.prisma.sauvegarde.findFirst({
+    const s = await this.prisma.sauvegarde.findFirst({
       where: { statut: 'REUSSIE' },
       orderBy: { date: 'desc' },
     });
+    if (!s) return null;
+    return { ...s, taille: s.taille ? Number(s.taille) : null };
   }
 
   async getStats() {

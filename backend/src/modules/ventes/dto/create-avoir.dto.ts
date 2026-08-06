@@ -8,6 +8,6 @@ export class CreateAvoirDto {
   motif: string;
 
   @IsNumber()
-  @Min(0)
+  @Min(1)
   montant: number;
 }
