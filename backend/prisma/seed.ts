@@ -723,20 +723,36 @@ async function main() {
   console.log('  Tables restaurant created');
 
   // ========================
+  // Articles Menu Bar
+  // ========================
+  const articlesMenu = await Promise.all([
+    prisma.articleMenu.upsert({ where: { id: '00000000-0000-0000-0000-000000000101' }, update: {}, create: { id: '00000000-0000-0000-0000-000000000101', nom: 'Biere locale', categorie: 'BOISSON', prix: 300 } }),
+    prisma.articleMenu.upsert({ where: { id: '00000000-0000-0000-0000-000000000102' }, update: {}, create: { id: '00000000-0000-0000-0000-000000000102', nom: 'Biere importee', categorie: 'BOISSON', prix: 500 } }),
+    prisma.articleMenu.upsert({ where: { id: '00000000-0000-0000-0000-000000000103' }, update: {}, create: { id: '00000000-0000-0000-0000-000000000103', nom: 'Eau minerale', categorie: 'BOISSON', prix: 100 } }),
+    prisma.articleMenu.upsert({ where: { id: '00000000-0000-0000-0000-000000000104' }, update: {}, create: { id: '00000000-0000-0000-0000-000000000104', nom: 'Coca-Cola', categorie: 'BOISSON', prix: 200 } }),
+    prisma.articleMenu.upsert({ where: { id: '00000000-0000-0000-0000-000000000105' }, update: {}, create: { id: '00000000-0000-0000-0000-000000000105', nom: 'Jus de fruit', categorie: 'BOISSON', prix: 250 } }),
+    prisma.articleMenu.upsert({ where: { id: '00000000-0000-0000-0000-000000000106' }, update: {}, create: { id: '00000000-0000-0000-0000-000000000106', nom: 'Riz sauce', categorie: 'PLAT', prix: 1500 } }),
+    prisma.articleMenu.upsert({ where: { id: '00000000-0000-0000-0000-000000000107' }, update: {}, create: { id: '00000000-0000-0000-0000-000000000107', nom: 'Poulet braise', categorie: 'PLAT', prix: 2500 } }),
+    prisma.articleMenu.upsert({ where: { id: '00000000-0000-0000-0000-000000000108' }, update: {}, create: { id: '00000000-0000-0000-0000-000000000108', nom: 'Poisson frit', categorie: 'PLAT', prix: 2000 } }),
+  ]);
+
+  console.log('  Articles menu created');
+
+  // ========================
   // Commandes Restaurant
   // ========================
   const commande1 = await prisma.commandeTable.create({
     data: {
       numero: 'CMD-2026-001',
       statut: 'SERVIE',
-      total: 1360,
+      total: 1600,
       tableId: tables[6].id,
       serveurId: serveurUser.id,
       lignes: {
         create: [
-          { quantite: 3, prixUnitaire: 300, produitId: produits[3].id },
-          { quantite: 2, prixUnitaire: 100, produitId: produits[10].id },
-          { quantite: 1, prixUnitaire: 160, produitId: produits[13].id },
+          { quantite: 3, prixUnitaire: 300, articleId: articlesMenu[0].id },
+          { quantite: 2, prixUnitaire: 200, articleId: articlesMenu[3].id },
+          { quantite: 1, prixUnitaire: 500, articleId: articlesMenu[1].id },
         ],
       },
     },
@@ -752,8 +768,8 @@ async function main() {
       serveurId: serveurUser.id,
       lignes: {
         create: [
-          { quantite: 2, prixUnitaire: 150, produitId: produits[5].id },
-          { quantite: 4, prixUnitaire: 100, produitId: produits[10].id },
+          { quantite: 2, prixUnitaire: 300, articleId: articlesMenu[0].id },
+          { quantite: 1, prixUnitaire: 100, articleId: articlesMenu[2].id },
         ],
       },
     },

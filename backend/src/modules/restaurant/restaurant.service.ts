@@ -7,10 +7,50 @@ import {
 import { PrismaService } from '../../prisma/prisma.service';
 import { CreateTableDto, UpdateTableDto } from './dto/create-table.dto';
 import { CreateCommandeDto, AjouterLignesDto } from './dto/create-commande.dto';
+import { CreateArticleMenuDto } from './dto/create-article-menu.dto';
 
 @Injectable()
 export class RestaurantService {
   constructor(private prisma: PrismaService) {}
+
+  // ========================
+  // Articles Menu
+  // ========================
+
+  async findAllArticles(categorie?: string, actif?: string) {
+    const where: Record<string, unknown> = {};
+    if (categorie) where.categorie = categorie;
+    if (actif === 'true') where.actif = true;
+    if (actif === 'false') where.actif = false;
+
+    return this.prisma.articleMenu.findMany({
+      where,
+      orderBy: [{ categorie: 'asc' }, { nom: 'asc' }],
+    });
+  }
+
+  async createArticle(dto: CreateArticleMenuDto) {
+    return this.prisma.articleMenu.create({
+      data: {
+        nom: dto.nom,
+        description: dto.description || null,
+        categorie: dto.categorie || 'AUTRE',
+        prix: dto.prix,
+      },
+    });
+  }
+
+  async updateArticle(id: string, dto: Partial<CreateArticleMenuDto>) {
+    const article = await this.prisma.articleMenu.findUnique({ where: { id } });
+    if (!article) throw new NotFoundException('Article introuvable');
+    return this.prisma.articleMenu.update({ where: { id }, data: dto });
+  }
+
+  async deleteArticle(id: string) {
+    const article = await this.prisma.articleMenu.findUnique({ where: { id } });
+    if (!article) throw new NotFoundException('Article introuvable');
+    return this.prisma.articleMenu.update({ where: { id }, data: { actif: false } });
+  }
 
   // ========================
   // Tables
@@ -21,30 +61,11 @@ export class RestaurantService {
       orderBy: { numero: 'asc' },
       include: {
         commandes: {
-          where: {
-            statut: { in: ['EN_ATTENTE', 'EN_PREPARATION', 'PRETE', 'SERVIE'] },
-          },
+          where: { statut: { in: ['EN_ATTENTE', 'EN_PREPARATION', 'PRETE', 'SERVIE'] } },
           select: { id: true, numero: true, statut: true, total: true },
         },
       },
     });
-  }
-
-  async findOneTable(id: string) {
-    const table = await this.prisma.tableRestaurant.findUnique({
-      where: { id },
-      include: {
-        commandes: {
-          where: { statut: { notIn: ['PAYEE', 'ANNULEE'] } },
-          include: {
-            lignes: { include: { produit: { select: { nom: true } } } },
-            serveur: { select: { prenom: true, nom: true } },
-          },
-        },
-      },
-    });
-    if (!table) throw new NotFoundException('Table introuvable');
-    return table;
   }
 
   async createTable(dto: CreateTableDto) {
@@ -52,38 +73,25 @@ export class RestaurantService {
       where: { numero: dto.numero },
     });
     if (existing) throw new ConflictException('Numero de table deja utilise');
-
     return this.prisma.tableRestaurant.create({
-      data: {
-        numero: dto.numero,
-        capacite: dto.capacite,
-        zone: dto.zone || null,
-      },
+      data: { numero: dto.numero, capacite: dto.capacite, zone: dto.zone || null },
     });
   }
 
   async updateTable(id: string, dto: UpdateTableDto) {
-    await this.findOneTable(id);
-    return this.prisma.tableRestaurant.update({
-      where: { id },
-      data: dto,
-    });
+    const table = await this.prisma.tableRestaurant.findUnique({ where: { id } });
+    if (!table) throw new NotFoundException('Table introuvable');
+    return this.prisma.tableRestaurant.update({ where: { id }, data: dto });
   }
 
   async deleteTable(id: string) {
     const table = await this.prisma.tableRestaurant.findUnique({
       where: { id },
-      include: {
-        commandes: {
-          where: { statut: { notIn: ['PAYEE', 'ANNULEE'] } },
-        },
-      },
+      include: { commandes: { where: { statut: { notIn: ['PAYEE', 'ANNULEE'] } } } },
     });
     if (!table) throw new NotFoundException('Table introuvable');
     if (table.commandes.length > 0) {
-      throw new BadRequestException(
-        'Impossible de supprimer une table avec des commandes en cours',
-      );
+      throw new BadRequestException('Impossible de supprimer une table avec des commandes en cours');
     }
     return this.prisma.tableRestaurant.delete({ where: { id } });
   }
@@ -92,20 +100,16 @@ export class RestaurantService {
   // Commandes
   // ========================
 
-  async findAllCommandes(statut?: string, tableId?: string) {
+  async findAllCommandes(statut?: string) {
     const where: Record<string, unknown> = {};
     if (statut) where.statut = statut;
-    if (tableId) where.tableId = tableId;
 
     return this.prisma.commandeTable.findMany({
       where,
       orderBy: { createdAt: 'desc' },
       include: {
-        table: { select: { numero: true, zone: true } },
         serveur: { select: { prenom: true, nom: true } },
-        lignes: {
-          include: { produit: { select: { nom: true, reference: true } } },
-        },
+        lignes: { include: { article: { select: { nom: true, categorie: true } } } },
       },
     });
   }
@@ -114,11 +118,8 @@ export class RestaurantService {
     const commande = await this.prisma.commandeTable.findUnique({
       where: { id },
       include: {
-        table: true,
         serveur: { select: { prenom: true, nom: true } },
-        lignes: {
-          include: { produit: { select: { nom: true, prixVente: true } } },
-        },
+        lignes: { include: { article: { select: { nom: true, prix: true, id: true } } } },
       },
     });
     if (!commande) throw new NotFoundException('Commande introuvable');
@@ -126,29 +127,24 @@ export class RestaurantService {
   }
 
   async createCommande(dto: CreateCommandeDto) {
-    const table = await this.prisma.tableRestaurant.findUnique({
-      where: { id: dto.tableId },
-    });
-    if (!table) throw new NotFoundException('Table introuvable');
-
-    const produitIds = dto.lignes.map((l) => l.produitId);
-    const produits = await this.prisma.produit.findMany({
-      where: { id: { in: produitIds } },
+    const articleIds = dto.lignes.map((l) => l.articleId);
+    const articles = await this.prisma.articleMenu.findMany({
+      where: { id: { in: articleIds }, actif: true },
     });
 
-    if (produits.length !== produitIds.length) {
-      throw new NotFoundException('Un ou plusieurs produits introuvables');
+    if (articles.length !== articleIds.length) {
+      throw new NotFoundException('Un ou plusieurs articles introuvables ou inactifs');
     }
 
-    const produitMap = new Map(produits.map((p) => [p.id, p]));
+    const articleMap = new Map(articles.map((a) => [a.id, a]));
     let total = 0;
 
     const lignesData = dto.lignes.map((l) => {
-      const produit = produitMap.get(l.produitId)!;
-      const prixUnitaire = Number(produit.prixVente);
+      const article = articleMap.get(l.articleId)!;
+      const prixUnitaire = Number(article.prix);
       total += prixUnitaire * l.quantite;
       return {
-        produitId: l.produitId,
+        articleId: l.articleId,
         quantite: l.quantite,
         prixUnitaire,
         notes: l.notes || null,
@@ -157,56 +153,43 @@ export class RestaurantService {
 
     const numero = `CMD-${Date.now().toString(36).toUpperCase()}`;
 
-    const commande = await this.prisma.commandeTable.create({
+    return this.prisma.commandeTable.create({
       data: {
         numero,
-        tableId: dto.tableId,
+        tableId: dto.tableId || null,
         serveurId: dto.serveurId,
         notes: dto.notes || null,
         total,
         lignes: { create: lignesData },
       },
       include: {
-        table: { select: { numero: true, zone: true } },
         serveur: { select: { prenom: true, nom: true } },
-        lignes: { include: { produit: { select: { nom: true } } } },
+        lignes: { include: { article: { select: { nom: true, categorie: true } } } },
       },
     });
-
-    await this.prisma.tableRestaurant.update({
-      where: { id: dto.tableId },
-      data: { statut: 'OCCUPEE' },
-    });
-
-    return commande;
   }
 
   async ajouterLignes(commandeId: string, dto: AjouterLignesDto) {
     const commande = await this.findOneCommande(commandeId);
     if (commande.statut === 'PAYEE' || commande.statut === 'ANNULEE') {
-      throw new BadRequestException(
-        "Impossible d'ajouter des lignes a une commande cloturee",
-      );
+      throw new BadRequestException("Impossible d'ajouter des lignes a une commande cloturee");
     }
 
-    const produitIds = dto.lignes.map((l) => l.produitId);
-    const produits = await this.prisma.produit.findMany({
-      where: { id: { in: produitIds } },
+    const articleIds = dto.lignes.map((l) => l.articleId);
+    const articles = await this.prisma.articleMenu.findMany({
+      where: { id: { in: articleIds }, actif: true },
     });
-    const produitMap = new Map(produits.map((p) => [p.id, p]));
+    if (articles.length !== articleIds.length) {
+      throw new NotFoundException('Un ou plusieurs articles introuvables');
+    }
 
+    const articleMap = new Map(articles.map((a) => [a.id, a]));
     let ajout = 0;
     const lignesData = dto.lignes.map((l) => {
-      const produit = produitMap.get(l.produitId)!;
-      const prixUnitaire = Number(produit.prixVente);
+      const article = articleMap.get(l.articleId)!;
+      const prixUnitaire = Number(article.prix);
       ajout += prixUnitaire * l.quantite;
-      return {
-        commandeId,
-        produitId: l.produitId,
-        quantite: l.quantite,
-        prixUnitaire,
-        notes: l.notes || null,
-      };
+      return { commandeId, articleId: l.articleId, quantite: l.quantite, prixUnitaire, notes: l.notes || null };
     });
 
     await this.prisma.ligneCommande.createMany({ data: lignesData });
@@ -215,7 +198,7 @@ export class RestaurantService {
       where: { id: commandeId },
       data: { total: Number(commande.total) + ajout },
       include: {
-        lignes: { include: { produit: { select: { nom: true } } } },
+        lignes: { include: { article: { select: { nom: true, categorie: true } } } },
       },
     });
   }
@@ -235,37 +218,17 @@ export class RestaurantService {
 
     const permis = transitions[commande.statut] || [];
     if (!permis.includes(nouveauStatut)) {
-      throw new BadRequestException(
-        `Transition invalide: ${commande.statut} -> ${nouveauStatut}`,
-      );
+      throw new BadRequestException(`Transition invalide: ${commande.statut} -> ${nouveauStatut}`);
     }
 
-    const updated = await this.prisma.commandeTable.update({
+    return this.prisma.commandeTable.update({
       where: { id },
       data: { statut: nouveauStatut },
       include: {
-        table: { select: { id: true, numero: true } },
         serveur: { select: { prenom: true, nom: true } },
+        lignes: { include: { article: { select: { nom: true } } } },
       },
     });
-
-    if (nouveauStatut === 'PAYEE' || nouveauStatut === 'ANNULEE') {
-      const autresCommandes = await this.prisma.commandeTable.count({
-        where: {
-          tableId: commande.table.id,
-          statut: { notIn: ['PAYEE', 'ANNULEE'] },
-          id: { not: id },
-        },
-      });
-      if (autresCommandes === 0) {
-        await this.prisma.tableRestaurant.update({
-          where: { id: commande.table.id },
-          data: { statut: 'LIBRE' },
-        });
-      }
-    }
-
-    return updated;
   }
 
   // ========================
@@ -273,11 +236,6 @@ export class RestaurantService {
   // ========================
 
   async getStats() {
-    const tables = await this.prisma.tableRestaurant.findMany();
-    const totalTables = tables.length;
-    const tablesOccupees = tables.filter((t) => t.statut === 'OCCUPEE').length;
-    const tablesLibres = tables.filter((t) => t.statut === 'LIBRE').length;
-
     const today = new Date();
     today.setHours(0, 0, 0, 0);
 
@@ -295,9 +253,6 @@ export class RestaurantService {
     });
 
     return {
-      totalTables,
-      tablesOccupees,
-      tablesLibres,
       commandesAujourdHui,
       commandesEnCours,
       caJour: Number(caJour._sum.total || 0),

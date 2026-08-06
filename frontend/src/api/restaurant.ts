@@ -1,12 +1,12 @@
 import axios from './axios';
 
-export interface TableResto {
+export interface ArticleMenu {
   id: string;
-  numero: number;
-  capacite: number;
-  zone: string | null;
-  statut: 'LIBRE' | 'OCCUPEE' | 'RESERVEE';
-  commandes: { id: string; numero: string; statut: string; total: number }[];
+  nom: string;
+  description: string | null;
+  categorie: 'BOISSON' | 'PLAT' | 'DESSERT' | 'AUTRE';
+  prix: number;
+  actif: boolean;
 }
 
 export interface LigneCommande {
@@ -14,7 +14,7 @@ export interface LigneCommande {
   quantite: number;
   prixUnitaire: number;
   notes: string | null;
-  produit: { nom: string; reference?: string };
+  article: { nom: string; categorie: string };
 }
 
 export interface Commande {
@@ -24,55 +24,39 @@ export interface Commande {
   total: number;
   notes: string | null;
   createdAt: string;
-  table: { numero: number; zone: string | null };
   serveur: { prenom: string; nom: string };
   lignes: LigneCommande[];
 }
 
 export interface RestaurantStats {
-  totalTables: number;
-  tablesOccupees: number;
-  tablesLibres: number;
   commandesAujourdHui: number;
   commandesEnCours: number;
   caJour: number;
 }
 
 export const restaurantApi = {
-  // Tables
-  getTables: () =>
-    axios.get<TableResto[]>('/restaurant/tables').then((r) => r.data),
-  getTable: (id: string) =>
-    axios.get<TableResto>(`/restaurant/tables/${id}`).then((r) => r.data),
-  createTable: (data: { numero: number; capacite: number; zone?: string }) =>
-    axios.post('/restaurant/tables', data).then((r) => r.data),
-  updateTable: (id: string, data: { capacite?: number; zone?: string }) =>
-    axios.patch(`/restaurant/tables/${id}`, data).then((r) => r.data),
-  deleteTable: (id: string) =>
-    axios.delete(`/restaurant/tables/${id}`).then((r) => r.data),
+  // Articles Menu
+  getArticles: (categorie?: string) =>
+    axios.get<ArticleMenu[]>('/restaurant/articles', {
+      params: { actif: 'true', ...(categorie ? { categorie } : {}) },
+    }).then((r) => r.data),
+  createArticle: (data: { nom: string; description?: string; categorie?: string; prix: number }) =>
+    axios.post<ArticleMenu>('/restaurant/articles', data).then((r) => r.data),
+  updateArticle: (id: string, data: Partial<{ nom: string; description: string; categorie: string; prix: number }>) =>
+    axios.patch<ArticleMenu>(`/restaurant/articles/${id}`, data).then((r) => r.data),
+  deleteArticle: (id: string) =>
+    axios.delete(`/restaurant/articles/${id}`).then((r) => r.data),
 
   // Commandes
-  getCommandes: (statut?: string, tableId?: string) =>
-    axios
-      .get<Commande[]>('/restaurant/commandes', {
-        params: {
-          ...(statut ? { statut } : {}),
-          ...(tableId ? { tableId } : {}),
-        },
-      })
-      .then((r) => r.data),
-  getCommande: (id: string) =>
-    axios.get<Commande>(`/restaurant/commandes/${id}`).then((r) => r.data),
+  getCommandes: (statut?: string) =>
+    axios.get<Commande[]>('/restaurant/commandes', {
+      params: statut ? { statut } : {},
+    }).then((r) => r.data),
   createCommande: (data: {
-    tableId: string;
     serveurId: string;
     notes?: string;
-    lignes: { produitId: string; quantite: number; notes?: string }[];
+    lignes: { articleId: string; quantite: number; notes?: string }[];
   }) => axios.post('/restaurant/commandes', data).then((r) => r.data),
-  ajouterLignes: (
-    id: string,
-    data: { lignes: { produitId: string; quantite: number; notes?: string }[] },
-  ) => axios.post(`/restaurant/commandes/${id}/lignes`, data).then((r) => r.data),
   changerStatut: (id: string, statut: string) =>
     axios.patch(`/restaurant/commandes/${id}/statut/${statut}`).then((r) => r.data),
 
