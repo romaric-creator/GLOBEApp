@@ -59,7 +59,7 @@ export default function RapportsPage() {
             <Col span={4}><Card><Statistic title="Hotel" value={ca?.hotel || 0} suffix="FCFA" /></Card></Col>
             <Col span={4}><Card><Statistic title="Restaurant" value={ca?.restaurant || 0} suffix="FCFA" /></Card></Col>
             <Col span={4}><Card><Statistic title="Piscine" value={ca?.piscine || 0} suffix="FCFA" /></Card></Col>
-            <Col span={4}><Card><Statistic title="Salle de fete" value={ca?.salleFete || 0} suffix="FCFA" /></Card></Col>
+            <Col span={4}><Card><Statistic title="Salle de fete" value={ca?.salle_fete || 0} suffix="FCFA" /></Card></Col>
             <Col span={4}><Card><Statistic title="Total" value={ca?.total || 0} suffix="FCFA" valueStyle={{ color: '#3f8600' }} prefix={<RiseOutlined />} /></Card></Col>
           </Row>
         </>
@@ -71,13 +71,13 @@ export default function RapportsPage() {
       children: (
         <Row gutter={16}>
           <Col span={8}>
-            <Card><Statistic title="Chambres totales" value={occupation?.total || 0} prefix={<HomeOutlined />} /></Card>
+            <Card><Statistic title="Chambres totales" value={occupation?.totalChambres || 0} prefix={<HomeOutlined />} /></Card>
           </Col>
           <Col span={8}>
-            <Card><Statistic title="Occupees" value={occupation?.occupees || 0} /></Card>
+            <Card><Statistic title="Occupees" value={occupation?.chambresOccupees || 0} /></Card>
           </Col>
           <Col span={8}>
-            <Card><Statistic title="Taux d'occupation" value={occupation?.taux || 0} suffix="%" valueStyle={{ color: (occupation?.taux || 0) > 70 ? '#3f8600' : '#cf1322' }} /></Card>
+            <Card><Statistic title="Taux d'occupation" value={occupation?.tauxOccupation || 0} suffix="%" valueStyle={{ color: (occupation?.tauxOccupation || 0) > 70 ? '#3f8600' : '#cf1322' }} /></Card>
           </Col>
         </Row>
       ),
@@ -91,7 +91,7 @@ export default function RapportsPage() {
           columns={[
             { title: '#', key: 'rank', width: 50, render: (_: unknown, __: unknown, i: number) => i + 1 },
             { title: 'Produit', dataIndex: 'nom', key: 'nom' },
-            { title: 'Quantite vendue', dataIndex: 'quantite', key: 'quantite' },
+            { title: 'Quantite vendue', dataIndex: 'quantiteVendue', key: 'quantiteVendue' },
           ]}
           rowKey="produitId"
           size="small"

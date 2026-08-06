@@ -5,20 +5,20 @@ export interface ChiffreAffaires {
   hotel: number;
   restaurant: number;
   piscine: number;
-  salleFete: number;
+  salle_fete: number;
   total: number;
 }
 
 export interface OccupationHotel {
-  total: number;
-  occupees: number;
-  taux: number;
+  totalChambres: number;
+  chambresOccupees: number;
+  tauxOccupation: number;
 }
 
 export interface TopProduit {
   produitId: string;
   nom: string;
-  quantite: number;
+  quantiteVendue: number;
 }
 
 export interface ResumePersonnel {
