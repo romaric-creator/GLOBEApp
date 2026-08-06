@@ -1,16 +1,15 @@
 import { Tabs } from 'antd';
-import TablesTab from './TablesTab';
 import CommandesTab from './CommandesTab';
+import MenuTab from './MenuTab';
 
 export default function RestaurantPage() {
   return (
     <div>
-      <h2 className="text-xl font-semibold mb-4">Bar & Restaurant</h2>
       <Tabs
-        defaultActiveKey="tables"
+        defaultActiveKey="commandes"
         items={[
-          { key: 'tables', label: 'Tables', children: <TablesTab /> },
           { key: 'commandes', label: 'Commandes', children: <CommandesTab /> },
+          { key: 'menu', label: 'Menu', children: <MenuTab /> },
         ]}
       />
     </div>

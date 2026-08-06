@@ -148,7 +148,6 @@ model Produit {
   mouvementsStock   MouvementStock[]
   lignesVente       LigneVente[]
   lignesBonCommande LigneBonCommande[]
-  lignesCommande    LigneCommande[]
 
   @@index([categorieId])
   @@index([actif])
@@ -671,6 +670,28 @@ model FactureSejour {
 // Bar & Restauration (Module Optionnel)
 // ========================
 
+enum CategorieArticle {
+  BOISSON
+  PLAT
+  DESSERT
+  AUTRE
+}
+
+model ArticleMenu {
+  id          String            @id @default(uuid()) @db.Uuid
+  nom         String
+  description String?
+  categorie   CategorieArticle  @default(AUTRE)
+  prix        Decimal           @db.Decimal(10, 2)
+  actif       Boolean           @default(true)
+  createdAt   DateTime          @default(now())
+  updatedAt   DateTime          @updatedAt
+
+  lignes LigneCommande[]
+
+  @@map("articles_menu")
+}
+
 enum StatutTable {
   LIBRE
   OCCUPEE
@@ -729,8 +750,8 @@ model LigneCommande {
   commandeId String @db.Uuid
   commande   CommandeTable @relation(fields: [commandeId], references: [id], onDelete: Cascade)
 
-  produitId String @db.Uuid
-  produit   Produit @relation(fields: [produitId], references: [id])
+  articleId String @db.Uuid
+  article   ArticleMenu @relation(fields: [articleId], references: [id])
 
   @@map("lignes_commande")
 }

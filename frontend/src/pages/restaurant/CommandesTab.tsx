@@ -1,10 +1,12 @@
 import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { Table, Button, Modal, Form, Select, InputNumber, Input, Tag, Space, App } from 'antd';
-import { PlusOutlined, MinusCircleOutlined } from '@ant-design/icons';
+import {
+  Table, Button, Modal, Form, Select, InputNumber, Input,
+  Tag, Space, App, Popconfirm, Card, Row, Col, Statistic,
+} from 'antd';
+import { PlusOutlined, MinusCircleOutlined, CoffeeOutlined, DollarOutlined } from '@ant-design/icons';
 import { restaurantApi } from '../../api/restaurant';
-import { produitsApi } from '../../api/produits';
-import type { Commande } from '../../api/restaurant';
+import type { Commande, ArticleMenu } from '../../api/restaurant';
 import { useAuthStore } from '../../store/auth';
 
 const STATUT_COLORS: Record<string, string> = {
@@ -14,6 +16,13 @@ const STATUT_COLORS: Record<string, string> = {
   SERVIE: 'green',
   PAYEE: 'default',
   ANNULEE: 'red',
+};
+
+const CAT_COLORS: Record<string, string> = {
+  BOISSON: 'blue',
+  PLAT: 'orange',
+  DESSERT: 'purple',
+  AUTRE: 'default',
 };
 
 export default function CommandesTab() {
@@ -29,19 +38,18 @@ export default function CommandesTab() {
     queryFn: () => restaurantApi.getCommandes(filterStatut),
   });
 
-  const { data: tables } = useQuery({
-    queryKey: ['tables-resto'],
-    queryFn: restaurantApi.getTables,
+  const { data: articles } = useQuery({
+    queryKey: ['articles-menu'],
+    queryFn: () => restaurantApi.getArticles(),
   });
 
-  const { data: produits } = useQuery({
-    queryKey: ['produits'],
-    queryFn: () => produitsApi.findAll().then((r) => r.data),
+  const { data: stats } = useQuery({
+    queryKey: ['restaurant-stats'],
+    queryFn: restaurantApi.getStats,
   });
 
   const invalidateAll = () => {
     queryClient.invalidateQueries({ queryKey: ['commandes-resto'] });
-    queryClient.invalidateQueries({ queryKey: ['tables-resto'] });
     queryClient.invalidateQueries({ queryKey: ['restaurant-stats'] });
   };
 
@@ -70,58 +78,63 @@ export default function CommandesTab() {
     },
   });
 
-  const getNextActions = (statut: string): { label: string; next: string; color?: string }[] => {
+  const getNextActions = (statut: string) => {
     switch (statut) {
-      case 'EN_ATTENTE':
-        return [
-          { label: 'Preparer', next: 'EN_PREPARATION' },
-          { label: 'Annuler', next: 'ANNULEE', color: 'danger' },
-        ];
-      case 'EN_PREPARATION':
-        return [
-          { label: 'Prete', next: 'PRETE' },
-          { label: 'Annuler', next: 'ANNULEE', color: 'danger' },
-        ];
-      case 'PRETE':
-        return [{ label: 'Servir', next: 'SERVIE' }];
-      case 'SERVIE':
-        return [{ label: 'Encaisser', next: 'PAYEE' }];
-      default:
-        return [];
+      case 'EN_ATTENTE': return [
+        { label: 'Preparer', next: 'EN_PREPARATION', type: 'primary' as const },
+        { label: 'Annuler', next: 'ANNULEE', danger: true },
+      ];
+      case 'EN_PREPARATION': return [
+        { label: 'Prete', next: 'PRETE', type: 'primary' as const },
+        { label: 'Annuler', next: 'ANNULEE', danger: true },
+      ];
+      case 'PRETE': return [{ label: 'Servir', next: 'SERVIE', type: 'primary' as const }];
+      case 'SERVIE': return [{ label: 'Encaisser', next: 'PAYEE', type: 'primary' as const }];
+      default: return [];
     }
   };
+
+  const articleOptions = (articles || []).map((a: ArticleMenu) => ({
+    value: a.id,
+    label: a.nom,
+    prix: a.prix,
+    categorie: a.categorie,
+  }));
 
   const columns = [
     { title: 'N°', dataIndex: 'numero', key: 'numero', width: 130 },
     {
-      title: 'Table',
-      key: 'table',
-      width: 90,
-      render: (_: unknown, r: Commande) => `T${r.table.numero}`,
-    },
-    {
-      title: 'Serveur',
-      key: 'serveur',
-      render: (_: unknown, r: Commande) => `${r.serveur.prenom} ${r.serveur.nom}`,
-    },
-    {
       title: 'Articles',
       key: 'articles',
-      render: (_: unknown, r: Commande) =>
-        r.lignes.map((l) => `${l.quantite}x ${l.produit.nom}`).join(', '),
+      render: (_: unknown, r: Commande) => (
+        <div className="flex flex-wrap gap-1">
+          {r.lignes.map((l) => (
+            <Tag key={l.id} color={CAT_COLORS[l.article.categorie]} className="text-xs">
+              {l.quantite}× {l.article.nom}
+            </Tag>
+          ))}
+        </div>
+      ),
     },
     {
       title: 'Total',
       dataIndex: 'total',
       key: 'total',
-      width: 110,
+      width: 120,
       render: (t: number) => `${Number(t).toLocaleString()} FCFA`,
+    },
+    {
+      title: 'Heure',
+      dataIndex: 'createdAt',
+      key: 'heure',
+      width: 80,
+      render: (d: string) => new Date(d).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' }),
     },
     {
       title: 'Statut',
       dataIndex: 'statut',
       key: 'statut',
-      width: 120,
+      width: 130,
       render: (s: string) => <Tag color={STATUT_COLORS[s]}>{s.replace(/_/g, ' ')}</Tag>,
     },
     {
@@ -130,17 +143,18 @@ export default function CommandesTab() {
       width: 200,
       render: (_: unknown, r: Commande) => (
         <Space size="small">
-          {getNextActions(r.statut).map((a) => (
-            <Button
-              key={a.next}
-              size="small"
-              type={a.color === 'danger' ? 'default' : 'primary'}
-              danger={a.color === 'danger'}
-              onClick={() => statutMutation.mutate({ id: r.id, statut: a.next })}
-            >
-              {a.label}
-            </Button>
-          ))}
+          {getNextActions(r.statut).map((a) =>
+            a.danger ? (
+              <Popconfirm key={a.next} title="Annuler cette commande ?" onConfirm={() => statutMutation.mutate({ id: r.id, statut: a.next })}>
+                <Button size="small" danger>{a.label}</Button>
+              </Popconfirm>
+            ) : (
+              <Button key={a.next} size="small" type={a.type}
+                onClick={() => statutMutation.mutate({ id: r.id, statut: a.next })}>
+                {a.label}
+              </Button>
+            )
+          )}
         </Space>
       ),
     },
@@ -148,7 +162,28 @@ export default function CommandesTab() {
 
   return (
     <>
+      <Row gutter={16} className="mb-4">
+        <Col span={8}>
+          <Card size="small">
+            <Statistic title="En cours" value={stats?.commandesEnCours || 0} prefix={<CoffeeOutlined />} valueStyle={{ color: '#1677ff' }} />
+          </Card>
+        </Col>
+        <Col span={8}>
+          <Card size="small">
+            <Statistic title="Aujourd'hui" value={stats?.commandesAujourdHui || 0} />
+          </Card>
+        </Col>
+        <Col span={8}>
+          <Card size="small">
+            <Statistic title="CA du jour" value={stats?.caJour || 0} suffix="FCFA" prefix={<DollarOutlined />} valueStyle={{ color: '#3f8600' }} />
+          </Card>
+        </Col>
+      </Row>
+
       <div className="mb-3 flex gap-3">
+        <Button type="primary" icon={<PlusOutlined />} onClick={() => setModalOpen(true)}>
+          Nouvelle commande
+        </Button>
         <Select
           placeholder="Filtrer par statut"
           allowClear
@@ -162,12 +197,10 @@ export default function CommandesTab() {
             { value: 'PAYEE', label: 'Payee' },
           ]}
         />
-        <Button type="primary" icon={<PlusOutlined />} onClick={() => setModalOpen(true)}>
-          Nouvelle commande
-        </Button>
       </div>
 
-      <Table dataSource={commandes || []} columns={columns} rowKey="id" loading={isLoading} size="small" />
+      <Table dataSource={commandes || []} columns={columns} rowKey="id" loading={isLoading} size="small"
+        pagination={{ pageSize: 15 }} />
 
       <Modal
         title="Nouvelle commande"
@@ -175,64 +208,57 @@ export default function CommandesTab() {
         onCancel={() => { setModalOpen(false); form.resetFields(); }}
         onOk={() => form.submit()}
         confirmLoading={createMutation.isPending}
-        width={600}
+        width={580}
+        okText="Valider"
       >
         <Form
           form={form}
           layout="vertical"
           onFinish={(values) => {
+            if (!user) return;
             createMutation.mutate({
-              tableId: values.tableId,
-              serveurId: user!.id,
+              serveurId: user.id,
               notes: values.notes || undefined,
-              lignes: values.lignes.map((l: { produitId: string; quantite: number; notes?: string }) => ({
-                produitId: l.produitId,
+              lignes: values.lignes.map((l: { articleId: string; quantite: number; notes?: string }) => ({
+                articleId: l.articleId,
                 quantite: l.quantite,
                 notes: l.notes || undefined,
               })),
             });
           }}
         >
-          <Form.Item name="tableId" label="Table" rules={[{ required: true }]}>
-            <Select
-              options={(tables || [])
-                .filter((t) => t.statut === 'LIBRE' || t.statut === 'OCCUPEE')
-                .map((t) => ({
-                  value: t.id,
-                  label: `Table ${t.numero}${t.zone ? ` (${t.zone})` : ''} - ${t.statut}`,
-                }))}
-            />
-          </Form.Item>
-          <Form.Item name="notes" label="Notes commande">
+          <Form.Item name="notes" label="Notes (optionnel)">
             <Input placeholder="Instructions speciales..." />
           </Form.Item>
 
+          <label className="text-sm font-medium mb-2 block">Articles</label>
           <Form.List name="lignes" initialValue={[{}]}>
             {(fields, { add, remove }) => (
               <>
                 {fields.map(({ key, name, ...rest }) => (
                   <div key={key} className="flex gap-2 mb-2">
-                    <Form.Item {...rest} name={[name, 'produitId']} rules={[{ required: true }]} className="flex-1 mb-0">
+                    <Form.Item {...rest} name={[name, 'articleId']} rules={[{ required: true, message: 'Requis' }]} className="flex-1 mb-0">
                       <Select
                         showSearch
                         optionFilterProp="label"
-                        placeholder="Produit"
-                        options={(produits || []).map((p: { id: string; nom: string; prixVente: number }) => ({
-                          value: p.id,
-                          label: `${p.nom} - ${Number(p.prixVente).toLocaleString()} FCFA`,
-                        }))}
+                        placeholder="Choisir un article"
+                        options={articleOptions}
+                        optionRender={(opt) => (
+                          <div className="flex justify-between">
+                            <span>{opt.data.label}</span>
+                            <span className="text-slate-400 text-xs ml-2">
+                              <Tag color={CAT_COLORS[opt.data.categorie]} className="text-xs">{opt.data.categorie}</Tag>
+                              {Number(opt.data.prix).toLocaleString()} F
+                            </span>
+                          </div>
+                        )}
                       />
                     </Form.Item>
                     <Form.Item {...rest} name={[name, 'quantite']} initialValue={1} className="mb-0" style={{ width: 80 }}>
                       <InputNumber min={1} />
                     </Form.Item>
                     {fields.length > 1 && (
-                      <Button
-                        type="text"
-                        danger
-                        icon={<MinusCircleOutlined />}
-                        onClick={() => remove(name)}
-                      />
+                      <Button type="text" danger icon={<MinusCircleOutlined />} onClick={() => remove(name)} />
                     )}
                   </div>
                 ))}

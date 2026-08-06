@@ -13,21 +13,41 @@ import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { RestaurantService } from './restaurant.service';
 import { CreateTableDto, UpdateTableDto } from './dto/create-table.dto';
 import { CreateCommandeDto, AjouterLignesDto } from './dto/create-commande.dto';
+import { CreateArticleMenuDto } from './dto/create-article-menu.dto';
 
 @Controller('restaurant')
 @UseGuards(JwtAuthGuard)
 export class RestaurantController {
   constructor(private readonly restaurantService: RestaurantService) {}
 
+  // Articles Menu
+  @Get('articles')
+  findAllArticles(
+    @Query('categorie') categorie?: string,
+    @Query('actif') actif?: string,
+  ) {
+    return this.restaurantService.findAllArticles(categorie || undefined, actif || undefined);
+  }
+
+  @Post('articles')
+  createArticle(@Body() dto: CreateArticleMenuDto) {
+    return this.restaurantService.createArticle(dto);
+  }
+
+  @Patch('articles/:id')
+  updateArticle(@Param('id') id: string, @Body() dto: CreateArticleMenuDto) {
+    return this.restaurantService.updateArticle(id, dto);
+  }
+
+  @Delete('articles/:id')
+  deleteArticle(@Param('id') id: string) {
+    return this.restaurantService.deleteArticle(id);
+  }
+
   // Tables
   @Get('tables')
   findAllTables() {
     return this.restaurantService.findAllTables();
-  }
-
-  @Get('tables/:id')
-  findOneTable(@Param('id') id: string) {
-    return this.restaurantService.findOneTable(id);
   }
 
   @Post('tables')
@@ -47,14 +67,8 @@ export class RestaurantController {
 
   // Commandes
   @Get('commandes')
-  findAllCommandes(
-    @Query('statut') statut?: string,
-    @Query('tableId') tableId?: string,
-  ) {
-    return this.restaurantService.findAllCommandes(
-      statut || undefined,
-      tableId || undefined,
-    );
+  findAllCommandes(@Query('statut') statut?: string) {
+    return this.restaurantService.findAllCommandes(statut || undefined);
   }
 
   @Get('commandes/:id')
@@ -75,8 +89,7 @@ export class RestaurantController {
   @Patch('commandes/:id/statut/:statut')
   changerStatut(
     @Param('id') id: string,
-    @Param('statut')
-    statut: 'EN_PREPARATION' | 'PRETE' | 'SERVIE' | 'PAYEE' | 'ANNULEE',
+    @Param('statut') statut: 'EN_PREPARATION' | 'PRETE' | 'SERVIE' | 'PAYEE' | 'ANNULEE',
   ) {
     return this.restaurantService.changerStatut(id, statut);
   }

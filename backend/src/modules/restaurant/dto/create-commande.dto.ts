@@ -11,7 +11,7 @@ import { Type } from 'class-transformer';
 
 export class LigneCommandeDto {
   @IsUUID()
-  produitId: string;
+  articleId: string;
 
   @IsInt()
   @Min(1)
@@ -24,7 +24,8 @@ export class LigneCommandeDto {
 
 export class CreateCommandeDto {
   @IsUUID()
-  tableId: string;
+  @IsOptional()
+  tableId?: string;
 
   @IsUUID()
   serveurId: string;
