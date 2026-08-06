@@ -1,5 +1,15 @@
 import axios from './axios';
 
+export interface TypeReservationSalle {
+  id: string;
+  nom: string;
+  description: string | null;
+  inclusions: string | null;
+  prixBase: number;
+  actif: boolean;
+  createdAt: string;
+}
+
 export interface ReservationSalle {
   id: string;
   dateEvent: string;
@@ -11,6 +21,8 @@ export interface ReservationSalle {
   statut: 'EN_ATTENTE' | 'CONFIRMEE' | 'ANNULEE' | 'TERMINEE';
   notes: string | null;
   client: { nom: string; prenom: string; telephone?: string };
+  type: { nom: string } | null;
+  typeId: string | null;
 }
 
 export interface SalleFeteStats {
@@ -20,6 +32,17 @@ export interface SalleFeteStats {
 }
 
 export const salleFeteApi = {
+  // Types
+  getTypes: () =>
+    axios.get<TypeReservationSalle[]>('/salle-fete/types').then((r) => r.data),
+  createType: (data: { nom: string; description?: string; inclusions?: string; prixBase?: number }) =>
+    axios.post<TypeReservationSalle>('/salle-fete/types', data).then((r) => r.data),
+  updateType: (id: string, data: { nom?: string; description?: string; inclusions?: string; prixBase?: number }) =>
+    axios.patch<TypeReservationSalle>(`/salle-fete/types/${id}`, data).then((r) => r.data),
+  deleteType: (id: string) =>
+    axios.delete(`/salle-fete/types/${id}`).then((r) => r.data),
+
+  // Reservations
   getReservations: (statut?: string) =>
     axios.get<ReservationSalle[]>('/salle-fete/reservations', {
       params: statut ? { statut } : {},
@@ -34,6 +57,7 @@ export const salleFeteApi = {
     motif: string;
     montant: number;
     clientId: string;
+    typeId?: string;
     notes?: string;
   }) => axios.post('/salle-fete/reservations', data).then((r) => r.data),
   confirmer: (id: string) =>

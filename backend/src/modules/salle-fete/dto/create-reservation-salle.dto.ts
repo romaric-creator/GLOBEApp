@@ -32,6 +32,10 @@ export class CreateReservationSalleDto {
   @IsUUID()
   clientId: string;
 
+  @IsUUID()
+  @IsOptional()
+  typeId?: string;
+
   @IsString()
   @IsOptional()
   notes?: string;

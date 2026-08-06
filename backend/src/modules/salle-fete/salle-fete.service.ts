@@ -6,10 +6,52 @@ import {
 } from '@nestjs/common';
 import { PrismaService } from '../../prisma/prisma.service';
 import { CreateReservationSalleDto } from './dto/create-reservation-salle.dto';
+import { CreateTypeReservationDto } from './dto/create-type-reservation.dto';
 
 @Injectable()
 export class SalleFeteService {
   constructor(private prisma: PrismaService) {}
+
+  // ========================
+  // Types de reservation
+  // ========================
+
+  async findAllTypes() {
+    return this.prisma.typeReservationSalle.findMany({
+      where: { actif: true },
+      orderBy: { nom: 'asc' },
+    });
+  }
+
+  async createType(dto: CreateTypeReservationDto) {
+    return this.prisma.typeReservationSalle.create({
+      data: {
+        nom: dto.nom,
+        description: dto.description,
+        inclusions: dto.inclusions,
+        prixBase: dto.prixBase || 0,
+      },
+    });
+  }
+
+  async updateType(id: string, dto: Partial<CreateTypeReservationDto>) {
+    const t = await this.prisma.typeReservationSalle.findUnique({ where: { id } });
+    if (!t) throw new NotFoundException('Type introuvable');
+    return this.prisma.typeReservationSalle.update({ where: { id }, data: dto });
+  }
+
+  async deleteType(id: string) {
+    const t = await this.prisma.typeReservationSalle.findUnique({ where: { id } });
+    if (!t) throw new NotFoundException('Type introuvable');
+    return this.prisma.typeReservationSalle.update({
+      where: { id },
+      data: { actif: false },
+    });
+  }
+
+  // ========================
+  // Reservations
+  // ========================
 
   async findAll(statut?: string) {
     const where: Record<string, unknown> = {};
@@ -20,6 +62,7 @@ export class SalleFeteService {
       orderBy: { dateEvent: 'desc' },
       include: {
         client: { select: { nom: true, prenom: true, telephone: true } },
+        type: { select: { nom: true } },
       },
     });
   }
@@ -27,7 +70,7 @@ export class SalleFeteService {
   async findOne(id: string) {
     const reservation = await this.prisma.reservationSalle.findUnique({
       where: { id },
-      include: { client: true },
+      include: { client: true, type: true },
     });
     if (!reservation) throw new NotFoundException('Reservation introuvable');
     return reservation;
@@ -61,9 +104,11 @@ export class SalleFeteService {
         montant: dto.montant,
         notes: dto.notes || null,
         clientId: dto.clientId,
+        typeId: dto.typeId || null,
       },
       include: {
         client: { select: { nom: true, prenom: true } },
+        type: { select: { nom: true } },
       },
     });
   }
