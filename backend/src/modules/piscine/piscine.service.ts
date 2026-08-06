@@ -6,6 +6,7 @@ import {
 import { PrismaService } from '../../prisma/prisma.service';
 import { CreateTicketPiscineDto } from './dto/create-ticket.dto';
 import { CreateAbonnementDto } from './dto/create-abonnement.dto';
+import { CreateAccessoireDto, CreateTransactionDto } from './dto/create-accessoire.dto';
 
 @Injectable()
 export class PiscineService {
@@ -81,6 +82,8 @@ export class PiscineService {
   // ========================
 
   async findAllAbonnements(actif?: string) {
+    await this.expireAbonnements();
+
     const where: Record<string, unknown> = {};
     if (actif === 'true') where.actif = true;
     if (actif === 'false') where.actif = false;
@@ -89,6 +92,13 @@ export class PiscineService {
       where,
       orderBy: { createdAt: 'desc' },
       include: { client: { select: { nom: true, prenom: true, telephone: true } } },
+    });
+  }
+
+  private async expireAbonnements() {
+    await this.prisma.abonnementLoisir.updateMany({
+      where: { actif: true, dateFin: { lt: new Date() } },
+      data: { actif: false },
     });
   }
 
@@ -130,6 +140,97 @@ export class PiscineService {
     return this.prisma.abonnementLoisir.update({
       where: { id },
       data: { actif: false },
+    });
+  }
+
+  // ========================
+  // Accessoires
+  // ========================
+
+  async findAllAccessoires(actif?: string) {
+    const where: Record<string, unknown> = {};
+    if (actif === 'true') where.actif = true;
+    if (actif === 'false') where.actif = false;
+
+    return this.prisma.accessoirePiscine.findMany({
+      where,
+      orderBy: { nom: 'asc' },
+    });
+  }
+
+  async createAccessoire(dto: CreateAccessoireDto) {
+    return this.prisma.accessoirePiscine.create({
+      data: {
+        nom: dto.nom,
+        description: dto.description,
+        type: dto.type || 'VENTE',
+        prixVente: dto.prixVente,
+        prixLocation: dto.prixLocation,
+        stock: dto.stock || 0,
+      },
+    });
+  }
+
+  async updateAccessoire(id: string, dto: Partial<CreateAccessoireDto>) {
+    const acc = await this.prisma.accessoirePiscine.findUnique({ where: { id } });
+    if (!acc) throw new NotFoundException('Accessoire introuvable');
+    return this.prisma.accessoirePiscine.update({ where: { id }, data: dto });
+  }
+
+  async deleteAccessoire(id: string) {
+    const acc = await this.prisma.accessoirePiscine.findUnique({ where: { id } });
+    if (!acc) throw new NotFoundException('Accessoire introuvable');
+    return this.prisma.accessoirePiscine.update({
+      where: { id },
+      data: { actif: false },
+    });
+  }
+
+  async createTransaction(dto: CreateTransactionDto) {
+    const acc = await this.prisma.accessoirePiscine.findUnique({
+      where: { id: dto.accessoireId },
+    });
+    if (!acc) throw new NotFoundException('Accessoire introuvable');
+
+    if (dto.type !== 'RETOUR' && acc.stock < dto.quantite) {
+      throw new BadRequestException('Stock insuffisant');
+    }
+
+    const total = dto.quantite * dto.prixUnit;
+    const stockDelta = dto.type === 'RETOUR' ? dto.quantite : -dto.quantite;
+
+    return this.prisma.$transaction(async (tx) => {
+      await tx.accessoirePiscine.update({
+        where: { id: dto.accessoireId },
+        data: { stock: { increment: stockDelta } },
+      });
+      return tx.transactionAccessoire.create({
+        data: {
+          type: dto.type,
+          quantite: dto.quantite,
+          prixUnit: dto.prixUnit,
+          total,
+          notes: dto.notes,
+          accessoireId: dto.accessoireId,
+          clientId: dto.clientId || null,
+        },
+        include: {
+          accessoire: { select: { nom: true } },
+          client: { select: { nom: true, prenom: true } },
+        },
+      });
+    });
+  }
+
+  async getTransactions(accessoireId?: string) {
+    return this.prisma.transactionAccessoire.findMany({
+      where: accessoireId ? { accessoireId } : {},
+      orderBy: { createdAt: 'desc' },
+      take: 100,
+      include: {
+        accessoire: { select: { nom: true } },
+        client: { select: { nom: true, prenom: true } },
+      },
     });
   }
 

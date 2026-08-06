@@ -150,6 +150,8 @@ model Produit {
   lignesBonCommande LigneBonCommande[]
   lignesCommande    LigneCommande[]
 
+  @@index([categorieId])
+  @@index([actif])
   @@map("produits")
 }
 
@@ -170,6 +172,8 @@ model MouvementStock {
   produitId String @db.Uuid
   produit   Produit @relation(fields: [produitId], references: [id])
 
+  @@index([produitId])
+  @@index([date])
   @@map("mouvements_stock")
 }
 
@@ -265,6 +269,10 @@ model Vente {
   creances  Creance[]
   livraison Livraison?
 
+  @@index([userId])
+  @@index([clientId])
+  @@index([date])
+  @@index([statut])
   @@map("ventes")
 }
 
@@ -281,6 +289,8 @@ model LigneVente {
   produitId String @db.Uuid
   produit   Produit @relation(fields: [produitId], references: [id])
 
+  @@index([venteId])
+  @@index([produitId])
   @@map("lignes_vente")
 }
 
@@ -344,12 +354,13 @@ model Client {
   actif          Boolean    @default(true)
   createdAt      DateTime   @default(now())
 
-  ventes             Vente[]
-  creances           Creance[]
-  reservations       Reservation[]
-  ticketsPiscine     TicketPiscine[]
-  abonnementsLoisir  AbonnementLoisir[]
-  reservationsSalle  ReservationSalle[]
+  ventes                  Vente[]
+  creances                Creance[]
+  reservations            Reservation[]
+  ticketsPiscine          TicketPiscine[]
+  abonnementsLoisir       AbonnementLoisir[]
+  reservationsSalle       ReservationSalle[]
+  transactionsAccessoire  TransactionAccessoire[]
 
   @@map("clients")
 }
@@ -374,6 +385,8 @@ model Creance {
   venteId String @db.Uuid
   vente   Vente  @relation(fields: [venteId], references: [id])
 
+  @@index([clientId])
+  @@index([statut])
   @@map("creances")
 }
 
@@ -442,8 +455,10 @@ model Pointage {
   methode      MethodePointage @default(BIOMETRIQUE)
 
   employeId String @db.Uuid
-  employe   Employe @relation(fields: [employeId], references: [id])
+  employe   Employe @relation(fields: [employeId], references: [id], onDelete: Cascade)
 
+  @@index([employeId])
+  @@index([date])
   @@map("pointages")
 }
 
@@ -472,7 +487,7 @@ model Conge {
   createdAt DateTime    @default(now())
 
   employeId String @db.Uuid
-  employe   Employe @relation(fields: [employeId], references: [id])
+  employe   Employe @relation(fields: [employeId], references: [id], onDelete: Cascade)
 
   @@map("conges")
 }
@@ -515,6 +530,9 @@ model Ecriture {
   categorieComptaId String @db.Uuid
   categorieCompta   CategorieCompta @relation(fields: [categorieComptaId], references: [id])
 
+  @@index([date])
+  @@index([compteDebitId])
+  @@index([compteCreditId])
   @@map("ecritures")
 }
 
@@ -628,6 +646,9 @@ model Reservation {
 
   factureSejour FactureSejour?
 
+  @@index([chambreId])
+  @@index([clientId])
+  @@index([statut])
   @@map("reservations")
 }
 
@@ -685,14 +706,17 @@ model CommandeTable {
   notes     String?
   createdAt DateTime       @default(now())
 
-  tableId String @db.Uuid
-  table   TableRestaurant @relation(fields: [tableId], references: [id])
+  tableId String? @db.Uuid
+  table   TableRestaurant? @relation(fields: [tableId], references: [id])
 
   serveurId String @db.Uuid
   serveur   User   @relation(fields: [serveurId], references: [id])
 
   lignes LigneCommande[]
 
+  @@index([tableId])
+  @@index([statut])
+  @@index([createdAt])
   @@map("commandes_table")
 }
 
@@ -748,6 +772,53 @@ model AbonnementLoisir {
   client   Client @relation(fields: [clientId], references: [id])
 
   @@map("abonnements_loisir")
+}
+
+enum TypeAccessoire {
+  VENTE
+  LOCATION
+  VENTE_ET_LOCATION
+}
+
+model AccessoirePiscine {
+  id          String          @id @default(uuid()) @db.Uuid
+  nom         String
+  description String?
+  type        TypeAccessoire  @default(VENTE)
+  prixVente   Decimal?        @db.Decimal(10, 2)
+  prixLocation Decimal?       @db.Decimal(10, 2)
+  stock       Int             @default(0)
+  actif       Boolean         @default(true)
+  createdAt   DateTime        @default(now())
+  updatedAt   DateTime        @updatedAt
+
+  transactions TransactionAccessoire[]
+
+  @@map("accessoires_piscine")
+}
+
+enum TypeTransactionAccessoire {
+  VENTE
+  LOCATION
+  RETOUR
+}
+
+model TransactionAccessoire {
+  id          String                     @id @default(uuid()) @db.Uuid
+  type        TypeTransactionAccessoire
+  quantite    Int
+  prixUnit    Decimal                    @db.Decimal(10, 2)
+  total       Decimal                    @db.Decimal(10, 2)
+  notes       String?
+  createdAt   DateTime                   @default(now())
+
+  accessoireId String            @db.Uuid
+  accessoire   AccessoirePiscine @relation(fields: [accessoireId], references: [id])
+
+  clientId String? @db.Uuid
+  client   Client? @relation(fields: [clientId], references: [id])
+
+  @@map("transactions_accessoire")
 }
 
 // ========================
