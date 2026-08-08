@@ -13,6 +13,7 @@ import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { HotelService } from './hotel.service';
 import { CreateChambreDto, UpdateChambreDto } from './dto/create-chambre.dto';
 import { CreateReservationDto } from './dto/create-reservation.dto';
+import { QueryReservationDto } from './dto/query-reservation.dto';
 
 @Controller('hotel')
 @UseGuards(JwtAuthGuard)
@@ -47,8 +48,8 @@ export class HotelController {
 
   // Reservations
   @Get('reservations')
-  findAllReservations(@Query('statut') statut?: string) {
-    return this.hotelService.findAllReservations(statut || undefined);
+  findAllReservations(@Query() query: QueryReservationDto) {
+    return this.hotelService.findAllReservations(query.statut || undefined);
   }
 
   @Get('reservations/:id')
@@ -79,6 +80,19 @@ export class HotelController {
   @Patch('reservations/:id/checkout')
   checkOut(@Param('id') id: string) {
     return this.hotelService.checkOut(id);
+  }
+
+  // Factures
+  @Get('factures')
+  findAllFactures(@Query('payee') payee?: string) {
+    if (payee === 'true') return this.hotelService.findAllFactures(true);
+    if (payee === 'false') return this.hotelService.findAllFactures(false);
+    return this.hotelService.findAllFactures();
+  }
+
+  @Get('factures/:id')
+  findOneFacture(@Param('id') id: string) {
+    return this.hotelService.findOneFacture(id);
   }
 
   // Stats

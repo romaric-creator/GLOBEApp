@@ -58,6 +58,11 @@ export const hotelApi = {
   checkIn: (id: string) => axios.patch(`/hotel/reservations/${id}/checkin`).then((r) => r.data),
   checkOut: (id: string) => axios.patch(`/hotel/reservations/${id}/checkout`).then((r) => r.data),
 
+  // Factures
+  getFactures: (payee?: boolean) =>
+    axios.get('/hotel/factures', { params: payee !== undefined ? { payee } : {} }).then((r) => r.data),
+  getFacture: (id: string) => axios.get(`/hotel/factures/${id}`).then((r) => r.data),
+
   // Stats
   getStats: () => axios.get<HotelStats>('/hotel/stats').then((r) => r.data),
 };

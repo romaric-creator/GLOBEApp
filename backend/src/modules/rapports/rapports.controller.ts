@@ -35,6 +35,11 @@ export class RapportsController {
     return this.rapportsService.getResumePersonnel();
   }
 
+  @Get('ca-7-jours')
+  getCA7Jours() {
+    return this.rapportsService.getCA7Jours();
+  }
+
   @Get('resume-mensuel')
   getResumeMensuel(
     @Query('mois') mois: string,

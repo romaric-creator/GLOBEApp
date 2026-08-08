@@ -34,7 +34,16 @@ export interface ResumeMensuel {
   nbReservations: number;
 }
 
+export interface CA7JoursItem {
+  date: string;
+  hotel: number;
+  restaurant: number;
+  total: number;
+}
+
 export const rapportsApi = {
+  getCA7Jours: () =>
+    axios.get<CA7JoursItem[]>('/rapports/ca-7-jours').then((r) => r.data),
   getChiffreAffaires: (dateDebut: string, dateFin: string) =>
     axios.get<ChiffreAffaires>('/rapports/chiffre-affaires', {
       params: { dateDebut, dateFin },
