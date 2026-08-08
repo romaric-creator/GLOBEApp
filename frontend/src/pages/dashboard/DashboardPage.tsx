@@ -257,7 +257,7 @@ export default function DashboardPage() {
                   />
                   <div className="mt-1 text-xs">
                     {personnel?.enConge ? <Tag color="orange" style={{ fontSize: 10 }}>{personnel.enConge} en congé</Tag> : null}
-                    {(personnel?.absents || 0) > 0 ? <Tag color="red" style={{ fontSize: 10 }}>{personnel.absents} absents</Tag> : null}
+                    {personnel && personnel.absents > 0 ? <Tag color="red" style={{ fontSize: 10 }}>{personnel.absents} absents</Tag> : null}
                   </div>
                 </Card>
               </Col>

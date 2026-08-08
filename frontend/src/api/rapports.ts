@@ -24,6 +24,7 @@ export interface ResumePersonnel {
   effectifTotal: number;
   presentsAujourdhui: number;
   enConge: number;
+  absents: number;
 }
 
 export interface ResumeMensuel {
