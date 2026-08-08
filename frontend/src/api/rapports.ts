@@ -1,7 +1,6 @@
 import axios from './axios';
 
 export interface ChiffreAffaires {
-  ventes: number;
   hotel: number;
   restaurant: number;
   piscine: number;
@@ -31,7 +30,7 @@ export interface ResumeMensuel {
   caTotal: number;
   depenses: number;
   benefice: number;
-  nbVentes: number;
+  nbCommandes: number;
   nbReservations: number;
 }
 

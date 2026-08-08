@@ -4,25 +4,17 @@ import {
   Table, Button, Modal, Form, Select, InputNumber, Input,
   Tag, Space, App, Popconfirm, Card, Row, Col, Statistic,
 } from 'antd';
-import { PlusOutlined, MinusCircleOutlined, CoffeeOutlined, DollarOutlined } from '@ant-design/icons';
+import { PlusOutlined, MinusCircleOutlined, CoffeeOutlined, DollarOutlined, ClockCircleOutlined } from '@ant-design/icons';
 import { restaurantApi } from '../../api/restaurant';
-import type { Commande, ArticleMenu } from '../../api/restaurant';
+import type { Commande } from '../../api/restaurant';
+import { produitsApi } from '../../api/produits';
+import type { Produit } from '../../api/produits';
 import { useAuthStore } from '../../store/auth';
 
 const STATUT_COLORS: Record<string, string> = {
-  EN_ATTENTE: 'orange',
   EN_PREPARATION: 'blue',
-  PRETE: 'cyan',
-  SERVIE: 'green',
-  PAYEE: 'default',
+  TERMINEE: 'green',
   ANNULEE: 'red',
-};
-
-const CAT_COLORS: Record<string, string> = {
-  BOISSON: 'blue',
-  PLAT: 'orange',
-  DESSERT: 'purple',
-  AUTRE: 'default',
 };
 
 export default function CommandesTab() {
@@ -38,9 +30,9 @@ export default function CommandesTab() {
     queryFn: () => restaurantApi.getCommandes(filterStatut),
   });
 
-  const { data: articles } = useQuery({
-    queryKey: ['articles-menu'],
-    queryFn: () => restaurantApi.getArticles(),
+  const { data: produits } = useQuery({
+    queryKey: ['produits'],
+    queryFn: () => produitsApi.findAll().then((r) => r.data),
   });
 
   const { data: stats } = useQuery({
@@ -51,6 +43,7 @@ export default function CommandesTab() {
   const invalidateAll = () => {
     queryClient.invalidateQueries({ queryKey: ['commandes-resto'] });
     queryClient.invalidateQueries({ queryKey: ['restaurant-stats'] });
+    queryClient.invalidateQueries({ queryKey: ['produits'] });
   };
 
   const createMutation = useMutation({
@@ -66,51 +59,49 @@ export default function CommandesTab() {
     },
   });
 
-  const statutMutation = useMutation({
-    mutationFn: ({ id, statut }: { id: string; statut: string }) =>
-      restaurantApi.changerStatut(id, statut),
-    onSuccess: () => {
-      message.success('Statut mis a jour');
-      invalidateAll();
-    },
+  const terminerMutation = useMutation({
+    mutationFn: (id: string) => restaurantApi.terminer(id),
+    onSuccess: () => { message.success('Commande terminee'); invalidateAll(); },
     onError: (err: { response?: { data?: { message?: string } } }) => {
       message.error(err.response?.data?.message || 'Erreur');
     },
   });
 
-  const getNextActions = (statut: string) => {
-    switch (statut) {
-      case 'EN_ATTENTE': return [
-        { label: 'Preparer', next: 'EN_PREPARATION', type: 'primary' as const },
-        { label: 'Annuler', next: 'ANNULEE', danger: true },
-      ];
-      case 'EN_PREPARATION': return [
-        { label: 'Prete', next: 'PRETE', type: 'primary' as const },
-        { label: 'Annuler', next: 'ANNULEE', danger: true },
-      ];
-      case 'PRETE': return [{ label: 'Servir', next: 'SERVIE', type: 'primary' as const }];
-      case 'SERVIE': return [{ label: 'Encaisser', next: 'PAYEE', type: 'primary' as const }];
-      default: return [];
-    }
-  };
+  const annulerMutation = useMutation({
+    mutationFn: (id: string) => restaurantApi.annuler(id),
+    onSuccess: () => { message.success('Commande annulee'); invalidateAll(); },
+    onError: (err: { response?: { data?: { message?: string } } }) => {
+      message.error(err.response?.data?.message || 'Erreur');
+    },
+  });
 
-  const articleOptions = (articles || []).map((a: ArticleMenu) => ({
-    value: a.id,
-    label: a.nom,
-    prix: a.prix,
-    categorie: a.categorie,
-  }));
+  const produitOptions = (produits || [])
+    .filter((p: Produit) => p.actif)
+    .map((p: Produit) => ({
+      value: p.id,
+      label: `${p.nom} (${p.categorie.nom})`,
+      prixVente: p.prixVente,
+      stock: p.stockActuel,
+      unite: p.unite,
+    }));
 
   const columns = [
-    { title: 'N°', dataIndex: 'numero', key: 'numero', width: 130 },
+    { title: 'N°', dataIndex: 'numero', key: 'numero', width: 160 },
+    {
+      title: 'Table',
+      dataIndex: 'tableReference',
+      key: 'table',
+      width: 100,
+      render: (t: string | null) => t || <span className="text-slate-400">-</span>,
+    },
     {
       title: 'Articles',
       key: 'articles',
       render: (_: unknown, r: Commande) => (
         <div className="flex flex-wrap gap-1">
           {r.lignes.map((l) => (
-            <Tag key={l.id} color={CAT_COLORS[l.article.categorie]} className="text-xs">
-              {l.quantite}× {l.article.nom}
+            <Tag key={l.id} color="blue" className="text-xs">
+              {l.quantite}x {l.produit.nom}
             </Tag>
           ))}
         </div>
@@ -120,7 +111,7 @@ export default function CommandesTab() {
       title: 'Total',
       dataIndex: 'total',
       key: 'total',
-      width: 120,
+      width: 130,
       render: (t: number) => `${Number(t).toLocaleString()} FCFA`,
     },
     {
@@ -134,26 +125,34 @@ export default function CommandesTab() {
       title: 'Statut',
       dataIndex: 'statut',
       key: 'statut',
-      width: 130,
+      width: 140,
       render: (s: string) => <Tag color={STATUT_COLORS[s]}>{s.replace(/_/g, ' ')}</Tag>,
     },
     {
       title: 'Actions',
       key: 'actions',
-      width: 200,
+      width: 240,
       render: (_: unknown, r: Commande) => (
         <Space size="small">
-          {getNextActions(r.statut).map((a) =>
-            a.danger ? (
-              <Popconfirm key={a.next} title="Annuler cette commande ?" onConfirm={() => statutMutation.mutate({ id: r.id, statut: a.next })}>
-                <Button size="small" danger>{a.label}</Button>
-              </Popconfirm>
-            ) : (
-              <Button key={a.next} size="small" type={a.type}
-                onClick={() => statutMutation.mutate({ id: r.id, statut: a.next })}>
-                {a.label}
+          {r.statut === 'EN_PREPARATION' && (
+            <>
+              <Button
+                size="small"
+                type="primary"
+                onClick={() => terminerMutation.mutate(r.id)}
+                loading={terminerMutation.isPending}
+              >
+                Terminer
               </Button>
-            )
+              <Popconfirm title="Annuler cette commande ?" onConfirm={() => annulerMutation.mutate(r.id)}>
+                <Button size="small" danger>Annuler</Button>
+              </Popconfirm>
+            </>
+          )}
+          {r.statut === 'TERMINEE' && (
+            r.paiement
+              ? <Tag color="default">Encaissee</Tag>
+              : <Tag color="orange">A encaisser</Tag>
           )}
         </Space>
       ),
@@ -165,17 +164,28 @@ export default function CommandesTab() {
       <Row gutter={16} className="mb-4">
         <Col span={8}>
           <Card size="small">
-            <Statistic title="En cours" value={stats?.commandesEnCours || 0} prefix={<CoffeeOutlined />} valueStyle={{ color: '#1677ff' }} />
+            <Statistic
+              title="En preparation"
+              value={stats?.commandesEnPreparation || 0}
+              prefix={<ClockCircleOutlined />}
+              valueStyle={{ color: '#1677ff' }}
+            />
           </Card>
         </Col>
         <Col span={8}>
           <Card size="small">
-            <Statistic title="Aujourd'hui" value={stats?.commandesAujourdHui || 0} />
+            <Statistic title="Aujourd'hui" value={stats?.commandesAujourdHui || 0} prefix={<CoffeeOutlined />} />
           </Card>
         </Col>
         <Col span={8}>
           <Card size="small">
-            <Statistic title="CA du jour" value={stats?.caJour || 0} suffix="FCFA" prefix={<DollarOutlined />} valueStyle={{ color: '#3f8600' }} />
+            <Statistic
+              title="CA du jour"
+              value={stats?.caJour || 0}
+              suffix="FCFA"
+              prefix={<DollarOutlined />}
+              valueStyle={{ color: '#3f8600' }}
+            />
           </Card>
         </Col>
       </Row>
@@ -187,20 +197,24 @@ export default function CommandesTab() {
         <Select
           placeholder="Filtrer par statut"
           allowClear
-          style={{ width: 180 }}
+          style={{ width: 200 }}
           onChange={(v) => setFilterStatut(v || undefined)}
           options={[
-            { value: 'EN_ATTENTE', label: 'En attente' },
             { value: 'EN_PREPARATION', label: 'En preparation' },
-            { value: 'PRETE', label: 'Prete' },
-            { value: 'SERVIE', label: 'Servie' },
-            { value: 'PAYEE', label: 'Payee' },
+            { value: 'TERMINEE', label: 'Terminee' },
+            { value: 'ANNULEE', label: 'Annulee' },
           ]}
         />
       </div>
 
-      <Table dataSource={commandes || []} columns={columns} rowKey="id" loading={isLoading} size="small"
-        pagination={{ pageSize: 15 }} />
+      <Table
+        dataSource={commandes || []}
+        columns={columns}
+        rowKey="id"
+        loading={isLoading}
+        size="small"
+        pagination={{ pageSize: 15 }}
+      />
 
       <Modal
         title="Nouvelle commande"
@@ -218,37 +232,44 @@ export default function CommandesTab() {
             if (!user) return;
             createMutation.mutate({
               serveurId: user.id,
+              tableReference: values.tableReference || undefined,
               notes: values.notes || undefined,
-              lignes: values.lignes.map((l: { articleId: string; quantite: number; notes?: string }) => ({
-                articleId: l.articleId,
+              lignes: values.lignes.map((l: { produitId: string; quantite: number; notes?: string }) => ({
+                produitId: l.produitId,
                 quantite: l.quantite,
                 notes: l.notes || undefined,
               })),
             });
           }}
         >
+          <Form.Item name="tableReference" label="Reference table (optionnel)">
+            <Input placeholder="Ex: Table 5, Terrasse A..." />
+          </Form.Item>
+
           <Form.Item name="notes" label="Notes (optionnel)">
             <Input placeholder="Instructions speciales..." />
           </Form.Item>
 
-          <label className="text-sm font-medium mb-2 block">Articles</label>
+          <label className="text-sm font-medium mb-2 block">Produits</label>
           <Form.List name="lignes" initialValue={[{}]}>
             {(fields, { add, remove }) => (
               <>
                 {fields.map(({ key, name, ...rest }) => (
                   <div key={key} className="flex gap-2 mb-2">
-                    <Form.Item {...rest} name={[name, 'articleId']} rules={[{ required: true, message: 'Requis' }]} className="flex-1 mb-0">
+                    <Form.Item {...rest} name={[name, 'produitId']} rules={[{ required: true, message: 'Requis' }]} className="flex-1 mb-0">
                       <Select
                         showSearch
                         optionFilterProp="label"
-                        placeholder="Choisir un article"
-                        options={articleOptions}
+                        placeholder="Choisir un produit"
+                        options={produitOptions}
                         optionRender={(opt) => (
                           <div className="flex justify-between">
                             <span>{opt.data.label}</span>
                             <span className="text-slate-400 text-xs ml-2">
-                              <Tag color={CAT_COLORS[opt.data.categorie]} className="text-xs">{opt.data.categorie}</Tag>
-                              {Number(opt.data.prix).toLocaleString()} F
+                              {Number(opt.data.prixVente).toLocaleString()} F
+                              {' '}<Tag color={opt.data.stock > 0 ? 'green' : 'red'} className="text-xs ml-1">
+                                stock: {opt.data.stock}
+                              </Tag>
                             </span>
                           </div>
                         )}
@@ -263,7 +284,7 @@ export default function CommandesTab() {
                   </div>
                 ))}
                 <Button type="dashed" onClick={() => add()} block icon={<PlusOutlined />}>
-                  Ajouter un article
+                  Ajouter un produit
                 </Button>
               </>
             )}

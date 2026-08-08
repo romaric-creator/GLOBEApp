@@ -9,14 +9,7 @@ export class RapportsService {
     const debut = new Date(dateDebut);
     const fin = new Date(dateFin);
 
-    const [ventes, hotel, restaurant, piscine, salleFete] = await Promise.all([
-      this.prisma.vente.aggregate({
-        _sum: { total: true },
-        where: {
-          statut: { not: 'ANNULEE' },
-          date: { gte: debut, lte: fin },
-        },
-      }),
+    const [hotel, restaurant, piscine, salleFete] = await Promise.all([
       this.prisma.reservation.aggregate({
         _sum: { montantTotal: true },
         where: {
@@ -27,7 +20,7 @@ export class RapportsService {
       this.prisma.commandeTable.aggregate({
         _sum: { total: true },
         where: {
-          statut: 'PAYEE',
+          statut: 'TERMINEE',
           createdAt: { gte: debut, lte: fin },
         },
       }),
@@ -46,20 +39,19 @@ export class RapportsService {
       }),
     ]);
 
+    const h = Number(hotel._sum.montantTotal) || 0;
+    const r = Number(restaurant._sum.total) || 0;
+    const p = Number(piscine._sum.prix) || 0;
+    const s = Number(salleFete._sum.montant) || 0;
+
     return {
       dateDebut,
       dateFin,
-      ventes: Number(ventes._sum.total) || 0,
-      hotel: Number(hotel._sum.montantTotal) || 0,
-      restaurant: Number(restaurant._sum.total) || 0,
-      piscine: Number(piscine._sum.prix) || 0,
-      salle_fete: Number(salleFete._sum.montant) || 0,
-      total:
-        (Number(ventes._sum.total) || 0) +
-        (Number(hotel._sum.montantTotal) || 0) +
-        (Number(restaurant._sum.total) || 0) +
-        (Number(piscine._sum.prix) || 0) +
-        (Number(salleFete._sum.montant) || 0),
+      hotel: h,
+      restaurant: r,
+      piscine: p,
+      salle_fete: s,
+      total: h + r + p + s,
     };
   }
 
@@ -93,7 +85,7 @@ export class RapportsService {
   }
 
   async getTopProduits(limit: number = 10) {
-    const result = await this.prisma.ligneVente.groupBy({
+    const result = await this.prisma.ligneCommande.groupBy({
       by: ['produitId'],
       _sum: { quantite: true },
       orderBy: { _sum: { quantite: 'desc' } },
@@ -153,7 +145,7 @@ export class RapportsService {
     const debutISO = debut.toISOString();
     const finISO = fin.toISOString();
 
-    const [ca, depenses, nbVentes, nbReservations] = await Promise.all([
+    const [ca, depenses, nbCommandes, nbReservations] = await Promise.all([
       this.getChiffreAffaires(debutISO, finISO),
       this.prisma.ecriture.aggregate({
         _sum: { montant: true },
@@ -162,10 +154,10 @@ export class RapportsService {
           categorieCompta: { type: 'DEPENSE' },
         },
       }),
-      this.prisma.vente.count({
+      this.prisma.commandeTable.count({
         where: {
-          statut: { not: 'ANNULEE' },
-          date: { gte: debut, lte: fin },
+          statut: 'TERMINEE',
+          createdAt: { gte: debut, lte: fin },
         },
       }),
       this.prisma.reservation.count({
@@ -183,7 +175,6 @@ export class RapportsService {
       annee,
       caTotal: ca.total,
       detailCA: {
-        ventes: ca.ventes,
         hotel: ca.hotel,
         restaurant: ca.restaurant,
         piscine: ca.piscine,
@@ -191,7 +182,7 @@ export class RapportsService {
       },
       depenses: totalDepenses,
       benefice,
-      nbVentes,
+      nbCommandes,
       nbReservations,
     };
   }

@@ -8,7 +8,8 @@ import LoginPage from "./pages/auth/LoginPage";
 import DashboardPage from "./pages/dashboard/DashboardPage";
 import ClientsPage from "./pages/clients/ClientsPage";
 import ProduitsPage from "./pages/produits/ProduitsPage";
-import VentesPage from "./pages/ventes/VentesPage";
+import CaisseRestaurantPage from "./pages/caisse-restaurant/CaisseRestaurantPage";
+import CaisseHotelPage from "./pages/caisse-hotel/CaisseHotelPage";
 import PersonnelPage from "./pages/personnel/PersonnelPage";
 import HotelPage from "./pages/hotel/HotelPage";
 import RestaurantPage from "./pages/restaurant/RestaurantPage";
@@ -56,7 +57,8 @@ export default function App() {
                 <Route path="/dashboard" element={<DashboardPage />} />
                 <Route path="/clients" element={<ClientsPage />} />
                 <Route path="/produits" element={<ProduitsPage />} />
-                <Route path="/ventes" element={<VentesPage />} />
+                <Route path="/caisse-restaurant" element={<CaisseRestaurantPage />} />
+                <Route path="/caisse-hotel" element={<CaisseHotelPage />} />
                 <Route path="/personnel" element={<ProtectedRoute roles={['admin', 'manager']}><PersonnelPage /></ProtectedRoute>} />
                 <Route path="/hotel" element={<HotelPage />} />
                 <Route path="/restaurant" element={<RestaurantPage />} />

@@ -1,3 +1,6 @@
+// eslint-disable-next-line @typescript-eslint/ban-ts-comment
+// @ts-nocheck
+// Module ventes desactive dans CDC v2.0 - conserve pour reference
 import {
   Injectable,
   BadRequestException,

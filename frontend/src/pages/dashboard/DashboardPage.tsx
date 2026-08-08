@@ -8,7 +8,6 @@ import {
   CoffeeOutlined,
   WarningOutlined,
   ArrowRightOutlined,
-  ShoppingCartOutlined,
 } from "@ant-design/icons";
 import { useQuery } from "@tanstack/react-query";
 import { useNavigate } from "react-router-dom";
@@ -16,7 +15,6 @@ import { clientsApi } from "../../api/clients";
 import { produitsApi } from "../../api/produits";
 import { rapportsApi } from "../../api/rapports";
 import { hotelApi } from "../../api/hotel";
-import { ventesApi } from "../../api/ventes";
 import { restaurantApi } from "../../api/restaurant";
 import { useAuthStore } from "../../store/auth";
 import dayjs from "dayjs";
@@ -58,12 +56,6 @@ export default function DashboardPage() {
   const { data: hotelStats } = useQuery({
     queryKey: ["dashboard-hotel"],
     queryFn: hotelApi.getStats,
-  });
-
-  const { data: ventesStats } = useQuery({
-    queryKey: ["dashboard-ventes-stats"],
-    queryFn: ventesApi.getStats,
-    enabled: isCaissier || isManager,
   });
 
   const { data: restoStats } = useQuery({
@@ -111,7 +103,7 @@ export default function DashboardPage() {
           <>
             <Row gutter={[16, 16]}>
               <Col xs={24} sm={12} lg={6}>
-                <Card hoverable onClick={() => navigate('/ventes')} className="cursor-pointer">
+                <Card hoverable onClick={() => navigate('/rapports')} className="cursor-pointer">
                   <Statistic
                     title="CA du mois"
                     value={ca?.total || 0}
@@ -153,17 +145,17 @@ export default function DashboardPage() {
             <Row gutter={[16, 16]} className="mt-4">
               <Col xs={24} sm={12} lg={6}>
                 <Card>
-                  <Statistic title="CA Ventes" value={ca?.ventes || 0} suffix="FCFA" />
-                </Card>
-              </Col>
-              <Col xs={24} sm={12} lg={6}>
-                <Card>
                   <Statistic title="CA Restaurant" value={ca?.restaurant || 0} suffix="FCFA" prefix={<CoffeeOutlined />} />
                 </Card>
               </Col>
               <Col xs={24} sm={12} lg={6}>
                 <Card>
                   <Statistic title="CA Hotel" value={ca?.hotel || 0} suffix="FCFA" prefix={<HomeOutlined />} />
+                </Card>
+              </Col>
+              <Col xs={24} sm={12} lg={6}>
+                <Card>
+                  <Statistic title="CA Piscine" value={ca?.piscine || 0} suffix="FCFA" />
                 </Card>
               </Col>
               <Col xs={24} sm={12} lg={6}>
@@ -178,22 +170,22 @@ export default function DashboardPage() {
         {isCaissier && (
           <Row gutter={[16, 16]}>
             <Col xs={24} sm={12} lg={8}>
-              <Card hoverable onClick={() => navigate('/ventes')} className="cursor-pointer">
+              <Card hoverable onClick={() => navigate('/caisse-hotel')} className="cursor-pointer">
                 <Statistic
-                  title="Ventes aujourd'hui"
-                  value={ventesStats?.ventesAujourdHui || 0}
-                  prefix={<ShoppingCartOutlined />}
+                  title="Caisse Hotel"
+                  value={0}
+                  prefix={<DollarOutlined />}
+                  suffix="FCFA"
                 />
               </Card>
             </Col>
             <Col xs={24} sm={12} lg={8}>
-              <Card>
+              <Card hoverable onClick={() => navigate('/caisse-restaurant')} className="cursor-pointer">
                 <Statistic
-                  title="Total du jour"
-                  value={ventesStats?.totalAujourdHui || 0}
+                  title="Caisse Restaurant"
+                  value={0}
                   prefix={<DollarOutlined />}
                   suffix="FCFA"
-                  valueStyle={{ color: "#3f8600" }}
                 />
               </Card>
             </Col>
@@ -215,8 +207,8 @@ export default function DashboardPage() {
             <Col xs={24} sm={12} lg={8}>
               <Card hoverable onClick={() => navigate('/restaurant')} className="cursor-pointer">
                 <Statistic
-                  title="Commandes en cours"
-                  value={restoStats?.commandesEnCours || 0}
+                  title="En preparation"
+                  value={restoStats?.commandesEnPreparation || 0}
                   prefix={<CoffeeOutlined />}
                   valueStyle={{ color: "#1677ff" }}
                 />
@@ -288,7 +280,8 @@ export default function DashboardPage() {
 
 function getQuickActions(role: string) {
   const actions = [
-    { label: 'Nouvelle vente', icon: <ShoppingCartOutlined />, path: '/ventes', roles: ['admin', 'manager', 'caissier'] },
+    { label: 'Caisse Hotel', icon: <DollarOutlined />, path: '/caisse-hotel', roles: ['admin', 'manager', 'caissier'] },
+    { label: 'Caisse Restaurant', icon: <DollarOutlined />, path: '/caisse-restaurant', roles: ['admin', 'manager', 'caissier'] },
     { label: 'Nouvelle commande', icon: <CoffeeOutlined />, path: '/restaurant', roles: ['admin', 'manager', 'serveur'] },
     { label: 'Reservations', icon: <HomeOutlined />, path: '/hotel', roles: ['admin', 'manager', 'caissier', 'employe'] },
     { label: 'Rapports', icon: <DollarOutlined />, path: '/rapports', roles: ['admin', 'manager'] },
