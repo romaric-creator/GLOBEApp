@@ -55,12 +55,11 @@ export default function RapportsPage() {
             />
           </div>
           <Row gutter={16}>
-            <Col span={4}><Card><Statistic title="Ventes" value={ca?.ventes || 0} suffix="FCFA" /></Card></Col>
-            <Col span={4}><Card><Statistic title="Hotel" value={ca?.hotel || 0} suffix="FCFA" /></Card></Col>
-            <Col span={4}><Card><Statistic title="Restaurant" value={ca?.restaurant || 0} suffix="FCFA" /></Card></Col>
+            <Col span={5}><Card><Statistic title="Hotel" value={ca?.hotel || 0} suffix="FCFA" prefix={<HomeOutlined />} /></Card></Col>
+            <Col span={5}><Card><Statistic title="Restaurant" value={ca?.restaurant || 0} suffix="FCFA" /></Card></Col>
             <Col span={4}><Card><Statistic title="Piscine" value={ca?.piscine || 0} suffix="FCFA" /></Card></Col>
-            <Col span={4}><Card><Statistic title="Salle de fete" value={ca?.salle_fete || 0} suffix="FCFA" /></Card></Col>
-            <Col span={4}><Card><Statistic title="Total" value={ca?.total || 0} suffix="FCFA" valueStyle={{ color: '#3f8600' }} prefix={<RiseOutlined />} /></Card></Col>
+            <Col span={5}><Card><Statistic title="Salle de fete" value={ca?.salle_fete || 0} suffix="FCFA" /></Card></Col>
+            <Col span={5}><Card><Statistic title="Total" value={ca?.total || 0} suffix="FCFA" valueStyle={{ color: '#3f8600' }} prefix={<RiseOutlined />} /></Card></Col>
           </Row>
         </>
       ),
@@ -145,7 +144,7 @@ export default function RapportsPage() {
             <Col span={5}><Card><Statistic title="CA Total" value={resumeMensuel?.caTotal || 0} suffix="FCFA" valueStyle={{ color: '#3f8600' }} /></Card></Col>
             <Col span={5}><Card><Statistic title="Depenses" value={resumeMensuel?.depenses || 0} suffix="FCFA" valueStyle={{ color: '#cf1322' }} /></Card></Col>
             <Col span={5}><Card><Statistic title="Benefice" value={resumeMensuel?.benefice || 0} suffix="FCFA" /></Card></Col>
-            <Col span={5}><Card><Statistic title="Nb Ventes" value={resumeMensuel?.nbVentes || 0} /></Card></Col>
+            <Col span={5}><Card><Statistic title="Nb Commandes" value={resumeMensuel?.nbCommandes || 0} /></Card></Col>
             <Col span={4}><Card><Statistic title="Reservations" value={resumeMensuel?.nbReservations || 0} /></Card></Col>
           </Row>
         </>

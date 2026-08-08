@@ -1,47 +1,62 @@
-import {
-  Controller,
-  Get,
-  Post,
-  Body,
-  Query,
-  UseGuards,
-  Request,
-} from '@nestjs/common';
+import { Controller, Get, Post, Param, Body, Query, UseGuards } from '@nestjs/common';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { CaisseService } from './caisse.service';
-import { OuvrirCaisseDto, CloturerCaisseDto } from './dto/cloture-caisse.dto';
+import { CurrentUser } from '../auth/decorators/current-user.decorator';
 
 @Controller('caisse')
 @UseGuards(JwtAuthGuard)
 export class CaisseController {
   constructor(private readonly caisseService: CaisseService) {}
 
-  @Post('ouvrir')
-  ouvrir(
-    @Body() dto: OuvrirCaisseDto,
-    @Request() req: { user: { id: string } },
+  @Get()
+  getCaisses() {
+    return this.caisseService.getCaisses();
+  }
+
+  @Get(':id/session-active')
+  getSessionActive(@Param('id') id: string) {
+    return this.caisseService.getSessionActive(id);
+  }
+
+  @Post(':id/ouvrir')
+  ouvrirSession(
+    @Param('id') id: string,
+    @Body() body: { fondInitial: number },
+    @CurrentUser() user: { id: string },
   ) {
-    return this.caisseService.ouvrir(dto, req.user.id);
+    return this.caisseService.ouvrirSession(id, user.id, body.fondInitial ?? 0);
   }
 
-  @Post('cloturer')
-  cloturer(
-    @Body() dto: CloturerCaisseDto,
-    @Request() req: { user: { id: string } },
+  @Post('sessions/:sessionId/fermer')
+  fermerSession(
+    @Param('sessionId') sessionId: string,
+    @Body() body: { totalReel: number; notes?: string },
   ) {
-    return this.caisseService.cloturer(dto, req.user.id);
+    return this.caisseService.fermerSession(sessionId, body.totalReel, body.notes);
   }
 
-  @Get('etat')
-  getEtat(@Request() req: { user: { id: string } }) {
-    return this.caisseService.getEtatCaisse(req.user.id);
+  @Post('encaisser/hotel')
+  encaisserHotel(
+    @Body() body: { factureId: string; sessionId: string; montant: number; moyen: string },
+    @CurrentUser() user: { id: string },
+  ) {
+    return this.caisseService.encaisserFactureHotel(body.factureId, body.sessionId, user.id, body.montant, body.moyen);
   }
 
-  @Get('historique')
-  getHistorique(@Query('page') page?: string, @Query('limit') limit?: string) {
-    return this.caisseService.getHistorique(
-      page ? parseInt(page) : 1,
-      limit ? parseInt(limit) : 20,
-    );
+  @Post('encaisser/restaurant')
+  encaisserRestaurant(
+    @Body() body: { commandeId: string; sessionId: string; montant: number; moyen: string },
+    @CurrentUser() user: { id: string },
+  ) {
+    return this.caisseService.encaisserCommandeRestaurant(body.commandeId, body.sessionId, user.id, body.montant, body.moyen);
+  }
+
+  @Get(':id/historique')
+  getHistorique(
+    @Param('id') id: string,
+    @Query('page') page?: string,
+    @Query('limit') limit?: string,
+  ) {
+    return this.caisseService.getHistorique(id, page ? parseInt(page) : 1, limit ? parseInt(limit) : 20);
   }
 }

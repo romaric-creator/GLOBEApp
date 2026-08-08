@@ -1,116 +1,149 @@
-import { Injectable, BadRequestException } from '@nestjs/common';
+import { Injectable, BadRequestException, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../../prisma/prisma.service';
-import { OuvrirCaisseDto, CloturerCaisseDto } from './dto/cloture-caisse.dto';
 
 @Injectable()
 export class CaisseService {
   constructor(private prisma: PrismaService) {}
 
-  async ouvrir(dto: OuvrirCaisseDto, userId: string) {
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
-
-    const existing = await this.prisma.clotureCaisse.findFirst({
-      where: { userId, date: { gte: today } },
+  async getCaisses() {
+    return this.prisma.caisse.findMany({
+      where: { actif: true },
+      include: {
+        sessions: {
+          where: { statut: 'OUVERTE' },
+          orderBy: { ouvertureAt: 'desc' },
+          take: 1,
+        },
+      },
     });
-    if (existing)
-      throw new BadRequestException("Caisse deja ouverte aujourd'hui");
+  }
 
-    return this.prisma.clotureCaisse.create({
+  async ouvrirSession(caisseId: string, userId: string, fondInitial: number) {
+    const caisse = await this.prisma.caisse.findUnique({ where: { id: caisseId } });
+    if (!caisse) throw new NotFoundException('Caisse introuvable');
+    const sessionOuverte = await this.prisma.sessionCaisse.findFirst({
+      where: { caisseId, statut: 'OUVERTE' },
+    });
+    if (sessionOuverte) throw new BadRequestException('Une session est deja ouverte pour cette caisse');
+    return this.prisma.sessionCaisse.create({ data: { caisseId, userId, fondInitial } });
+  }
+
+  async fermerSession(sessionId: string, totalReel: number, notes?: string) {
+    const session = await this.prisma.sessionCaisse.findUnique({
+      where: { id: sessionId },
+      include: { paiements: true },
+    });
+    if (!session) throw new NotFoundException('Session introuvable');
+    if (session.statut === 'FERMEE') throw new BadRequestException('Cette session est deja fermee');
+    const totalTheorique =
+      session.paiements
+        .filter((p) => p.statut === 'ENCAISSE')
+        .reduce((s, p) => s + Number(p.montant), Number(session.fondInitial));
+    const ecart = totalReel - totalTheorique;
+    return this.prisma.sessionCaisse.update({
+      where: { id: sessionId },
+      data: { statut: 'FERMEE', fermetureAt: new Date(), totalTheorique, totalReel, ecart, notes: notes || null },
+    });
+  }
+
+  async getSessionActive(caisseId: string) {
+    return this.prisma.sessionCaisse.findFirst({
+      where: { caisseId, statut: 'OUVERTE' },
+      orderBy: { ouvertureAt: 'desc' },
+      include: {
+        paiements: { orderBy: { createdAt: 'desc' } },
+        caisse: true,
+      },
+    });
+  }
+
+  private async genererReference(): Promise<string> {
+    const annee = new Date().getFullYear();
+    const last = await this.prisma.paiement.findFirst({
+      where: { reference: { startsWith: `PAY-${annee}-` } },
+      orderBy: { reference: 'desc' },
+    });
+    const seq = last ? parseInt(last.reference.split('-')[2]) + 1 : 1;
+    return `PAY-${annee}-${String(seq).padStart(5, '0')}`;
+  }
+
+  async encaisserFactureHotel(
+    factureId: string,
+    sessionId: string,
+    userId: string,
+    montant: number,
+    moyen: string,
+  ) {
+    const facture = await this.prisma.factureSejour.findUnique({ where: { id: factureId } });
+    if (!facture) throw new NotFoundException('Facture introuvable');
+    if (facture.payee) throw new BadRequestException('Facture deja payee');
+    const session = await this.prisma.sessionCaisse.findUnique({ where: { id: sessionId } });
+    if (!session || session.statut !== 'OUVERTE') throw new BadRequestException('Session de caisse non ouverte');
+    const reference = await this.genererReference();
+    const nouvMontantPaye = Number(facture.montantPaye) + montant;
+    const payee = nouvMontantPaye >= Number(facture.total);
+    return this.prisma.$transaction(async (tx) => {
+      const paiement = await tx.paiement.create({
+        data: {
+          reference,
+          montant,
+          moyen: moyen as never,
+          sourceType: 'HOTEL_INVOICE',
+          sessionId,
+          userId,
+          factureSejourId: factureId,
+        },
+      });
+      await tx.factureSejour.update({
+        where: { id: factureId },
+        data: { montantPaye: nouvMontantPaye, reste: Number(facture.total) - nouvMontantPaye, payee },
+      });
+      return paiement;
+    });
+  }
+
+  async encaisserCommandeRestaurant(
+    commandeId: string,
+    sessionId: string,
+    userId: string,
+    montant: number,
+    moyen: string,
+  ) {
+    const commande = await this.prisma.commandeTable.findUnique({ where: { id: commandeId } });
+    if (!commande) throw new NotFoundException('Commande introuvable');
+    if (commande.statut !== 'TERMINEE') throw new BadRequestException('Seule une commande TERMINEE peut etre encaissee');
+    const existing = await this.prisma.paiement.findFirst({ where: { commandeTableId: commandeId } });
+    if (existing) throw new BadRequestException('Commande deja encaissee');
+    const session = await this.prisma.sessionCaisse.findUnique({ where: { id: sessionId } });
+    if (!session || session.statut !== 'OUVERTE') throw new BadRequestException('Session de caisse non ouverte');
+    const reference = await this.genererReference();
+    return this.prisma.paiement.create({
       data: {
-        montantOuverture: dto.montantOuverture,
-        montantCloture: 0,
-        ecart: 0,
+        reference,
+        montant,
+        moyen: moyen as never,
+        sourceType: 'RESTAURANT_ORDER',
+        sessionId,
         userId,
+        commandeTableId: commandeId,
       },
     });
   }
 
-  async cloturer(dto: CloturerCaisseDto, userId: string) {
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
-
-    const caisse = await this.prisma.clotureCaisse.findFirst({
-      where: { userId, date: { gte: today } },
-      orderBy: { date: 'desc' },
-    });
-    if (!caisse)
-      throw new BadRequestException("Aucune caisse ouverte aujourd'hui");
-    if (Number(caisse.montantCloture) > 0)
-      throw new BadRequestException('Caisse deja cloturee');
-
-    const ventesJour = await this.prisma.vente.aggregate({
-      where: {
-        userId,
-        date: { gte: today },
-        statut: 'VALIDEE',
-        modePaiement: { in: ['ESPECES', 'MIXTE'] },
-      },
-      _sum: { total: true },
-    });
-
-    const totalAttendu =
-      Number(caisse.montantOuverture) + Number(ventesJour._sum.total || 0);
-    const ecart = dto.montantCloture - totalAttendu;
-
-    return this.prisma.clotureCaisse.update({
-      where: { id: caisse.id },
-      data: {
-        montantCloture: dto.montantCloture,
-        ecart,
-      },
-    });
-  }
-
-  async getEtatCaisse(userId: string) {
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
-
-    const caisse = await this.prisma.clotureCaisse.findFirst({
-      where: { userId, date: { gte: today } },
-      orderBy: { date: 'desc' },
-    });
-
-    const ventesJour = await this.prisma.vente.aggregate({
-      where: {
-        userId,
-        date: { gte: today },
-        statut: 'VALIDEE',
-      },
-      _sum: { total: true },
-      _count: true,
-    });
-
-    const ventesParMode = await this.prisma.vente.groupBy({
-      by: ['modePaiement'],
-      where: { userId, date: { gte: today }, statut: 'VALIDEE' },
-      _sum: { total: true },
-      _count: true,
-    });
-
-    return {
-      caisseOuverte: !!caisse && Number(caisse.montantCloture) === 0,
-      montantOuverture: caisse ? Number(caisse.montantOuverture) : 0,
-      totalVentes: Number(ventesJour._sum.total || 0),
-      nbVentes: ventesJour._count,
-      ventesParMode: ventesParMode.map((v) => ({
-        mode: v.modePaiement,
-        total: Number(v._sum.total || 0),
-        count: v._count,
-      })),
-    };
-  }
-
-  async getHistorique(page = 1, limit = 20) {
+  async getHistorique(caisseId: string, page = 1, limit = 20) {
     const skip = (page - 1) * limit;
     const [data, total] = await Promise.all([
-      this.prisma.clotureCaisse.findMany({
+      this.prisma.sessionCaisse.findMany({
+        where: { caisseId },
+        orderBy: { ouvertureAt: 'desc' },
         skip,
         take: limit,
-        orderBy: { date: 'desc' },
-        include: { user: { select: { nom: true, prenom: true } } },
+        include: {
+          user: { select: { nom: true, prenom: true } },
+          _count: { select: { paiements: true } },
+        },
       }),
-      this.prisma.clotureCaisse.count(),
+      this.prisma.sessionCaisse.count({ where: { caisseId } }),
     ]);
     return { data, total, page, limit };
   }

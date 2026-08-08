@@ -1,66 +1,57 @@
 import axios from './axios';
 
-export interface ArticleMenu {
-  id: string;
-  nom: string;
-  description: string | null;
-  categorie: 'BOISSON' | 'PLAT' | 'DESSERT' | 'AUTRE';
-  prix: number;
-  actif: boolean;
-}
-
 export interface LigneCommande {
   id: string;
   quantite: number;
   prixUnitaire: number;
   notes: string | null;
-  article: { nom: string; categorie: string };
+  produit: { nom: string; unite: string; categorie: { nom: string } };
 }
 
 export interface Commande {
   id: string;
   numero: string;
-  statut: string;
+  statut: 'EN_PREPARATION' | 'TERMINEE' | 'ANNULEE';
   total: number;
+  tableReference: string | null;
   notes: string | null;
   createdAt: string;
+  completedAt: string | null;
+  cancelledAt: string | null;
   serveur: { prenom: string; nom: string };
   lignes: LigneCommande[];
+  paiement: { id: string; montant: number; moyen: string } | null;
 }
 
 export interface RestaurantStats {
   commandesAujourdHui: number;
-  commandesEnCours: number;
+  commandesEnPreparation: number;
   caJour: number;
 }
 
 export const restaurantApi = {
-  // Articles Menu
-  getArticles: (categorie?: string) =>
-    axios.get<ArticleMenu[]>('/restaurant/articles', {
-      params: { actif: 'true', ...(categorie ? { categorie } : {}) },
-    }).then((r) => r.data),
-  createArticle: (data: { nom: string; description?: string; categorie?: string; prix: number }) =>
-    axios.post<ArticleMenu>('/restaurant/articles', data).then((r) => r.data),
-  updateArticle: (id: string, data: Partial<{ nom: string; description: string; categorie: string; prix: number }>) =>
-    axios.patch<ArticleMenu>(`/restaurant/articles/${id}`, data).then((r) => r.data),
-  deleteArticle: (id: string) =>
-    axios.delete(`/restaurant/articles/${id}`).then((r) => r.data),
-
-  // Commandes
   getCommandes: (statut?: string) =>
-    axios.get<Commande[]>('/restaurant/commandes', {
-      params: statut ? { statut } : {},
-    }).then((r) => r.data),
+    axios.get<Commande[]>('/restaurant/commandes', { params: statut ? { statut } : {} }).then((r) => r.data),
+
+  getCommande: (id: string) =>
+    axios.get<Commande>(`/restaurant/commandes/${id}`).then((r) => r.data),
+
   createCommande: (data: {
     serveurId: string;
+    tableReference?: string;
     notes?: string;
-    lignes: { articleId: string; quantite: number; notes?: string }[];
+    lignes: { produitId: string; quantite: number; notes?: string }[];
   }) => axios.post('/restaurant/commandes', data).then((r) => r.data),
-  changerStatut: (id: string, statut: string) =>
-    axios.patch(`/restaurant/commandes/${id}/statut/${statut}`).then((r) => r.data),
 
-  // Stats
+  ajouterLignes: (id: string, lignes: { produitId: string; quantite: number; notes?: string }[]) =>
+    axios.post(`/restaurant/commandes/${id}/lignes`, { lignes }).then((r) => r.data),
+
+  terminer: (id: string) =>
+    axios.patch(`/restaurant/commandes/${id}/statut/TERMINEE`).then((r) => r.data),
+
+  annuler: (id: string) =>
+    axios.patch(`/restaurant/commandes/${id}/statut/ANNULEE`).then((r) => r.data),
+
   getStats: () =>
     axios.get<RestaurantStats>('/restaurant/stats').then((r) => r.data),
 };
