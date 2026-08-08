@@ -273,6 +273,45 @@ export class HotelService {
   }
 
   // ========================
+  // Factures
+  // ========================
+
+  async findAllFactures(payee?: boolean) {
+    const where: Record<string, unknown> = {};
+    if (payee !== undefined) where.payee = payee;
+    return this.prisma.factureSejour.findMany({
+      where,
+      orderBy: { createdAt: 'desc' },
+      include: {
+        reservation: {
+          include: {
+            client: { select: { nom: true, prenom: true, telephone: true } },
+            chambre: { select: { numero: true, type: true } },
+          },
+        },
+        paiement: true,
+      },
+    });
+  }
+
+  async findOneFacture(id: string) {
+    const facture = await this.prisma.factureSejour.findUnique({
+      where: { id },
+      include: {
+        reservation: {
+          include: {
+            client: true,
+            chambre: true,
+          },
+        },
+        paiement: true,
+      },
+    });
+    if (!facture) throw new NotFoundException('Facture introuvable');
+    return facture;
+  }
+
+  // ========================
   // Stats
   // ========================
 

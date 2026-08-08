@@ -138,6 +138,38 @@ export class RapportsService {
     };
   }
 
+  async getCA7Jours() {
+    const jours: { date: string; hotel: number; restaurant: number; total: number }[] = [];
+    for (let i = 6; i >= 0; i--) {
+      const d = new Date();
+      d.setHours(0, 0, 0, 0);
+      d.setDate(d.getDate() - i);
+      const fin = new Date(d);
+      fin.setHours(23, 59, 59, 999);
+
+      const [hotel, restaurant] = await Promise.all([
+        this.prisma.reservation.aggregate({
+          _sum: { montantTotal: true },
+          where: { statut: 'TERMINEE', dateArrivee: { gte: d, lte: fin } },
+        }),
+        this.prisma.commandeTable.aggregate({
+          _sum: { total: true },
+          where: { statut: 'TERMINEE', createdAt: { gte: d, lte: fin } },
+        }),
+      ]);
+
+      const h = Number(hotel._sum.montantTotal) || 0;
+      const r = Number(restaurant._sum.total) || 0;
+      jours.push({
+        date: d.toISOString().slice(0, 10),
+        hotel: h,
+        restaurant: r,
+        total: h + r,
+      });
+    }
+    return jours;
+  }
+
   async getResumeMensuel(mois: number, annee: number) {
     const debut = new Date(annee, mois - 1, 1);
     const fin = new Date(annee, mois, 0, 23, 59, 59, 999);
