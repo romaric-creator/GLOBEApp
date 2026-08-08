@@ -94,9 +94,17 @@ export default function AppLayout() {
         theme="light"
         width={260}
         className="border-r border-slate-200/80"
-        style={{ background: "rgba(255,255,255,0.88)" }}
+        style={{
+          background: "rgba(255,255,255,0.88)",
+          height: "100vh",
+          position: "sticky",
+          top: 0,
+          overflow: "hidden",
+          display: "flex",
+          flexDirection: "column",
+        }}
       >
-        <div className="flex h-20 items-center justify-center border-b border-slate-200/80 px-4">
+        <div className="flex h-20 shrink-0 items-center justify-center border-b border-slate-200/80 px-4">
           <div
             className="flex items-center gap-3 rounded-2xl px-3 py-2"
             style={{
@@ -114,14 +122,16 @@ export default function AppLayout() {
             </h2>
           </div>
         </div>
-        <Menu
-          mode="inline"
-          selectedKeys={[location.pathname]}
-          items={menuItems}
-          onClick={({ key }) => navigate(key)}
-          className="mt-3 border-none bg-transparent"
-          style={{ background: "transparent" }}
-        />
+        <div style={{ flex: 1, overflowY: "auto", overflowX: "hidden" }}>
+          <Menu
+            mode="inline"
+            selectedKeys={[location.pathname]}
+            items={menuItems}
+            onClick={({ key }) => navigate(key)}
+            className="mt-3 border-none bg-transparent"
+            style={{ background: "transparent" }}
+          />
+        </div>
       </Sider>
       <Layout className="bg-transparent">
         <Header
