@@ -86,15 +86,15 @@ export class RestaurantService {
         notes: l.notes || null,
       };
     });
-    const annee = new Date().getFullYear();
-    const lastCmd = await this.prisma.commandeTable.findFirst({
-      where: { numero: { startsWith: `CMD-${annee}-` } },
-      orderBy: { numero: 'desc' },
-    });
-    const seq = lastCmd ? parseInt(lastCmd.numero.split('-')[2]) + 1 : 1;
-    const numero = `CMD-${annee}-${String(seq).padStart(4, '0')}`;
-
     return this.prisma.$transaction(async (tx) => {
+      const annee = new Date().getFullYear();
+      const lastCmd = await tx.commandeTable.findFirst({
+        where: { numero: { startsWith: `CMD-${annee}-` } },
+        orderBy: { numero: 'desc' },
+      });
+      const seq = lastCmd ? parseInt(lastCmd.numero.split('-')[2]) + 1 : 1;
+      const numero = `CMD-${annee}-${String(seq).padStart(4, '0')}`;
+
       const commande = await tx.commandeTable.create({
         data: {
           numero,

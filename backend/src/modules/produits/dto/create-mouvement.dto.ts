@@ -12,8 +12,9 @@ export class CreateMouvementDto {
   @IsEnum(TypeMouvement)
   type: TypeMouvement;
 
+  // INVENTAIRE accepte 0 (produit épuisé), AJUSTEMENT accepte négatif (décrémentation)
   @IsNumber()
-  @Min(1)
+  @Min(-999999)
   quantite: number;
 
   @IsOptional()

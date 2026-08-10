@@ -7,9 +7,25 @@ import {
   Query,
   UseGuards,
 } from '@nestjs/common';
+import { IsEnum, IsNumber, IsString, IsUUID, Min } from 'class-validator';
+import { MoyenPaiement } from '@prisma/client';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { CaisseService } from './caisse.service';
 import { CurrentUser } from '../auth/decorators/current-user.decorator';
+
+class EncaisserHotelDto {
+  @IsUUID() factureId: string;
+  @IsUUID() sessionId: string;
+  @IsNumber() @Min(0) montant: number;
+  @IsEnum(MoyenPaiement) moyen: MoyenPaiement;
+}
+
+class EncaisserRestaurantDto {
+  @IsUUID() commandeId: string;
+  @IsUUID() sessionId: string;
+  @IsNumber() @Min(0) montant: number;
+  @IsEnum(MoyenPaiement) moyen: MoyenPaiement;
+}
 
 @Controller('caisse')
 @UseGuards(JwtAuthGuard)
@@ -49,13 +65,7 @@ export class CaisseController {
 
   @Post('encaisser/hotel')
   encaisserHotel(
-    @Body()
-    body: {
-      factureId: string;
-      sessionId: string;
-      montant: number;
-      moyen: string;
-    },
+    @Body() body: EncaisserHotelDto,
     @CurrentUser() user: { id: string },
   ) {
     return this.caisseService.encaisserFactureHotel(
@@ -69,13 +79,7 @@ export class CaisseController {
 
   @Post('encaisser/restaurant')
   encaisserRestaurant(
-    @Body()
-    body: {
-      commandeId: string;
-      sessionId: string;
-      montant: number;
-      moyen: string;
-    },
+    @Body() body: EncaisserRestaurantDto,
     @CurrentUser() user: { id: string },
   ) {
     return this.caisseService.encaisserCommandeRestaurant(

@@ -162,6 +162,11 @@ export class AuthService {
       throw new UnauthorizedException('Session expiree');
     }
 
+    if (!session.user.actif) {
+      await this.prisma.session.deleteMany({ where: { userId: session.user.id } });
+      throw new UnauthorizedException('Compte desactive');
+    }
+
     const tokens = await this.generateTokens(
       session.user.id,
       session.user.email,

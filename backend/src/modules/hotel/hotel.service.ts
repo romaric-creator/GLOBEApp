@@ -223,16 +223,6 @@ export class HotelService {
     });
   }
 
-  private async genererNumeroFacture(): Promise<string> {
-    const annee = new Date().getFullYear();
-    const last = await this.prisma.factureSejour.findFirst({
-      where: { numero: { startsWith: `FS-${annee}-` } },
-      orderBy: { numero: 'desc' },
-    });
-    const seq = last ? parseInt(last.numero.split('-')[2]) + 1 : 1;
-    return `FS-${annee}-${String(seq).padStart(5, '0')}`;
-  }
-
   async checkIn(id: string) {
     const reservation = await this.findOneReservation(id);
     if (
@@ -244,9 +234,14 @@ export class HotelService {
       );
     }
 
-    const numero = await this.genererNumeroFacture();
-
     return this.prisma.$transaction(async (tx) => {
+      const annee = new Date().getFullYear();
+      const last = await tx.factureSejour.findFirst({
+        where: { numero: { startsWith: `FS-${annee}-` } },
+        orderBy: { numero: 'desc' },
+      });
+      const seq = last ? parseInt(last.numero.split('-')[2]) + 1 : 1;
+      const numero = `FS-${annee}-${String(seq).padStart(5, '0')}`;
       await tx.chambre.update({
         where: { id: reservation.chambreId },
         data: { statut: 'OCCUPEE' },
