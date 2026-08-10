@@ -1,162 +1,255 @@
-import { Injectable, BadRequestException, NotFoundException } from '@nestjs/common';
+import { Injectable } from '@nestjs/common';
 import { PrismaService } from '../../prisma/prisma.service';
-import { CreateCompteDto } from './dto/create-compte.dto';
-import { CreateEcritureDto } from './dto/create-ecriture.dto';
-import { CreateCategorieComptaDto } from './dto/create-categorie-compta.dto';
+import { CreateDepenseDto } from './dto/create-depense.dto';
+
+function startOfDay(d: Date) {
+  return new Date(d.getFullYear(), d.getMonth(), d.getDate());
+}
+function endOfDay(d: Date) {
+  return new Date(d.getFullYear(), d.getMonth(), d.getDate(), 23, 59, 59, 999);
+}
+function startOfMonth(d: Date) {
+  return new Date(d.getFullYear(), d.getMonth(), 1);
+}
+function endOfMonth(d: Date) {
+  return new Date(d.getFullYear(), d.getMonth() + 1, 0, 23, 59, 59, 999);
+}
 
 @Injectable()
 export class ComptabiliteService {
   constructor(private prisma: PrismaService) {}
 
-  async findAllComptes() {
-    return this.prisma.compte.findMany({
-      orderBy: { nom: 'asc' },
-    });
-  }
+  // ─── Dépenses ──────────────────────────────────────────────
 
-  async createCompte(dto: CreateCompteDto) {
-    return this.prisma.compte.create({
-      data: {
-        nom: dto.nom,
-        type: dto.type,
-      },
-    });
-  }
-
-  async findAllEcritures(dateDebut?: string, dateFin?: string) {
-    const where: any = {};
-
+  async getDepenses(dateDebut?: string, dateFin?: string, centre?: string) {
+    const where: Record<string, unknown> = {};
     if (dateDebut || dateFin) {
-      where.date = {};
-      if (dateDebut) where.date.gte = new Date(dateDebut);
-      if (dateFin) where.date.lte = new Date(dateFin);
+      where.date = {
+        ...(dateDebut ? { gte: new Date(dateDebut) } : {}),
+        ...(dateFin ? { lte: endOfDay(new Date(dateFin)) } : {}),
+      };
     }
+    if (centre) where.centre = centre;
 
-    return this.prisma.ecriture.findMany({
+    return this.prisma.depense.findMany({
       where,
-      include: {
-        compteDebit: true,
-        compteCredit: true,
-        categorieCompta: true,
-      },
       orderBy: { date: 'desc' },
     });
   }
 
-  async createEcriture(dto: CreateEcritureDto) {
-    if (dto.compteDebitId === dto.compteCreditId) {
-      throw new BadRequestException('Le compte debit et credit doivent etre differents');
-    }
-
-    if (dto.montant <= 0) {
-      throw new BadRequestException('Le montant doit etre positif');
-    }
-
-    return this.prisma.$transaction(async (tx) => {
-      const compteDebit = await tx.compte.findUnique({ where: { id: dto.compteDebitId } });
-      const compteCredit = await tx.compte.findUnique({ where: { id: dto.compteCreditId } });
-
-      if (!compteDebit) throw new NotFoundException(`Compte debit ${dto.compteDebitId} introuvable`);
-      if (!compteCredit) throw new NotFoundException(`Compte credit ${dto.compteCreditId} introuvable`);
-
-      const ecriture = await tx.ecriture.create({
-        data: {
-          montant: dto.montant,
-          libelle: dto.libelle,
-          compteDebitId: dto.compteDebitId,
-          compteCreditId: dto.compteCreditId,
-          categorieComptaId: dto.categorieComptaId,
-        },
-        include: {
-          compteDebit: true,
-          compteCredit: true,
-          categorieCompta: true,
-        },
-      });
-
-      // En comptabilite: debit augmente ACTIF/CHARGE, diminue PASSIF/PRODUIT
-      const debitSign = (compteDebit.type === 'ACTIF' || compteDebit.type === 'CHARGE') ? 1 : -1;
-      await tx.compte.update({
-        where: { id: dto.compteDebitId },
-        data: { solde: { increment: dto.montant * debitSign } },
-      });
-
-      // En comptabilite: credit augmente PASSIF/PRODUIT, diminue ACTIF/CHARGE
-      const creditSign = (compteCredit.type === 'PASSIF' || compteCredit.type === 'PRODUIT') ? 1 : -1;
-      await tx.compte.update({
-        where: { id: dto.compteCreditId },
-        data: { solde: { increment: dto.montant * creditSign } },
-      });
-
-      return ecriture;
-    });
-  }
-
-  async findAllCategories() {
-    return this.prisma.categorieCompta.findMany({
-      orderBy: { nom: 'asc' },
-    });
-  }
-
-  async createCategorie(dto: CreateCategorieComptaDto) {
-    return this.prisma.categorieCompta.create({
+  async createDepense(dto: CreateDepenseDto) {
+    return this.prisma.depense.create({
       data: {
-        nom: dto.nom,
-        type: dto.type,
+        libelle: dto.libelle,
+        montant: dto.montant,
+        centre: (dto.centre as any) ?? 'GENERAL',
+        date: dto.date ? new Date(dto.date) : new Date(),
+        notes: dto.notes,
       },
     });
   }
 
-  async getStats() {
-    const now = new Date();
-    const debutMois = new Date(now.getFullYear(), now.getMonth(), 1);
-    const finMois = new Date(now.getFullYear(), now.getMonth() + 1, 0, 23, 59, 59);
+  async deleteDepense(id: string) {
+    return this.prisma.depense.delete({ where: { id } });
+  }
 
-    const ecrituresMois = await this.prisma.ecriture.findMany({
+  // ─── Recettes par source ───────────────────────────────────
+
+  private async getRecettesHotel(debut: Date, fin: Date) {
+    const result = await this.prisma.paiement.aggregate({
+      _sum: { montant: true },
       where: {
-        date: { gte: debutMois, lte: finMois },
+        sourceType: 'HOTEL_INVOICE',
+        statut: 'ENCAISSE',
+        createdAt: { gte: debut, lte: fin },
       },
-      include: { categorieCompta: true },
     });
+    return Number(result._sum.montant ?? 0);
+  }
 
-    let totalRecettes = 0;
-    let totalDepenses = 0;
+  private async getRecettesRestaurant(debut: Date, fin: Date) {
+    const result = await this.prisma.paiement.aggregate({
+      _sum: { montant: true },
+      where: {
+        sourceType: 'RESTAURANT_ORDER',
+        statut: 'ENCAISSE',
+        createdAt: { gte: debut, lte: fin },
+      },
+    });
+    return Number(result._sum.montant ?? 0);
+  }
 
-    for (const ecriture of ecrituresMois) {
-      const montant = Number(ecriture.montant);
-      if (ecriture.categorieCompta.type === 'RECETTE') {
-        totalRecettes += montant;
-      } else if (ecriture.categorieCompta.type === 'DEPENSE') {
-        totalDepenses += montant;
-      }
-    }
-
-    const comptes = await this.prisma.compte.findMany();
-    const soldeGeneral = comptes.reduce(
-      (sum, compte) => sum + Number(compte.solde),
-      0,
+  private async getRecettesPiscine(debut: Date, fin: Date) {
+    const [tickets, abonnements, accessoires] = await Promise.all([
+      this.prisma.ticketPiscine.aggregate({
+        _sum: { prix: true },
+        where: { createdAt: { gte: debut, lte: fin } },
+      }),
+      this.prisma.abonnementLoisir.aggregate({
+        _sum: { prix: true },
+        where: { createdAt: { gte: debut, lte: fin } },
+      }),
+      this.prisma.transactionAccessoire.aggregate({
+        _sum: { total: true },
+        where: {
+          type: { in: ['VENTE', 'LOCATION'] },
+          createdAt: { gte: debut, lte: fin },
+        },
+      }),
+    ]);
+    return (
+      Number(tickets._sum.prix ?? 0) +
+      Number(abonnements._sum.prix ?? 0) +
+      Number(accessoires._sum.total ?? 0)
     );
+  }
 
-    const nbEcritures = await this.prisma.ecriture.count({
+  private async getRecettesSalle(debut: Date, fin: Date) {
+    const result = await this.prisma.reservationSalle.aggregate({
+      _sum: { montant: true },
       where: {
-        date: { gte: debutMois, lte: finMois },
+        statut: 'TERMINEE',
+        dateEvent: { gte: debut, lte: fin },
       },
     });
+    return Number(result._sum.montant ?? 0);
+  }
+
+  // ─── Vue d'ensemble ────────────────────────────────────────
+
+  async getTableauBord(mois?: string) {
+    const ref = mois ? new Date(mois + '-01') : new Date();
+    const debut = startOfMonth(ref);
+    const fin = endOfMonth(ref);
+
+    const [hotel, restaurant, piscine, salle, depenses] = await Promise.all([
+      this.getRecettesHotel(debut, fin),
+      this.getRecettesRestaurant(debut, fin),
+      this.getRecettesPiscine(debut, fin),
+      this.getRecettesSalle(debut, fin),
+      this.prisma.depense.groupBy({
+        by: ['centre'],
+        _sum: { montant: true },
+        where: { date: { gte: debut, lte: fin } },
+      }),
+    ]);
+
+    const totalRecettes = hotel + restaurant + piscine + salle;
+
+    const depensesParCentre: Record<string, number> = {
+      HOTEL: 0, RESTAURANT: 0, PISCINE: 0, SALLE_FETE: 0, GENERAL: 0,
+    };
+    let totalDepenses = 0;
+    for (const d of depenses) {
+      const montant = Number(d._sum.montant ?? 0);
+      depensesParCentre[d.centre] = montant;
+      totalDepenses += montant;
+    }
 
     return {
-      totalRecettes,
-      totalDepenses,
-      soldeGeneral,
-      nbEcritures,
+      periode: { debut: debut.toISOString(), fin: fin.toISOString() },
+      recettes: { hotel, restaurant, piscine, salle, total: totalRecettes },
+      depenses: { ...depensesParCentre, total: totalDepenses },
+      resultat: totalRecettes - totalDepenses,
     };
   }
 
-  async cloturerPeriode(periode: string) {
-    return this.prisma.cloture.create({
-      data: {
-        periode,
-        valide: true,
+  // ─── Historique mensuel (12 derniers mois) ─────────────────
+
+  async getHistoriqueMensuel() {
+    const now = new Date();
+    const mois: { label: string; recettes: number; depenses: number; resultat: number }[] = [];
+
+    for (let i = 11; i >= 0; i--) {
+      const ref = new Date(now.getFullYear(), now.getMonth() - i, 1);
+      const debut = startOfMonth(ref);
+      const fin = endOfMonth(ref);
+      const label = ref.toLocaleDateString('fr-FR', { month: 'short', year: '2-digit' });
+
+      const [hotel, restaurant, piscine, salle, depTotal] = await Promise.all([
+        this.getRecettesHotel(debut, fin),
+        this.getRecettesRestaurant(debut, fin),
+        this.getRecettesPiscine(debut, fin),
+        this.getRecettesSalle(debut, fin),
+        this.prisma.depense.aggregate({
+          _sum: { montant: true },
+          where: { date: { gte: debut, lte: fin } },
+        }),
+      ]);
+
+      const recettes = hotel + restaurant + piscine + salle;
+      const depenses = Number(depTotal._sum.montant ?? 0);
+
+      mois.push({ label, recettes, depenses, resultat: recettes - depenses });
+    }
+
+    return mois;
+  }
+
+  // ─── Trésorerie consolidée ─────────────────────────────────
+
+  async getTresorerie() {
+    const sessions = await this.prisma.sessionCaisse.findMany({
+      where: { statut: 'OUVERTE' },
+      include: {
+        caisse: true,
+        paiements: {
+          where: { statut: 'ENCAISSE' },
+          select: { montant: true },
+        },
       },
     });
+
+    const caisses = sessions.map((s) => ({
+      nom: s.caisse.nom,
+      type: s.caisse.type,
+      fondInitial: Number(s.fondInitial),
+      totalEncaisse: s.paiements.reduce((sum, p) => sum + Number(p.montant), 0),
+      total: Number(s.fondInitial) + s.paiements.reduce((sum, p) => sum + Number(p.montant), 0),
+    }));
+
+    const totalTresorerie = caisses.reduce((sum, c) => sum + c.total, 0);
+
+    return { caisses, total: totalTresorerie };
+  }
+
+  // ─── Détail recettes sur une période ──────────────────────
+
+  async getRecettesDetail(dateDebut?: string, dateFin?: string) {
+    const debut = dateDebut ? new Date(dateDebut) : startOfMonth(new Date());
+    const fin = dateFin ? endOfDay(new Date(dateFin)) : endOfMonth(new Date());
+
+    const [hotel, restaurant, piscine, salle] = await Promise.all([
+      this.prisma.paiement.findMany({
+        where: {
+          sourceType: 'HOTEL_INVOICE',
+          statut: 'ENCAISSE',
+          createdAt: { gte: debut, lte: fin },
+        },
+        include: { factureSejour: { include: { reservation: { include: { client: true, chambre: true } } } } },
+        orderBy: { createdAt: 'desc' },
+      }),
+      this.prisma.paiement.findMany({
+        where: {
+          sourceType: 'RESTAURANT_ORDER',
+          statut: 'ENCAISSE',
+          createdAt: { gte: debut, lte: fin },
+        },
+        include: { commandeTable: true },
+        orderBy: { createdAt: 'desc' },
+      }),
+      this.prisma.ticketPiscine.findMany({
+        where: { createdAt: { gte: debut, lte: fin } },
+        include: { client: true },
+        orderBy: { createdAt: 'desc' },
+      }),
+      this.prisma.reservationSalle.findMany({
+        where: { statut: 'TERMINEE', dateEvent: { gte: debut, lte: fin } },
+        include: { client: true, type: true },
+        orderBy: { dateEvent: 'desc' },
+      }),
+    ]);
+
+    return { hotel, restaurant, piscine, salle };
   }
 }

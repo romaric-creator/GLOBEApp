@@ -1,65 +1,60 @@
 import {
-  Controller,
-  Get,
-  Post,
-  Body,
-  Query,
-  UseGuards,
+  Controller, Get, Post, Delete,
+  Body, Query, Param, UseGuards,
 } from '@nestjs/common';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
-import { RolesGuard } from '../../common/guards/roles.guard';
-import { Roles } from '../../common/decorators/roles.decorator';
 import { ComptabiliteService } from './comptabilite.service';
-import { CreateCompteDto } from './dto/create-compte.dto';
-import { CreateEcritureDto } from './dto/create-ecriture.dto';
-import { CreateCategorieComptaDto } from './dto/create-categorie-compta.dto';
+import { CreateDepenseDto } from './dto/create-depense.dto';
 
 @Controller('comptabilite')
-@UseGuards(JwtAuthGuard, RolesGuard)
+@UseGuards(JwtAuthGuard)
 export class ComptabiliteController {
   constructor(private readonly comptabiliteService: ComptabiliteService) {}
 
-  @Get('comptes')
-  findAllComptes() {
-    return this.comptabiliteService.findAllComptes();
+  // Tableau de bord financier (mois courant ou mois donné ex: ?mois=2026-07)
+  @Get('tableau-bord')
+  getTableauBord(@Query('mois') mois?: string) {
+    return this.comptabiliteService.getTableauBord(mois);
   }
 
-  @Post('comptes')
-  createCompte(@Body() dto: CreateCompteDto) {
-    return this.comptabiliteService.createCompte(dto);
+  // Historique sur 12 mois (courbe)
+  @Get('historique-mensuel')
+  getHistoriqueMensuel() {
+    return this.comptabiliteService.getHistoriqueMensuel();
   }
 
-  @Get('ecritures')
-  findAllEcritures(
+  // Trésorerie consolidée (caisses ouvertes en ce moment)
+  @Get('tresorerie')
+  getTresorerie() {
+    return this.comptabiliteService.getTresorerie();
+  }
+
+  // Détail des recettes par source sur une période
+  @Get('recettes')
+  getRecettesDetail(
     @Query('dateDebut') dateDebut?: string,
     @Query('dateFin') dateFin?: string,
   ) {
-    return this.comptabiliteService.findAllEcritures(dateDebut, dateFin);
+    return this.comptabiliteService.getRecettesDetail(dateDebut, dateFin);
   }
 
-  @Post('ecritures')
-  createEcriture(@Body() dto: CreateEcritureDto) {
-    return this.comptabiliteService.createEcriture(dto);
+  // Dépenses
+  @Get('depenses')
+  getDepenses(
+    @Query('dateDebut') dateDebut?: string,
+    @Query('dateFin') dateFin?: string,
+    @Query('centre') centre?: string,
+  ) {
+    return this.comptabiliteService.getDepenses(dateDebut, dateFin, centre);
   }
 
-  @Get('categories')
-  findAllCategories() {
-    return this.comptabiliteService.findAllCategories();
+  @Post('depenses')
+  createDepense(@Body() dto: CreateDepenseDto) {
+    return this.comptabiliteService.createDepense(dto);
   }
 
-  @Post('categories')
-  createCategorie(@Body() dto: CreateCategorieComptaDto) {
-    return this.comptabiliteService.createCategorie(dto);
-  }
-
-  @Get('stats')
-  getStats() {
-    return this.comptabiliteService.getStats();
-  }
-
-  @Post('cloture')
-  @Roles('admin', 'comptable')
-  cloturerPeriode(@Body('periode') periode: string) {
-    return this.comptabiliteService.cloturerPeriode(periode);
+  @Delete('depenses/:id')
+  deleteDepense(@Param('id') id: string) {
+    return this.comptabiliteService.deleteDepense(id);
   }
 }
