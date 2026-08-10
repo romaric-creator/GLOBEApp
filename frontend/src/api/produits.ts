@@ -61,6 +61,8 @@ export const produitsApi = {
   getCategories: () => api.get<Categorie[]>('/produits/categories'),
   createCategorie: (data: { nom: string; description?: string; parentId?: string }) =>
     api.post<Categorie>('/produits/categories', data),
+  updateCategorie: (id: string, data: { nom?: string; description?: string }) =>
+    api.patch<Categorie>('/produits/categories/' + id, data),
   deleteCategorie: (id: string) => api.delete('/produits/categories/' + id),
 
   getMouvements: (produitId?: string) =>
