@@ -12,6 +12,8 @@ import { LoginDto } from './dto/login.dto';
 import { RegisterDto } from './dto/register.dto';
 import { ChangePasswordDto } from './dto/change-password.dto';
 import { JwtAuthGuard } from './guards/jwt-auth.guard';
+import { RolesGuard } from '../../common/guards/roles.guard';
+import { Roles } from '../../common/decorators/roles.decorator';
 import { CurrentUser } from '../../common/decorators/current-user.decorator';
 
 @Controller('auth')
@@ -19,12 +21,17 @@ export class AuthController {
   constructor(private authService: AuthService) {}
 
   @Post('login')
-  async login(@Body() dto: LoginDto, @Req() req: { ip: string; headers: Record<string, string> }) {
+  async login(
+    @Body() dto: LoginDto,
+    @Req() req: { ip: string; headers: Record<string, string> },
+  ) {
     const ip = req.ip;
     const userAgent = req.headers['user-agent'];
     return this.authService.login(dto, ip, userAgent);
   }
 
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles('admin')
   @Post('register')
   async register(@Body() dto: RegisterDto) {
     return this.authService.register(dto);

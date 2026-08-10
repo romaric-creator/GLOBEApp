@@ -1,0 +1,98 @@
+import { Injectable, Logger } from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
+import { PrismaService } from '../../prisma/prisma.service';
+import { CreateSauvegardeDto } from './dto/create-sauvegarde.dto';
+import { execFile } from 'child_process';
+import { promisify } from 'util';
+import { stat, mkdir } from 'fs/promises';
+
+@Injectable()
+export class SauvegardeService {
+  private readonly logger = new Logger(SauvegardeService.name);
+
+  constructor(
+    private prisma: PrismaService,
+    private configService: ConfigService,
+  ) {}
+
+  async findAll() {
+    const sauvegardes = await this.prisma.sauvegarde.findMany({
+      orderBy: { date: 'desc' },
+    });
+    return sauvegardes.map((s) => ({
+      ...s,
+      taille: s.taille ? Number(s.taille) : null,
+    }));
+  }
+
+  async create(dto: CreateSauvegardeDto) {
+    const chemin = `/backups/backup_${Date.now()}.sql`;
+
+    const sauvegarde = await this.prisma.sauvegarde.create({
+      data: {
+        date: new Date(),
+        chemin,
+        type: dto.type,
+        statut: 'EN_COURS',
+      },
+    });
+
+    try {
+      const databaseUrl = this.configService.get<string>('DATABASE_URL');
+      if (!databaseUrl) {
+        throw new Error('DATABASE_URL non configuree');
+      }
+      await mkdir('/backups', { recursive: true });
+      const execFileAsync = promisify(execFile);
+      await execFileAsync('pg_dump', ['--dbname', databaseUrl, '-f', chemin]);
+
+      const fileStats = await stat(chemin);
+
+      return this.prisma.sauvegarde.update({
+        where: { id: sauvegarde.id },
+        data: {
+          statut: 'REUSSIE',
+          taille: fileStats.size,
+        },
+      });
+    } catch (error) {
+      const msg = error instanceof Error ? error.message : String(error);
+      this.logger.error(`Echec de la sauvegarde: ${msg}`);
+
+      return this.prisma.sauvegarde.update({
+        where: { id: sauvegarde.id },
+        data: { statut: 'ECHOUEE' },
+      });
+    }
+  }
+
+  async getLatest() {
+    const s = await this.prisma.sauvegarde.findFirst({
+      where: { statut: 'REUSSIE' },
+      orderBy: { date: 'desc' },
+    });
+    if (!s) return null;
+    return { ...s, taille: s.taille ? Number(s.taille) : null };
+  }
+
+  async getStats() {
+    const totalSauvegardes = await this.prisma.sauvegarde.count();
+
+    const derniereSauvegarde = await this.prisma.sauvegarde.findFirst({
+      where: { statut: 'REUSSIE' },
+      orderBy: { date: 'desc' },
+      select: { date: true },
+    });
+
+    const tailleTotale = await this.prisma.sauvegarde.aggregate({
+      where: { statut: 'REUSSIE' },
+      _sum: { taille: true },
+    });
+
+    return {
+      totalSauvegardes,
+      derniereSauvegarde: derniereSauvegarde?.date || null,
+      tailleTotale: Number(tailleTotale._sum.taille || 0),
+    };
+  }
+}
