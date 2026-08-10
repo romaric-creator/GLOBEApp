@@ -223,6 +223,16 @@ export class HotelService {
     });
   }
 
+  private async genererNumeroFacture(): Promise<string> {
+    const annee = new Date().getFullYear();
+    const last = await this.prisma.factureSejour.findFirst({
+      where: { numero: { startsWith: `FS-${annee}-` } },
+      orderBy: { numero: 'desc' },
+    });
+    const seq = last ? parseInt(last.numero.split('-')[2]) + 1 : 1;
+    return `FS-${annee}-${String(seq).padStart(5, '0')}`;
+  }
+
   async checkIn(id: string) {
     const reservation = await this.findOneReservation(id);
     if (
@@ -234,18 +244,47 @@ export class HotelService {
       );
     }
 
-    await this.prisma.chambre.update({
-      where: { id: reservation.chambreId },
-      data: { statut: 'OCCUPEE' },
-    });
+    const numero = await this.genererNumeroFacture();
 
-    return this.prisma.reservation.update({
-      where: { id },
-      data: { statut: 'EN_COURS' },
-      include: {
-        chambre: { select: { numero: true, type: true } },
-        client: { select: { nom: true, prenom: true } },
-      },
+    return this.prisma.$transaction(async (tx) => {
+      await tx.chambre.update({
+        where: { id: reservation.chambreId },
+        data: { statut: 'OCCUPEE' },
+      });
+
+      const updated = await tx.reservation.update({
+        where: { id },
+        data: { statut: 'EN_COURS' },
+        include: {
+          chambre: { select: { numero: true, type: true, prixNuit: true } },
+          client: { select: { nom: true, prenom: true } },
+        },
+      });
+
+      const factureExistante = await tx.factureSejour.findUnique({
+        where: { reservationId: id },
+      });
+
+      if (!factureExistante) {
+        const nbNuits = Math.ceil(
+          (reservation.dateDepart.getTime() -
+            reservation.dateArrivee.getTime()) /
+            (1000 * 60 * 60 * 24),
+        );
+        const montantNuitee = Number(updated.chambre.prixNuit) * nbNuits;
+        await tx.factureSejour.create({
+          data: {
+            numero,
+            montantNuitee,
+            montantExtras: 0,
+            total: montantNuitee,
+            reste: montantNuitee,
+            reservationId: id,
+          },
+        });
+      }
+
+      return updated;
     });
   }
 
