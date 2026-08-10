@@ -1,14 +1,15 @@
 import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { Table, Button, Modal, Form, Select, InputNumber, DatePicker, Input, Tag, Space, App, Popconfirm } from 'antd';
-import { PlusOutlined, LoginOutlined, LogoutOutlined } from '@ant-design/icons';
+import { PlusOutlined, LoginOutlined, LogoutOutlined, UserAddOutlined } from '@ant-design/icons';
 import { hotelApi } from '../../api/hotel';
 import { clientsApi } from '../../api/clients';
+import type { Client } from '../../api/clients';
 import type { Reservation, Chambre } from '../../api/hotel';
 
 const STATUT_COLORS: Record<string, string> = {
   EN_ATTENTE: 'orange',
-  CONFIRMEE: 'blue',
+  CONFIRMEE: 'gold',
   EN_COURS: 'green',
   TERMINEE: 'default',
   ANNULEE: 'red',
@@ -18,12 +19,16 @@ export default function ReservationsTab() {
   const { message } = App.useApp();
   const queryClient = useQueryClient();
   const [modalOpen, setModalOpen] = useState(false);
+  const [newClientOpen, setNewClientOpen] = useState(false);
   const [filterStatut, setFilterStatut] = useState<string | undefined>(undefined);
+  const [maxPersonnes, setMaxPersonnes] = useState(10);
   const [form] = Form.useForm();
+  const [clientForm] = Form.useForm();
 
   const { data: reservations, isLoading } = useQuery({
     queryKey: ['reservations', filterStatut],
     queryFn: () => hotelApi.getReservations(filterStatut),
+    refetchInterval: 30_000,
   });
 
   const { data: chambres } = useQuery({
@@ -48,6 +53,7 @@ export default function ReservationsTab() {
       message.success('Reservation creee');
       setModalOpen(false);
       form.resetFields();
+      setMaxPersonnes(10);
       invalidateAll();
     },
     onError: (err: { response?: { data?: { message?: string } } }) => {
@@ -73,6 +79,21 @@ export default function ReservationsTab() {
   const checkOutMutation = useMutation({
     mutationFn: hotelApi.checkOut,
     onSuccess: () => { message.success('Check-out effectue'); invalidateAll(); },
+  });
+
+  const createClientMutation = useMutation({
+    mutationFn: clientsApi.create,
+    onSuccess: (res) => {
+      message.success('Client cree');
+      queryClient.invalidateQueries({ queryKey: ['clients'] });
+      form.setFieldValue('clientId', res.data.id);
+      setNewClientOpen(false);
+      setModalOpen(true);
+      clientForm.resetFields();
+    },
+    onError: (err: { response?: { data?: { message?: string } } }) => {
+      message.error(err.response?.data?.message || 'Erreur');
+    },
   });
 
   const chambresDisponibles = chambres?.filter((c: Chambre) => c.statut === 'DISPONIBLE') || [];
@@ -180,7 +201,7 @@ export default function ReservationsTab() {
       <Modal
         title="Nouvelle reservation"
         open={modalOpen}
-        onCancel={() => { setModalOpen(false); form.resetFields(); }}
+        onCancel={() => { setModalOpen(false); form.resetFields(); setMaxPersonnes(10); }}
         onOk={() => form.submit()}
         confirmLoading={createMutation.isPending}
         width={500}
@@ -206,27 +227,81 @@ export default function ReservationsTab() {
               options={chambresDisponibles.map((c: Chambre) => ({
                 value: c.id,
                 label: `${c.numero} - ${c.type} (${c.capacite} pers.) - ${Number(c.prixNuit).toLocaleString()} FCFA/nuit`,
+                capacite: c.capacite,
               }))}
+              onChange={(val) => {
+                const ch = chambresDisponibles.find((c: Chambre) => c.id === val);
+                if (ch) {
+                  setMaxPersonnes(ch.capacite);
+                  form.setFieldValue('nbPersonnes', Math.min(form.getFieldValue('nbPersonnes') || 1, ch.capacite));
+                }
+              }}
             />
           </Form.Item>
-          <Form.Item name="clientId" label="Client" rules={[{ required: true }]}>
-            <Select
-              showSearch
-              optionFilterProp="label"
-              options={clients?.map((c: { id: string; nom: string; prenom?: string }) => ({
-                value: c.id,
-                label: `${c.nom} ${c.prenom || ''}`.trim(),
-              })) || []}
-            />
+          <Form.Item label="Client" required style={{ marginBottom: 8 }}>
+            <div className="flex gap-2">
+              <Form.Item name="clientId" rules={[{ required: true, message: 'Client requis' }]} className="flex-1 mb-0">
+                <Select
+                  showSearch
+                  optionFilterProp="label"
+                  placeholder="Rechercher un client..."
+                  options={(clients || []).map((c: Client) => ({
+                    value: c.id,
+                    label: `${c.nom}${c.prenom ? ' ' + c.prenom : ''}`,
+                  }))}
+                />
+              </Form.Item>
+              <Button icon={<UserAddOutlined />} onClick={() => { setModalOpen(false); setNewClientOpen(true); }} title="Nouveau client" />
+            </div>
           </Form.Item>
           <Form.Item name="dates" label="Dates (arrivee - depart)" rules={[{ required: true }]}>
             <DatePicker.RangePicker className="w-full" />
           </Form.Item>
-          <Form.Item name="nbPersonnes" label="Nombre de personnes" rules={[{ required: true }]} initialValue={1}>
-            <InputNumber min={1} max={10} className="w-full" />
+          <Form.Item
+            name="nbPersonnes"
+            label={`Nombre de personnes (max ${maxPersonnes})`}
+            rules={[{ required: true }]}
+            initialValue={1}
+          >
+            <InputNumber min={1} max={maxPersonnes} className="w-full" />
           </Form.Item>
           <Form.Item name="notes" label="Notes">
             <Input.TextArea rows={2} />
+          </Form.Item>
+        </Form>
+      </Modal>
+
+      <Modal
+        title="Nouveau client"
+        open={newClientOpen}
+        onCancel={() => { setNewClientOpen(false); setModalOpen(true); clientForm.resetFields(); }}
+        onOk={() => clientForm.submit()}
+        confirmLoading={createClientMutation.isPending}
+        width={400}
+        okText="Creer"
+      >
+        <Form
+          form={clientForm}
+          layout="vertical"
+          onFinish={(values) => createClientMutation.mutate(values)}
+        >
+          <Form.Item name="nom" label="Nom" rules={[{ required: true }]}>
+            <Input />
+          </Form.Item>
+          <Form.Item name="prenom" label="Prenom">
+            <Input />
+          </Form.Item>
+          <Form.Item name="telephone" label="Telephone">
+            <Input />
+          </Form.Item>
+          <Form.Item name="email" label="Email">
+            <Input type="email" />
+          </Form.Item>
+          <Form.Item name="type" label="Type" initialValue="PARTICULIER">
+            <Select options={[
+              { value: 'PARTICULIER', label: 'Particulier' },
+              { value: 'ENTREPRISE', label: 'Entreprise' },
+            ]} />
           </Form.Item>
         </Form>
       </Modal>

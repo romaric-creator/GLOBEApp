@@ -49,12 +49,14 @@ export default function CaisseHotelPage() {
     queryKey: ['session-active-hotel', caisse?.id],
     queryFn: () => caisseApi.getSessionActive(caisse!.id),
     enabled: !!caisse,
+    refetchInterval: 15_000,
   });
 
   const { data: factures } = useQuery({
     queryKey: ['factures-hotel'],
     queryFn: () => axios.get<FactureSejour[]>('/hotel/factures').then((r) => r.data),
     enabled: !!session,
+    refetchInterval: 15_000,
   });
 
   const facturesImpayees = (factures || []).filter((f: FactureSejour) => !f.payee);

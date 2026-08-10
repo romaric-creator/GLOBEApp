@@ -9,7 +9,7 @@ const typeColors: Record<string, string> = {
   ENTREE: 'green',
   SORTIE: 'red',
   AJUSTEMENT: 'orange',
-  INVENTAIRE: 'blue',
+  INVENTAIRE: 'gold',
 };
 
 export default function MouvementsTab() {

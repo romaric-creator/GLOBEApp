@@ -10,7 +10,7 @@ const STATUT_COLORS: Record<string, string> = {
 };
 
 const TYPE_COLORS: Record<string, string> = {
-  COMPLETE: 'blue',
+  COMPLETE: 'gold',
   INCREMENTALE: 'cyan',
 };
 

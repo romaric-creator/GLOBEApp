@@ -33,19 +33,19 @@ interface SearchItem {
 }
 
 const PAGES: SearchItem[] = [
-  { id: 'p-dash', title: 'Dashboard', description: 'Tableau de bord', icon: <DashboardOutlined />, path: '/dashboard', category: 'Pages', color: 'blue' },
-  { id: 'p-clients', title: 'Clients', description: 'Gestion des clients', icon: <TeamOutlined />, path: '/clients', category: 'Pages', color: 'blue' },
-  { id: 'p-produits', title: 'Produits & Stock', description: 'Catalogue et inventaire', icon: <ShoppingOutlined />, path: '/produits', category: 'Pages', color: 'blue' },
-  { id: 'p-caisse-hotel', title: 'Caisse Hotel', description: 'Encaissement factures hotel', icon: <BankOutlined />, path: '/caisse-hotel', category: 'Pages', color: 'blue' },
-  { id: 'p-caisse-resto', title: 'Caisse Restaurant', description: 'Encaissement commandes', icon: <BankOutlined />, path: '/caisse-restaurant', category: 'Pages', color: 'blue' },
-  { id: 'p-hotel', title: 'Hotel', description: 'Chambres et reservations', icon: <HomeOutlined />, path: '/hotel', category: 'Pages', color: 'blue' },
-  { id: 'p-resto', title: 'Bar & Restaurant', description: 'Commandes restaurant', icon: <CoffeeOutlined />, path: '/restaurant', category: 'Pages', color: 'blue' },
-  { id: 'p-personnel', title: 'Personnel', description: 'Employes et pointage', icon: <UserOutlined />, path: '/personnel', category: 'Pages', color: 'blue' },
-  { id: 'p-piscine', title: 'Piscine', description: 'Tickets et abonnements', icon: <SafetyCertificateOutlined />, path: '/piscine', category: 'Pages', color: 'blue' },
-  { id: 'p-salle', title: 'Salle de fete', description: 'Reservations', icon: <CalendarOutlined />, path: '/salle-fete', category: 'Pages', color: 'blue' },
-  { id: 'p-compta', title: 'Comptabilite', description: 'Ecritures comptables', icon: <AccountBookOutlined />, path: '/comptabilite', category: 'Pages', color: 'blue' },
-  { id: 'p-rapports', title: 'Rapports', description: 'Statistiques', icon: <BarChartOutlined />, path: '/rapports', category: 'Pages', color: 'blue' },
-  { id: 'p-backup', title: 'Sauvegarde', description: 'Backup & restauration', icon: <CloudOutlined />, path: '/sauvegarde', category: 'Pages', color: 'blue' },
+  { id: 'p-dash', title: 'Dashboard', description: 'Tableau de bord', icon: <DashboardOutlined />, path: '/dashboard', category: 'Pages', color: 'gold' },
+  { id: 'p-clients', title: 'Clients', description: 'Gestion des clients', icon: <TeamOutlined />, path: '/clients', category: 'Pages', color: 'gold' },
+  { id: 'p-produits', title: 'Produits & Stock', description: 'Catalogue et inventaire', icon: <ShoppingOutlined />, path: '/produits', category: 'Pages', color: 'gold' },
+  { id: 'p-caisse-hotel', title: 'Caisse Hotel', description: 'Encaissement factures hotel', icon: <BankOutlined />, path: '/caisse-hotel', category: 'Pages', color: 'gold' },
+  { id: 'p-caisse-resto', title: 'Caisse Restaurant', description: 'Encaissement commandes', icon: <BankOutlined />, path: '/caisse-restaurant', category: 'Pages', color: 'gold' },
+  { id: 'p-hotel', title: 'Hotel', description: 'Chambres et reservations', icon: <HomeOutlined />, path: '/hotel', category: 'Pages', color: 'gold' },
+  { id: 'p-resto', title: 'Bar & Restaurant', description: 'Commandes restaurant', icon: <CoffeeOutlined />, path: '/restaurant', category: 'Pages', color: 'gold' },
+  { id: 'p-personnel', title: 'Personnel', description: 'Employes et pointage', icon: <UserOutlined />, path: '/personnel', category: 'Pages', color: 'gold' },
+  { id: 'p-piscine', title: 'Piscine', description: 'Tickets et abonnements', icon: <SafetyCertificateOutlined />, path: '/piscine', category: 'Pages', color: 'gold' },
+  { id: 'p-salle', title: 'Salle de fete', description: 'Reservations', icon: <CalendarOutlined />, path: '/salle-fete', category: 'Pages', color: 'gold' },
+  { id: 'p-compta', title: 'Comptabilite', description: 'Ecritures comptables', icon: <AccountBookOutlined />, path: '/comptabilite', category: 'Pages', color: 'gold' },
+  { id: 'p-rapports', title: 'Rapports', description: 'Statistiques', icon: <BarChartOutlined />, path: '/rapports', category: 'Pages', color: 'gold' },
+  { id: 'p-backup', title: 'Sauvegarde', description: 'Backup & restauration', icon: <CloudOutlined />, path: '/sauvegarde', category: 'Pages', color: 'gold' },
 ];
 
 export default function GlobalSearch() {

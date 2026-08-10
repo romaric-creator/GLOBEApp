@@ -348,7 +348,7 @@ function ReservationsTab() {
       <Row gutter={16} className="mb-4">
         <Col span={8}>
           <Card size="small">
-            <Statistic title="A venir" value={stats?.reservationsAVenir || 0} prefix={<CalendarOutlined />} valueStyle={{ color: '#1677ff' }} />
+            <Statistic title="A venir" value={stats?.reservationsAVenir || 0} prefix={<CalendarOutlined />} valueStyle={{ color: '#C9A84C' }} />
           </Card>
         </Col>
         <Col span={8}>

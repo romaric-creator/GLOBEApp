@@ -12,7 +12,7 @@ import type { Produit } from '../../api/produits';
 import { useAuthStore } from '../../store/auth';
 
 const STATUT_COLORS: Record<string, string> = {
-  EN_PREPARATION: 'blue',
+  EN_PREPARATION: 'gold',
   TERMINEE: 'green',
   ANNULEE: 'red',
 };
@@ -29,6 +29,7 @@ export default function CommandesTab() {
   const { data: commandes, isLoading } = useQuery({
     queryKey: ['commandes-resto', filterStatut],
     queryFn: () => restaurantApi.getCommandes(filterStatut),
+    refetchInterval: 20_000,
   });
 
   const { data: produits } = useQuery({
@@ -101,7 +102,7 @@ export default function CommandesTab() {
       render: (_: unknown, r: Commande) => (
         <div className="flex flex-wrap gap-1">
           {r.lignes.map((l) => (
-            <Tag key={l.id} color="blue" className="text-xs">
+            <Tag key={l.id} color="gold" className="text-xs">
               {l.quantite}x {l.produit.nom}
             </Tag>
           ))}
@@ -164,7 +165,7 @@ export default function CommandesTab() {
               title="En preparation"
               value={stats?.commandesEnPreparation || 0}
               prefix={<ClockCircleOutlined />}
-              valueStyle={{ color: '#1677ff' }}
+              valueStyle={{ color: '#C9A84C' }}
             />
           </Card>
         </Col>
