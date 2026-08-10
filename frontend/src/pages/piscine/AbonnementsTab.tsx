@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { Table, Button, Modal, Form, Select, Input, InputNumber, DatePicker, Tag, App } from 'antd';
+import { Table, Button, Modal, Form, Select, Input, InputNumber, DatePicker, Tag, App, Popconfirm } from 'antd';
 import { PlusOutlined } from '@ant-design/icons';
 import { piscineApi } from '../../api/piscine';
 import { clientsApi } from '../../api/clients';
@@ -89,9 +89,9 @@ export default function AbonnementsTab() {
       width: 100,
       render: (_: unknown, r: AbonnementLoisir) =>
         r.actif && (
-          <Button size="small" danger onClick={() => resilierMutation.mutate(r.id)}>
-            Resilier
-          </Button>
+          <Popconfirm title="Resilier cet abonnement ?" description="Cette action est irreversible." onConfirm={() => resilierMutation.mutate(r.id)} okText="Resilier" okButtonProps={{ danger: true }} cancelText="Annuler">
+            <Button size="small" danger>Resilier</Button>
+          </Popconfirm>
         ),
     },
   ];

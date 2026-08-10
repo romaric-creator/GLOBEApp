@@ -23,6 +23,7 @@ export default function CommandesTab() {
   const { user } = useAuthStore();
   const [modalOpen, setModalOpen] = useState(false);
   const [filterStatut, setFilterStatut] = useState<string | undefined>(undefined);
+  const [totalCommande, setTotalCommande] = useState(0);
   const [form] = Form.useForm();
 
   const { data: commandes, isLoading } = useQuery({
@@ -136,15 +137,10 @@ export default function CommandesTab() {
         <Space size="small">
           {r.statut === 'EN_PREPARATION' && (
             <>
-              <Button
-                size="small"
-                type="primary"
-                onClick={() => terminerMutation.mutate(r.id)}
-                loading={terminerMutation.isPending}
-              >
-                Terminer
-              </Button>
-              <Popconfirm title="Annuler cette commande ?" onConfirm={() => annulerMutation.mutate(r.id)}>
+              <Popconfirm title="Terminer cette commande ?" description="La commande passera en attente d'encaissement." onConfirm={() => terminerMutation.mutate(r.id)} okText="Terminer" cancelText="Annuler">
+                <Button size="small" type="primary" loading={terminerMutation.isPending}>Terminer</Button>
+              </Popconfirm>
+              <Popconfirm title="Annuler cette commande ?" onConfirm={() => annulerMutation.mutate(r.id)} okButtonProps={{ danger: true }} okText="Annuler" cancelText="Non">
                 <Button size="small" danger>Annuler</Button>
               </Popconfirm>
             </>
@@ -161,7 +157,7 @@ export default function CommandesTab() {
 
   return (
     <>
-      <Row gutter={16} className="mb-4">
+      <Row id="tour-restaurant-stats" gutter={16} className="mb-4">
         <Col span={8}>
           <Card size="small">
             <Statistic
@@ -190,7 +186,7 @@ export default function CommandesTab() {
         </Col>
       </Row>
 
-      <div className="mb-3 flex gap-3">
+      <div id="tour-restaurant-actions" className="mb-3 flex gap-3">
         <Button type="primary" icon={<PlusOutlined />} onClick={() => setModalOpen(true)}>
           Nouvelle commande
         </Button>
@@ -217,9 +213,18 @@ export default function CommandesTab() {
       />
 
       <Modal
-        title="Nouvelle commande"
+        title={
+          <div className="flex justify-between items-center pr-8">
+            <span>Nouvelle commande</span>
+            {totalCommande > 0 && (
+              <span className="text-base font-semibold text-green-600">
+                Total : {totalCommande.toLocaleString()} FCFA
+              </span>
+            )}
+          </div>
+        }
         open={modalOpen}
-        onCancel={() => { setModalOpen(false); form.resetFields(); }}
+        onCancel={() => { setModalOpen(false); form.resetFields(); setTotalCommande(0); }}
         onOk={() => form.submit()}
         confirmLoading={createMutation.isPending}
         width={580}
@@ -228,6 +233,15 @@ export default function CommandesTab() {
         <Form
           form={form}
           layout="vertical"
+          onValuesChange={(_, all) => {
+            const lignes = all.lignes || [];
+            const total = lignes.reduce((sum: number, l: { produitId?: string; quantite?: number }) => {
+              if (!l?.produitId) return sum;
+              const opt = produitOptions.find((p) => p.value === l.produitId);
+              return sum + (opt ? Number(opt.prixVente) * (l.quantite || 1) : 0);
+            }, 0);
+            setTotalCommande(total);
+          }}
           onFinish={(values) => {
             if (!user) return;
             createMutation.mutate({

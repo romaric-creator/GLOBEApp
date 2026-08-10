@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { Table, Button, Modal, Form, Select, InputNumber, DatePicker, Tag, Card, Row, Col, Statistic, App } from 'antd';
+import { Table, Button, Modal, Form, Select, InputNumber, DatePicker, Tag, Card, Row, Col, Statistic, App, Popconfirm } from 'antd';
 import { PlusOutlined, CheckOutlined } from '@ant-design/icons';
 import { piscineApi } from '../../api/piscine';
 import { clientsApi } from '../../api/clients';
@@ -111,9 +111,9 @@ export default function TicketsTab() {
       width: 100,
       render: (_: unknown, r: TicketPiscine) =>
         !r.utilise && (
-          <Button size="small" icon={<CheckOutlined />} onClick={() => utiliserMutation.mutate(r.id)}>
-            Valider
-          </Button>
+          <Popconfirm title="Valider ce ticket ?" description="Cette action est irreversible." onConfirm={() => utiliserMutation.mutate(r.id)} okText="Valider" cancelText="Annuler">
+            <Button size="small" icon={<CheckOutlined />}>Valider</Button>
+          </Popconfirm>
         ),
     },
   ];

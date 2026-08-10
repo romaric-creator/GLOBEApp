@@ -2,22 +2,14 @@ import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import {
   Card, Button, Modal, Form, Input, InputNumber, Select, Table, Tag,
-  Row, Col, Statistic, Space, App, Empty, Descriptions,
+  Row, Col, Statistic, Space, App, Empty, Descriptions, Popconfirm, Skeleton,
 } from 'antd';
 import {
-  UnlockOutlined, LockOutlined, DollarOutlined, HomeOutlined,
+  UnlockOutlined, LockOutlined, DollarOutlined, HomeOutlined, ExclamationCircleOutlined,
 } from '@ant-design/icons';
-import { caisseApi } from '../../api/caisse';
+import { caisseApi, MOYEN_OPTIONS } from '../../api/caisse';
 import type { Caisse, SessionCaisse, Paiement } from '../../api/caisse';
 import axios from '../../api/axios';
-
-const MOYEN_OPTIONS = [
-  { value: 'ESPECES', label: 'Especes' },
-  { value: 'CARTE', label: 'Carte bancaire' },
-  { value: 'VIREMENT', label: 'Virement' },
-  { value: 'MOBILE_MONEY', label: 'Mobile Money' },
-  { value: 'AUTRE', label: 'Autre' },
-];
 
 interface FactureSejour {
   id: string;
@@ -100,7 +92,7 @@ export default function CaisseHotelPage() {
 
   const loading = caisseLoading || sessionLoading;
 
-  if (loading) return <div className="p-8 text-center">Chargement...</div>;
+  if (loading) return <Skeleton active paragraph={{ rows: 6 }} />;
   if (!caisse) return <div className="p-8 text-center">Aucune caisse Hotel configuree.</div>;
 
   const facturesColumns = [
@@ -147,17 +139,32 @@ export default function CaisseHotelPage() {
   ];
 
   return (
-    <div>
-      <div className="flex items-center justify-between mb-6">
+    <div id="tour-caisse-hotel-page">
+      <div id="tour-caisse-hotel-header" className="flex items-center justify-between mb-6">
         <div>
           <h2 className="text-xl font-semibold m-0">Caisse Hotel</h2>
-          <p className="text-slate-500 text-sm m-0">{caisse.nom}</p>
+          <p className="text-slate-500 text-sm m-0">
+            {caisse.nom}
+            {session && (
+              <span className="ml-3 text-slate-400">
+                Ouverte depuis {new Date((session as SessionCaisse).ouvertureAt).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' })}
+              </span>
+            )}
+          </p>
         </div>
         <Space>
           {session ? (
-            <Button danger icon={<LockOutlined />} onClick={() => setFermerModalOpen(true)}>
-              Cloturer la caisse
-            </Button>
+            <Popconfirm
+              title="Cloturer la caisse ?"
+              description="Vous allez saisir le montant reel et generer le rapport de cloture."
+              icon={<ExclamationCircleOutlined style={{ color: '#ff4d4f' }} />}
+              onConfirm={() => setFermerModalOpen(true)}
+              okText="Continuer"
+              okButtonProps={{ danger: true }}
+              cancelText="Annuler"
+            >
+              <Button danger icon={<LockOutlined />}>Cloturer la caisse</Button>
+            </Popconfirm>
           ) : (
             <Button type="primary" icon={<UnlockOutlined />} onClick={() => setOuvrirModalOpen(true)}>
               Ouvrir la caisse

@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { Table, Button, Modal, Form, Select, InputNumber, DatePicker, Input, Tag, Space, App } from 'antd';
+import { Table, Button, Modal, Form, Select, InputNumber, DatePicker, Input, Tag, Space, App, Popconfirm } from 'antd';
 import { PlusOutlined, LoginOutlined, LogoutOutlined } from '@ant-design/icons';
 import { hotelApi } from '../../api/hotel';
 import { clientsApi } from '../../api/clients';
@@ -126,18 +126,28 @@ export default function ReservationsTab() {
         <Space size="small">
           {r.statut === 'EN_ATTENTE' && (
             <>
-              <Button size="small" type="primary" onClick={() => confirmerMutation.mutate(r.id)}>Confirmer</Button>
-              <Button size="small" danger onClick={() => annulerMutation.mutate(r.id)}>Annuler</Button>
+              <Popconfirm title="Confirmer cette reservation ?" onConfirm={() => confirmerMutation.mutate(r.id)} okText="Confirmer" cancelText="Non">
+                <Button size="small" type="primary">Confirmer</Button>
+              </Popconfirm>
+              <Popconfirm title="Annuler cette reservation ?" onConfirm={() => annulerMutation.mutate(r.id)} okButtonProps={{ danger: true }} okText="Annuler" cancelText="Non">
+                <Button size="small" danger>Annuler</Button>
+              </Popconfirm>
             </>
           )}
-          {(r.statut === 'CONFIRMEE' || r.statut === 'EN_ATTENTE') && (
-            <Button size="small" icon={<LoginOutlined />} onClick={() => checkInMutation.mutate(r.id)}>Check-in</Button>
+          {r.statut === 'CONFIRMEE' && (
+            <>
+              <Popconfirm title="Effectuer le check-in ?" onConfirm={() => checkInMutation.mutate(r.id)} okText="Check-in" cancelText="Non">
+                <Button size="small" icon={<LoginOutlined />}>Check-in</Button>
+              </Popconfirm>
+              <Popconfirm title="Annuler cette reservation ?" onConfirm={() => annulerMutation.mutate(r.id)} okButtonProps={{ danger: true }} okText="Annuler" cancelText="Non">
+                <Button size="small" danger>Annuler</Button>
+              </Popconfirm>
+            </>
           )}
           {r.statut === 'EN_COURS' && (
-            <Button size="small" icon={<LogoutOutlined />} type="primary" onClick={() => checkOutMutation.mutate(r.id)}>Check-out</Button>
-          )}
-          {r.statut === 'CONFIRMEE' && (
-            <Button size="small" danger onClick={() => annulerMutation.mutate(r.id)}>Annuler</Button>
+            <Popconfirm title="Effectuer le check-out ?" description="Le sejour sera cloture et la facture generee." onConfirm={() => checkOutMutation.mutate(r.id)} okText="Check-out" cancelText="Non">
+              <Button size="small" icon={<LogoutOutlined />} type="primary">Check-out</Button>
+            </Popconfirm>
           )}
         </Space>
       ),
