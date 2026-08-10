@@ -1,7 +1,8 @@
 import { useState } from 'react';
 import { Button, Tooltip, Badge, Modal, Table, Tag, message } from 'antd';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { syncApi, SyncLog } from '../api/sync';
+import { syncApi } from '../api/sync';
+import type { SyncLog } from '../api/sync';
 import dayjs from 'dayjs';
 import relativeTime from 'dayjs/plugin/relativeTime';
 import 'dayjs/locale/fr';
