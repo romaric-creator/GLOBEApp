@@ -2,23 +2,15 @@ import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import {
   Card, Button, Modal, Form, InputNumber, Select, Input, Table, Tag,
-  Row, Col, Statistic, App, Empty, Descriptions,
+  Row, Col, Statistic, App, Empty, Descriptions, Popconfirm, Skeleton,
 } from 'antd';
 import {
-  UnlockOutlined, LockOutlined, DollarOutlined, ShoppingOutlined,
+  UnlockOutlined, LockOutlined, DollarOutlined, ShoppingOutlined, ExclamationCircleOutlined,
 } from '@ant-design/icons';
-import { caisseApi } from '../../api/caisse';
+import { caisseApi, MOYEN_OPTIONS } from '../../api/caisse';
 import type { Caisse, SessionCaisse, Paiement } from '../../api/caisse';
 import { restaurantApi } from '../../api/restaurant';
 import type { Commande } from '../../api/restaurant';
-
-const MOYEN_OPTIONS = [
-  { value: 'ESPECES', label: 'Especes' },
-  { value: 'CARTE', label: 'Carte bancaire' },
-  { value: 'VIREMENT', label: 'Virement' },
-  { value: 'MOBILE_MONEY', label: 'Mobile Money' },
-  { value: 'AUTRE', label: 'Autre' },
-];
 
 export default function CaisseRestaurantPage() {
   const { message } = App.useApp();
@@ -84,7 +76,7 @@ export default function CaisseRestaurantPage() {
 
   const loading = caisseLoading || sessionLoading;
 
-  if (loading) return <div className="p-8 text-center">Chargement...</div>;
+  if (loading) return <Skeleton active paragraph={{ rows: 6 }} />;
   if (!caisse) return <div className="p-8 text-center">Aucune caisse Restaurant/Bar configuree.</div>;
 
   const paiementsColumns = [
@@ -126,16 +118,31 @@ export default function CaisseRestaurantPage() {
   ];
 
   return (
-    <div>
-      <div className="flex items-center justify-between mb-6">
+    <div id="tour-caisse-resto-page">
+      <div id="tour-caisse-resto-header" className="flex items-center justify-between mb-6">
         <div>
           <h2 className="text-xl font-semibold m-0">Caisse Restaurant / Bar</h2>
-          <p className="text-slate-500 text-sm m-0">{caisse.nom}</p>
+          <p className="text-slate-500 text-sm m-0">
+            {caisse.nom}
+            {session && (
+              <span className="ml-3 text-slate-400">
+                Ouverte depuis {new Date((session as SessionCaisse).ouvertureAt).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' })}
+              </span>
+            )}
+          </p>
         </div>
         {session ? (
-          <Button danger icon={<LockOutlined />} onClick={() => setFermerModalOpen(true)}>
-            Cloturer la caisse
-          </Button>
+          <Popconfirm
+            title="Cloturer la caisse ?"
+            description="Vous allez saisir le montant reel et generer le rapport de cloture."
+            icon={<ExclamationCircleOutlined style={{ color: '#ff4d4f' }} />}
+            onConfirm={() => setFermerModalOpen(true)}
+            okText="Continuer"
+            okButtonProps={{ danger: true }}
+            cancelText="Annuler"
+          >
+            <Button danger icon={<LockOutlined />}>Cloturer la caisse</Button>
+          </Popconfirm>
         ) : (
           <Button type="primary" icon={<UnlockOutlined />} onClick={() => setOuvrirModalOpen(true)}>
             Ouvrir la caisse
@@ -167,9 +174,10 @@ export default function CaisseRestaurantPage() {
             <Col span={8}>
               <Card size="small">
                 <Statistic
-                  title="Paiements"
-                  value={(session as SessionCaisse).paiements?.length || 0}
+                  title="A encaisser"
+                  value={commandesAEncaisser.length}
                   prefix={<ShoppingOutlined />}
+                  valueStyle={{ color: commandesAEncaisser.length > 0 ? '#cf1322' : '#3f8600' }}
                 />
               </Card>
             </Col>
@@ -248,6 +256,22 @@ export default function CaisseRestaurantPage() {
         confirmLoading={encaisserMutation.isPending}
         okText="Encaisser"
       >
+        {encaisserModal && (
+          <Descriptions size="small" className="mb-4" column={2} bordered>
+            <Descriptions.Item label="Table">{encaisserModal.tableReference || '—'}</Descriptions.Item>
+            <Descriptions.Item label="Heure">{new Date(encaisserModal.createdAt).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' })}</Descriptions.Item>
+            <Descriptions.Item label="Articles" span={2}>
+              <div className="flex flex-wrap gap-1">
+                {encaisserModal.lignes.map((l) => (
+                  <Tag key={l.id} color="blue">{l.quantite}x {l.produit.nom}</Tag>
+                ))}
+              </div>
+            </Descriptions.Item>
+            <Descriptions.Item label="Total" span={2}>
+              <span className="font-semibold text-base">{Number(encaisserModal.total).toLocaleString()} FCFA</span>
+            </Descriptions.Item>
+          </Descriptions>
+        )}
         <Form
           form={encaisserForm}
           layout="vertical"
@@ -256,7 +280,7 @@ export default function CaisseRestaurantPage() {
             encaisserMutation.mutate({ commandeId: encaisserModal.id, montant: v.montant, moyen: v.moyen });
           }}
         >
-          <Form.Item name="montant" label="Montant (FCFA)" rules={[{ required: true }]}>
+          <Form.Item name="montant" label="Montant recu (FCFA)" rules={[{ required: true }]}>
             <InputNumber min={0} style={{ width: '100%' }} />
           </Form.Item>
           <Form.Item name="moyen" label="Moyen de paiement" initialValue="ESPECES" rules={[{ required: true }]}>

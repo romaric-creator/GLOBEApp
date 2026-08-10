@@ -1,5 +1,5 @@
 import {
-  Card, Col, Row, Statistic, Spin, Tag, Button, List, Typography, Progress, Badge,
+  Card, Col, Row, Statistic, Spin, Tag, Button, List, Typography, Progress, Badge, Alert,
 } from 'antd';
 import {
   TeamOutlined, ShoppingOutlined, DollarOutlined, ScheduleOutlined,
@@ -128,7 +128,7 @@ export default function DashboardPage() {
     queryFn: () => produitsApi.findAll().then((r) => r.data),
   });
 
-  const { data: ca, isLoading: loadingCa } = useQuery({
+  const { data: ca, isLoading: loadingCa, isError: caError } = useQuery({
     queryKey: ['dashboard-ca', startOfMonth, today],
     queryFn: () => rapportsApi.getChiffreAffaires(startOfMonth, today),
     enabled: isManager,
@@ -171,7 +171,7 @@ export default function DashboardPage() {
     <Spin spinning={isManager ? loadingCa : false}>
       <div>
         {/* Header */}
-        <div className="flex items-center justify-between mb-4">
+        <div id="tour-dashboard-header" className="flex items-center justify-between mb-4">
           <div>
             <h2 className="text-xl font-semibold m-0">
               Bonjour, {user?.prenom || 'Utilisateur'}
@@ -192,8 +192,18 @@ export default function DashboardPage() {
         {/* ===== VUE MANAGER / ADMIN ===== */}
         {isManager && (
           <>
+            {caError && (
+              <Alert
+                type="warning"
+                message="Donnees financieres indisponibles"
+                description="Impossible de charger les KPI financiers. Les autres donnees sont affichees normalement."
+                showIcon
+                closable
+                className="mb-4"
+              />
+            )}
             {/* KPI row 1 */}
-            <Row gutter={[12, 12]}>
+            <Row id="tour-dashboard-kpis" gutter={[12, 12]}>
               <Col xs={24} sm={12} lg={6}>
                 <Card size="small" hoverable onClick={() => navigate('/rapports')} className="cursor-pointer h-full">
                   <Statistic
@@ -288,7 +298,7 @@ export default function DashboardPage() {
             </Row>
 
             {/* Graphique CA 7 jours + heatmap chambres */}
-            <Row gutter={[12, 12]} className="mt-3">
+            <Row id="tour-dashboard-charts" gutter={[12, 12]} className="mt-3">
               <Col xs={24} lg={14}>
                 <Card
                   title={<span><DollarOutlined className="mr-2" />CA sur 7 jours</span>}

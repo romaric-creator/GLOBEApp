@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { Button, Modal, Form, Input, Select, InputNumber, Tag, Card, Row, Col, Statistic, App, Popconfirm, Tooltip } from 'antd';
+import { Button, Modal, Form, Input, Select, InputNumber, Tag, Card, Row, Col, Statistic, App, Popconfirm, Tooltip, Skeleton } from 'antd';
 import { PlusOutlined, HomeOutlined, CheckCircleOutlined, CloseCircleOutlined, ToolOutlined } from '@ant-design/icons';
 import { hotelApi } from '../../api/hotel';
 import type { Chambre } from '../../api/hotel';
@@ -119,7 +119,13 @@ export default function ChambresTab() {
       </div>
 
       {isLoading ? (
-        <div className="text-center py-8 text-slate-400">Chargement...</div>
+        <Row gutter={[12, 12]}>
+          {Array.from({ length: 12 }).map((_, i) => (
+            <Col key={i} xs={12} sm={8} md={6} lg={4}>
+              <Card size="small"><Skeleton active title={{ width: '60%' }} paragraph={{ rows: 1 }} /></Card>
+            </Col>
+          ))}
+        </Row>
       ) : (
         <Row gutter={[12, 12]}>
           {(chambres || []).map((chambre) => (

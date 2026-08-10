@@ -1,4 +1,4 @@
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import { Outlet, useNavigate, useLocation } from "react-router-dom";
 import { Layout, Menu, Button, Dropdown, Avatar, theme, Breadcrumb, Tooltip } from "antd";
 import {
@@ -29,18 +29,26 @@ const { Header, Sider, Content } = Layout;
 
 const allMenuItems = [
   { key: "/dashboard", icon: <DashboardOutlined />, label: "Dashboard" },
-  { key: "/clients", icon: <TeamOutlined />, label: "Clients" },
-  { key: "/produits", icon: <ShoppingOutlined />, label: "Produits & Stock" },
-  { key: "/caisse-hotel", icon: <BankOutlined />, label: "Caisse Hotel" },
-  { key: "/caisse-restaurant", icon: <BankOutlined />, label: "Caisse Restaurant" },
-  { key: "/personnel", icon: <UserOutlined />, label: "Personnel", roles: ["admin", "manager"] },
-  { key: "/hotel", icon: <HomeOutlined />, label: "Hotel" },
-  { key: "/restaurant", icon: <CoffeeOutlined />, label: "Bar & Restaurant" },
-  { key: "/piscine", icon: <SafetyCertificateOutlined />, label: "Piscine" },
-  { key: "/salle-fete", icon: <CalendarOutlined />, label: "Salle de fete" },
-  { key: "/comptabilite", icon: <AccountBookOutlined />, label: "Comptabilite", roles: ["admin", "manager"] },
-  { key: "/rapports", icon: <BarChartOutlined />, label: "Rapports", roles: ["admin", "manager"] },
-  { key: "/sauvegarde", icon: <CloudOutlined />, label: "Sauvegarde", roles: ["admin", "manager"] },
+  { type: "group", label: "Operations", children: [
+    { key: "/hotel", icon: <HomeOutlined />, label: "Hotel" },
+    { key: "/restaurant", icon: <CoffeeOutlined />, label: "Bar & Restaurant" },
+    { key: "/piscine", icon: <SafetyCertificateOutlined />, label: "Piscine" },
+    { key: "/salle-fete", icon: <CalendarOutlined />, label: "Salle de fete" },
+  ]},
+  { type: "group", label: "Caisse", children: [
+    { key: "/caisse-hotel", icon: <BankOutlined />, label: "Caisse Hotel" },
+    { key: "/caisse-restaurant", icon: <BankOutlined />, label: "Caisse Restaurant" },
+  ]},
+  { type: "group", label: "Gestion", children: [
+    { key: "/clients", icon: <TeamOutlined />, label: "Clients" },
+    { key: "/produits", icon: <ShoppingOutlined />, label: "Produits & Stock" },
+    { key: "/personnel", icon: <UserOutlined />, label: "Personnel", roles: ["admin", "manager"] },
+  ]},
+  { type: "group", label: "Finance & Admin", roles: ["admin", "manager"], children: [
+    { key: "/comptabilite", icon: <AccountBookOutlined />, label: "Comptabilite", roles: ["admin", "manager"] },
+    { key: "/rapports", icon: <BarChartOutlined />, label: "Rapports", roles: ["admin", "manager"] },
+    { key: "/sauvegarde", icon: <CloudOutlined />, label: "Sauvegarde", roles: ["admin", "manager"] },
+  ]},
 ];
 
 export default function AppLayout() {
@@ -51,18 +59,43 @@ export default function AppLayout() {
   useAuth();
   const { token } = theme.useToken();
 
-  const menuItems = allMenuItems.filter(
-    (item) => !item.roles || (user && item.roles.includes(user.role)),
+  const menuItems: ReturnType<typeof Array.prototype.filter> = allMenuItems.reduce((acc: object[], item) => {
+    const it = item as { roles?: string[]; children?: { roles?: string[] }[]; type?: string; key?: string; label: string };
+    if (it.roles && (!user || !it.roles.includes(user.role))) return acc;
+    if (it.children) {
+      const filtered = it.children.filter((c) => !c.roles || (user && c.roles.includes(user.role)));
+      if (filtered.length === 0) return acc;
+      return [...acc, { ...it, children: filtered }];
+    }
+    return [...acc, it];
+  }, []);
+
+  const flatMenuItems = allMenuItems.flatMap((item) =>
+    item.children ? item.children : [item]
   );
 
   const breadcrumbItems = useMemo(() => {
-    const current = allMenuItems.find((m) => location.pathname.startsWith(m.key));
+    const current = flatMenuItems.find((m) => m.key && location.pathname.startsWith(m.key));
     if (!current || current.key === '/dashboard') return [];
-    return [
+    const tabParam = new URLSearchParams(location.search).get('tab');
+    const items: { title: string; href?: string; onClick?: (e: React.MouseEvent) => void }[] = [
       { title: 'Accueil', href: '/dashboard', onClick: (e: React.MouseEvent) => { e.preventDefault(); navigate('/dashboard'); } },
       { title: current.label },
     ];
-  }, [location.pathname]);
+    if (tabParam) {
+      items.push({ title: tabParam.charAt(0).toUpperCase() + tabParam.slice(1) });
+    }
+    return items;
+  }, [location.pathname, location.search]);
+
+  useEffect(() => {
+    const handler = () => {
+      logout();
+      navigate('/login');
+    };
+    window.addEventListener('auth:logout', handler);
+    return () => window.removeEventListener('auth:logout', handler);
+  }, [logout, navigate]);
 
   const handleLogout = async () => {
     try {
