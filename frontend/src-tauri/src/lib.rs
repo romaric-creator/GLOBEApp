@@ -122,22 +122,24 @@ pub fn run() {
         .expect("Erreur lors du démarrage de GLOBE Manager");
 }
 
-fn get_compose_dir() -> String {
-    // En production : dossier AppData\Roaming\GlobeManager
-    // En dev : dossier racine du projet
+// Contenu du docker-compose.yml embarqué dans le binaire
+const COMPOSE_CONTENT: &str = include_str!("../../docker-compose.yml");
+
+fn get_compose_dir() -> std::path::PathBuf {
+    // En production : %APPDATA%\GlobeManager (créé + docker-compose.yml écrit au démarrage)
     if let Ok(appdata) = std::env::var("APPDATA") {
-        let path = format!("{}\\GlobeManager", appdata);
-        if std::path::Path::new(&path).exists() {
-            return path;
-        }
+        let path = std::path::PathBuf::from(appdata).join("GlobeManager");
+        std::fs::create_dir_all(&path).ok();
+        let compose_path = path.join("docker-compose.yml");
+        // Toujours écrire pour avoir la version à jour
+        std::fs::write(&compose_path, COMPOSE_CONTENT).ok();
+        return path;
     }
     // Fallback dev : répertoire courant
-    std::env::current_dir()
-        .map(|p| p.to_string_lossy().to_string())
-        .unwrap_or_else(|_| ".".to_string())
+    std::env::current_dir().unwrap_or_else(|_| std::path::PathBuf::from("."))
 }
 
-fn docker_compose_up(compose_dir: &str) -> bool {
+fn docker_compose_up(compose_dir: &std::path::Path) -> bool {
     Command::new("docker")
         .args(["compose", "up", "-d", "--remove-orphans"])
         .current_dir(compose_dir)

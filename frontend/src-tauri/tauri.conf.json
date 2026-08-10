@@ -61,9 +61,7 @@
       },
       "nsis": {
         "languages": ["French"],
-        "displayLanguageSelector": false,
-        "customNsisCommands": "!include \"nsis\\installer.nsh\"",
-        "sidebarImage": null
+        "displayLanguageSelector": false
       }
     },
     "linux": {
