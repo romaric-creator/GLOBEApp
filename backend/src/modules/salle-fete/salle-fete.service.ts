@@ -35,13 +35,20 @@ export class SalleFeteService {
   }
 
   async updateType(id: string, dto: Partial<CreateTypeReservationDto>) {
-    const t = await this.prisma.typeReservationSalle.findUnique({ where: { id } });
+    const t = await this.prisma.typeReservationSalle.findUnique({
+      where: { id },
+    });
     if (!t) throw new NotFoundException('Type introuvable');
-    return this.prisma.typeReservationSalle.update({ where: { id }, data: dto });
+    return this.prisma.typeReservationSalle.update({
+      where: { id },
+      data: dto,
+    });
   }
 
   async deleteType(id: string) {
-    const t = await this.prisma.typeReservationSalle.findUnique({ where: { id } });
+    const t = await this.prisma.typeReservationSalle.findUnique({
+      where: { id },
+    });
     if (!t) throw new NotFoundException('Type introuvable');
     return this.prisma.typeReservationSalle.update({
       where: { id },
@@ -84,14 +91,15 @@ export class SalleFeteService {
         dateEvent,
         statut: { in: ['EN_ATTENTE', 'CONFIRMEE'] },
         OR: [
-          { heureDebut: { lt: dto.heureFin }, heureFin: { gt: dto.heureDebut } },
+          {
+            heureDebut: { lt: dto.heureFin },
+            heureFin: { gt: dto.heureDebut },
+          },
         ],
       },
     });
     if (conflit) {
-      throw new ConflictException(
-        'La salle est deja reservee pour ce creneau',
-      );
+      throw new ConflictException('La salle est deja reservee pour ce creneau');
     }
 
     return this.prisma.reservationSalle.create({
@@ -157,7 +165,10 @@ export class SalleFeteService {
     today.setHours(0, 0, 0, 0);
 
     const reservationsAVenir = await this.prisma.reservationSalle.count({
-      where: { statut: { in: ['EN_ATTENTE', 'CONFIRMEE'] }, dateEvent: { gte: today } },
+      where: {
+        statut: { in: ['EN_ATTENTE', 'CONFIRMEE'] },
+        dateEvent: { gte: today },
+      },
     });
 
     const totalReservations = await this.prisma.reservationSalle.count();

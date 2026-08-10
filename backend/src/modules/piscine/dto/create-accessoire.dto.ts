@@ -1,4 +1,11 @@
-import { IsString, IsOptional, IsEnum, IsNumber, IsInt, Min } from 'class-validator';
+import {
+  IsString,
+  IsOptional,
+  IsEnum,
+  IsNumber,
+  IsInt,
+  Min,
+} from 'class-validator';
 
 export enum TypeAccessoire {
   VENTE = 'VENTE',

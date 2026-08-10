@@ -1,4 +1,8 @@
-import { Injectable, BadRequestException, NotFoundException } from '@nestjs/common';
+import {
+  Injectable,
+  BadRequestException,
+  NotFoundException,
+} from '@nestjs/common';
 import { PrismaService } from '../../prisma/prisma.service';
 
 @Injectable()
@@ -19,13 +23,20 @@ export class CaisseService {
   }
 
   async ouvrirSession(caisseId: string, userId: string, fondInitial: number) {
-    const caisse = await this.prisma.caisse.findUnique({ where: { id: caisseId } });
+    const caisse = await this.prisma.caisse.findUnique({
+      where: { id: caisseId },
+    });
     if (!caisse) throw new NotFoundException('Caisse introuvable');
     const sessionOuverte = await this.prisma.sessionCaisse.findFirst({
       where: { caisseId, statut: 'OUVERTE' },
     });
-    if (sessionOuverte) throw new BadRequestException('Une session est deja ouverte pour cette caisse');
-    return this.prisma.sessionCaisse.create({ data: { caisseId, userId, fondInitial } });
+    if (sessionOuverte)
+      throw new BadRequestException(
+        'Une session est deja ouverte pour cette caisse',
+      );
+    return this.prisma.sessionCaisse.create({
+      data: { caisseId, userId, fondInitial },
+    });
   }
 
   async fermerSession(sessionId: string, totalReel: number, notes?: string) {
@@ -34,15 +45,22 @@ export class CaisseService {
       include: { paiements: true },
     });
     if (!session) throw new NotFoundException('Session introuvable');
-    if (session.statut === 'FERMEE') throw new BadRequestException('Cette session est deja fermee');
-    const totalTheorique =
-      session.paiements
-        .filter((p) => p.statut === 'ENCAISSE')
-        .reduce((s, p) => s + Number(p.montant), Number(session.fondInitial));
+    if (session.statut === 'FERMEE')
+      throw new BadRequestException('Cette session est deja fermee');
+    const totalTheorique = session.paiements
+      .filter((p) => p.statut === 'ENCAISSE')
+      .reduce((s, p) => s + Number(p.montant), Number(session.fondInitial));
     const ecart = totalReel - totalTheorique;
     return this.prisma.sessionCaisse.update({
       where: { id: sessionId },
-      data: { statut: 'FERMEE', fermetureAt: new Date(), totalTheorique, totalReel, ecart, notes: notes || null },
+      data: {
+        statut: 'FERMEE',
+        fermetureAt: new Date(),
+        totalTheorique,
+        totalReel,
+        ecart,
+        notes: notes || null,
+      },
     });
   }
 
@@ -74,11 +92,16 @@ export class CaisseService {
     montant: number,
     moyen: string,
   ) {
-    const facture = await this.prisma.factureSejour.findUnique({ where: { id: factureId } });
+    const facture = await this.prisma.factureSejour.findUnique({
+      where: { id: factureId },
+    });
     if (!facture) throw new NotFoundException('Facture introuvable');
     if (facture.payee) throw new BadRequestException('Facture deja payee');
-    const session = await this.prisma.sessionCaisse.findUnique({ where: { id: sessionId } });
-    if (!session || session.statut !== 'OUVERTE') throw new BadRequestException('Session de caisse non ouverte');
+    const session = await this.prisma.sessionCaisse.findUnique({
+      where: { id: sessionId },
+    });
+    if (!session || session.statut !== 'OUVERTE')
+      throw new BadRequestException('Session de caisse non ouverte');
     const reference = await this.genererReference();
     const nouvMontantPaye = Number(facture.montantPaye) + montant;
     const payee = nouvMontantPaye >= Number(facture.total);
@@ -96,7 +119,11 @@ export class CaisseService {
       });
       await tx.factureSejour.update({
         where: { id: factureId },
-        data: { montantPaye: nouvMontantPaye, reste: Number(facture.total) - nouvMontantPaye, payee },
+        data: {
+          montantPaye: nouvMontantPaye,
+          reste: Number(facture.total) - nouvMontantPaye,
+          payee,
+        },
       });
       return paiement;
     });
@@ -109,13 +136,23 @@ export class CaisseService {
     montant: number,
     moyen: string,
   ) {
-    const commande = await this.prisma.commandeTable.findUnique({ where: { id: commandeId } });
+    const commande = await this.prisma.commandeTable.findUnique({
+      where: { id: commandeId },
+    });
     if (!commande) throw new NotFoundException('Commande introuvable');
-    if (commande.statut !== 'TERMINEE') throw new BadRequestException('Seule une commande TERMINEE peut etre encaissee');
-    const existing = await this.prisma.paiement.findFirst({ where: { commandeTableId: commandeId } });
+    if (commande.statut !== 'TERMINEE')
+      throw new BadRequestException(
+        'Seule une commande TERMINEE peut etre encaissee',
+      );
+    const existing = await this.prisma.paiement.findFirst({
+      where: { commandeTableId: commandeId },
+    });
     if (existing) throw new BadRequestException('Commande deja encaissee');
-    const session = await this.prisma.sessionCaisse.findUnique({ where: { id: sessionId } });
-    if (!session || session.statut !== 'OUVERTE') throw new BadRequestException('Session de caisse non ouverte');
+    const session = await this.prisma.sessionCaisse.findUnique({
+      where: { id: sessionId },
+    });
+    if (!session || session.statut !== 'OUVERTE')
+      throw new BadRequestException('Session de caisse non ouverte');
     const reference = await this.genererReference();
     return this.prisma.paiement.create({
       data: {

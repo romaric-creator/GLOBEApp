@@ -1,4 +1,13 @@
-import { IsArray, IsInt, IsNotEmpty, IsOptional, IsString, IsUUID, Min, ValidateNested } from 'class-validator';
+import {
+  IsArray,
+  IsInt,
+  IsNotEmpty,
+  IsOptional,
+  IsString,
+  IsUUID,
+  Min,
+  ValidateNested,
+} from 'class-validator';
 import { Type } from 'class-transformer';
 
 export class LigneCommandeDto {
@@ -11,9 +20,15 @@ export class CreateCommandeDto {
   @IsString() @IsOptional() tableReference?: string;
   @IsUUID() serveurId: string;
   @IsString() @IsOptional() notes?: string;
-  @IsArray() @ValidateNested({ each: true }) @Type(() => LigneCommandeDto) lignes: LigneCommandeDto[];
+  @IsArray()
+  @ValidateNested({ each: true })
+  @Type(() => LigneCommandeDto)
+  lignes: LigneCommandeDto[];
 }
 
 export class AjouterLignesDto {
-  @IsArray() @ValidateNested({ each: true }) @Type(() => LigneCommandeDto) lignes: LigneCommandeDto[];
+  @IsArray()
+  @ValidateNested({ each: true })
+  @Type(() => LigneCommandeDto)
+  lignes: LigneCommandeDto[];
 }

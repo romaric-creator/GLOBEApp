@@ -1,4 +1,13 @@
-import { Controller, Get, Post, Patch, Param, Body, Query, UseGuards } from '@nestjs/common';
+import {
+  Controller,
+  Get,
+  Post,
+  Patch,
+  Param,
+  Body,
+  Query,
+  UseGuards,
+} from '@nestjs/common';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { RestaurantService } from './restaurant.service';
 import { CreateCommandeDto, AjouterLignesDto } from './dto/create-commande.dto';
@@ -29,7 +38,10 @@ export class RestaurantController {
   }
 
   @Patch('commandes/:id/statut/:statut')
-  changerStatut(@Param('id') id: string, @Param('statut') statut: 'TERMINEE' | 'ANNULEE') {
+  changerStatut(
+    @Param('id') id: string,
+    @Param('statut') statut: 'TERMINEE' | 'ANNULEE',
+  ) {
     return this.restaurantService.changerStatut(id, statut);
   }
 

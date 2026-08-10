@@ -36,7 +36,7 @@ async function bootstrap() {
       next: () => void,
     ) => {
       if (req.body && typeof req.body === 'object') {
-        req.body = stripEmpty(req.body as Record<string, unknown>);
+        req.body = stripEmpty(req.body);
       }
       next();
     },
