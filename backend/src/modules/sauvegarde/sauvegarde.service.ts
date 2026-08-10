@@ -5,6 +5,7 @@ import { CreateSauvegardeDto } from './dto/create-sauvegarde.dto';
 import { execFile } from 'child_process';
 import { promisify } from 'util';
 import { stat, mkdir } from 'fs/promises';
+import { URL } from 'url';
 
 @Injectable()
 export class SauvegardeService {
@@ -44,7 +45,22 @@ export class SauvegardeService {
       }
       await mkdir('/backups', { recursive: true });
       const execFileAsync = promisify(execFile);
-      await execFileAsync('pg_dump', ['--dbname', databaseUrl, '-f', chemin]);
+      const dbUrl = new URL(databaseUrl);
+      const host = dbUrl.hostname;
+      const port = dbUrl.port || '3306';
+      const user = dbUrl.username;
+      const password = dbUrl.password;
+      const database = dbUrl.pathname.replace(/^\//, '');
+      await execFileAsync('mysqldump', [
+        `-h${host}`,
+        `-P${port}`,
+        `-u${user}`,
+        `-p${password}`,
+        '--single-transaction',
+        '--routines',
+        '--result-file', chemin,
+        database,
+      ]);
 
       const fileStats = await stat(chemin);
 

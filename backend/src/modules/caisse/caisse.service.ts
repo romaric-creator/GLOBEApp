@@ -3,6 +3,7 @@ import {
   BadRequestException,
   NotFoundException,
 } from '@nestjs/common';
+import { MoyenPaiement } from '@prisma/client';
 import { PrismaService } from '../../prisma/prisma.service';
 
 @Injectable()
@@ -75,42 +76,42 @@ export class CaisseService {
     });
   }
 
-  private async genererReference(): Promise<string> {
-    const annee = new Date().getFullYear();
-    const last = await this.prisma.paiement.findFirst({
-      where: { reference: { startsWith: `PAY-${annee}-` } },
-      orderBy: { reference: 'desc' },
-    });
-    const seq = last ? parseInt(last.reference.split('-')[2]) + 1 : 1;
-    return `PAY-${annee}-${String(seq).padStart(5, '0')}`;
-  }
-
   async encaisserFactureHotel(
     factureId: string,
     sessionId: string,
     userId: string,
     montant: number,
-    moyen: string,
+    moyen: MoyenPaiement,
   ) {
-    const facture = await this.prisma.factureSejour.findUnique({
-      where: { id: factureId },
-    });
-    if (!facture) throw new NotFoundException('Facture introuvable');
-    if (facture.payee) throw new BadRequestException('Facture deja payee');
     const session = await this.prisma.sessionCaisse.findUnique({
       where: { id: sessionId },
     });
     if (!session || session.statut !== 'OUVERTE')
       throw new BadRequestException('Session de caisse non ouverte');
-    const reference = await this.genererReference();
-    const nouvMontantPaye = Number(facture.montantPaye) + montant;
-    const payee = nouvMontantPaye >= Number(facture.total);
+
     return this.prisma.$transaction(async (tx) => {
+      const facture = await tx.factureSejour.findUnique({
+        where: { id: factureId },
+      });
+      if (!facture) throw new NotFoundException('Facture introuvable');
+      if (facture.payee) throw new BadRequestException('Facture deja payee');
+
+      const annee = new Date().getFullYear();
+      const last = await tx.paiement.findFirst({
+        where: { reference: { startsWith: `PAY-${annee}-` } },
+        orderBy: { reference: 'desc' },
+      });
+      const seq = last ? parseInt(last.reference.split('-')[2]) + 1 : 1;
+      const reference = `PAY-${annee}-${String(seq).padStart(5, '0')}`;
+
+      const nouvMontantPaye = Number(facture.montantPaye) + montant;
+      const payee = nouvMontantPaye >= Number(facture.total);
+
       const paiement = await tx.paiement.create({
         data: {
           reference,
           montant,
-          moyen: moyen as never,
+          moyen,
           sourceType: 'HOTEL_INVOICE',
           sessionId,
           userId,
@@ -134,36 +135,47 @@ export class CaisseService {
     sessionId: string,
     userId: string,
     montant: number,
-    moyen: string,
+    moyen: MoyenPaiement,
   ) {
-    const commande = await this.prisma.commandeTable.findUnique({
-      where: { id: commandeId },
-    });
-    if (!commande) throw new NotFoundException('Commande introuvable');
-    if (commande.statut !== 'TERMINEE')
-      throw new BadRequestException(
-        'Seule une commande TERMINEE peut etre encaissee',
-      );
-    const existing = await this.prisma.paiement.findFirst({
-      where: { commandeTableId: commandeId },
-    });
-    if (existing) throw new BadRequestException('Commande deja encaissee');
     const session = await this.prisma.sessionCaisse.findUnique({
       where: { id: sessionId },
     });
     if (!session || session.statut !== 'OUVERTE')
       throw new BadRequestException('Session de caisse non ouverte');
-    const reference = await this.genererReference();
-    return this.prisma.paiement.create({
-      data: {
-        reference,
-        montant,
-        moyen: moyen as never,
-        sourceType: 'RESTAURANT_ORDER',
-        sessionId,
-        userId,
-        commandeTableId: commandeId,
-      },
+
+    return this.prisma.$transaction(async (tx) => {
+      const commande = await tx.commandeTable.findUnique({
+        where: { id: commandeId },
+      });
+      if (!commande) throw new NotFoundException('Commande introuvable');
+      if (commande.statut !== 'TERMINEE')
+        throw new BadRequestException(
+          'Seule une commande TERMINEE peut etre encaissee',
+        );
+      const existing = await tx.paiement.findFirst({
+        where: { commandeTableId: commandeId },
+      });
+      if (existing) throw new BadRequestException('Commande deja encaissee');
+
+      const annee = new Date().getFullYear();
+      const last = await tx.paiement.findFirst({
+        where: { reference: { startsWith: `PAY-${annee}-` } },
+        orderBy: { reference: 'desc' },
+      });
+      const seq = last ? parseInt(last.reference.split('-')[2]) + 1 : 1;
+      const reference = `PAY-${annee}-${String(seq).padStart(5, '0')}`;
+
+      return tx.paiement.create({
+        data: {
+          reference,
+          montant,
+          moyen,
+          sourceType: 'RESTAURANT_ORDER',
+          sessionId,
+          userId,
+          commandeTableId: commandeId,
+        },
+      });
     });
   }
 

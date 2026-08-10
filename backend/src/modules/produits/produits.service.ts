@@ -100,6 +100,12 @@ export class ProduitsService {
     });
     if (!produit) throw new NotFoundException('Produit introuvable');
 
+    if ((dto.type === 'ENTREE' || dto.type === 'SORTIE') && dto.quantite <= 0) {
+      throw new BadRequestException('La quantite doit etre positive pour une entree ou sortie');
+    }
+    if (dto.type === 'INVENTAIRE' && dto.quantite < 0) {
+      throw new BadRequestException('La quantite de stock ne peut pas etre negative');
+    }
     if (dto.type === 'SORTIE' && produit.stockActuel < dto.quantite) {
       throw new BadRequestException('Stock insuffisant');
     }
