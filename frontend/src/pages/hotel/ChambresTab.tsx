@@ -4,6 +4,7 @@ import { Button, Modal, Form, Input, Select, InputNumber, Tag, Card, Row, Col, S
 import { PlusOutlined, HomeOutlined, CheckCircleOutlined, CloseCircleOutlined, ToolOutlined } from '@ant-design/icons';
 import { hotelApi } from '../../api/hotel';
 import type { Chambre } from '../../api/hotel';
+import { getErrorMessage } from '../../api/errors';
 
 const TYPE_COLORS: Record<string, string> = {
   SIMPLE: 'gold',
@@ -44,9 +45,7 @@ export default function ChambresTab() {
       queryClient.invalidateQueries({ queryKey: ['chambres'] });
       queryClient.invalidateQueries({ queryKey: ['hotel-stats'] });
     },
-    onError: (err: { response?: { data?: { message?: string } } }) => {
-      message.error(err.response?.data?.message || 'Erreur');
-    },
+    onError: (err: unknown) => message.error(getErrorMessage(err)),
   });
 
   const updateMutation = useMutation({
@@ -57,9 +56,7 @@ export default function ChambresTab() {
       queryClient.invalidateQueries({ queryKey: ['chambres'] });
       queryClient.invalidateQueries({ queryKey: ['hotel-stats'] });
     },
-    onError: (err: { response?: { data?: { message?: string } } }) => {
-      message.error(err.response?.data?.message || 'Erreur');
-    },
+    onError: (err: unknown) => message.error(getErrorMessage(err)),
   });
 
   const deleteMutation = useMutation({
@@ -69,9 +66,7 @@ export default function ChambresTab() {
       queryClient.invalidateQueries({ queryKey: ['chambres'] });
       queryClient.invalidateQueries({ queryKey: ['hotel-stats'] });
     },
-    onError: (err: { response?: { data?: { message?: string } } }) => {
-      message.error(err.response?.data?.message || 'Erreur');
-    },
+    onError: (err: unknown) => message.error(getErrorMessage(err)),
   });
 
   const closeModal = () => {

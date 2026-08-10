@@ -12,6 +12,7 @@ import { piscineApi } from '../../api/piscine';
 import { clientsApi } from '../../api/clients';
 import type { AccessoirePiscine, TransactionAccessoire } from '../../api/piscine';
 import type { Client } from '../../api/clients';
+import { getErrorMessage } from '../../api/errors';
 
 const TYPE_LABELS: Record<string, string> = {
   VENTE: 'Vente',
@@ -63,7 +64,7 @@ export default function AccessoiresTab() {
       closeModal();
       queryClient.invalidateQueries({ queryKey: ['accessoires-piscine'] });
     },
-    onError: () => message.error('Erreur lors de la creation'),
+    onError: (err: unknown) => message.error(getErrorMessage(err)),
   });
 
   const updateMutation = useMutation({
@@ -74,7 +75,7 @@ export default function AccessoiresTab() {
       closeModal();
       queryClient.invalidateQueries({ queryKey: ['accessoires-piscine'] });
     },
-    onError: () => message.error('Erreur lors de la modification'),
+    onError: (err: unknown) => message.error(getErrorMessage(err)),
   });
 
   const deleteMutation = useMutation({
@@ -83,7 +84,7 @@ export default function AccessoiresTab() {
       message.success('Accessoire desactive');
       queryClient.invalidateQueries({ queryKey: ['accessoires-piscine'] });
     },
-    onError: () => message.error('Erreur lors de la suppression'),
+    onError: (err: unknown) => message.error(getErrorMessage(err)),
   });
 
   const txMutation = useMutation({
@@ -94,9 +95,7 @@ export default function AccessoiresTab() {
       queryClient.invalidateQueries({ queryKey: ['accessoires-piscine'] });
       queryClient.invalidateQueries({ queryKey: ['transactions-accessoire'] });
     },
-    onError: (err: { response?: { data?: { message?: string } } }) => {
-      message.error(err.response?.data?.message || 'Erreur');
-    },
+    onError: (err: unknown) => message.error(getErrorMessage(err)),
   });
 
   const closeModal = () => {

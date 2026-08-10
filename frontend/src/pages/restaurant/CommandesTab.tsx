@@ -10,6 +10,7 @@ import type { Commande } from '../../api/restaurant';
 import { produitsApi } from '../../api/produits';
 import type { Produit } from '../../api/produits';
 import { useAuthStore } from '../../store/auth';
+import { getErrorMessage } from '../../api/errors';
 
 const STATUT_COLORS: Record<string, string> = {
   EN_PREPARATION: 'gold',
@@ -56,25 +57,19 @@ export default function CommandesTab() {
       form.resetFields();
       invalidateAll();
     },
-    onError: (err: { response?: { data?: { message?: string } } }) => {
-      message.error(err.response?.data?.message || 'Erreur');
-    },
+    onError: (err: unknown) => message.error(getErrorMessage(err)),
   });
 
   const terminerMutation = useMutation({
     mutationFn: (id: string) => restaurantApi.terminer(id),
     onSuccess: () => { message.success('Commande terminee'); invalidateAll(); },
-    onError: (err: { response?: { data?: { message?: string } } }) => {
-      message.error(err.response?.data?.message || 'Erreur');
-    },
+    onError: (err: unknown) => message.error(getErrorMessage(err)),
   });
 
   const annulerMutation = useMutation({
     mutationFn: (id: string) => restaurantApi.annuler(id),
     onSuccess: () => { message.success('Commande annulee'); invalidateAll(); },
-    onError: (err: { response?: { data?: { message?: string } } }) => {
-      message.error(err.response?.data?.message || 'Erreur');
-    },
+    onError: (err: unknown) => message.error(getErrorMessage(err)),
   });
 
   const produitOptions = (produits || [])

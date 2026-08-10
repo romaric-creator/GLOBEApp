@@ -5,6 +5,7 @@ import { PlusOutlined, EditOutlined, DeleteOutlined, SearchOutlined } from '@ant
 import { clientsApi } from '../../api/clients';
 import type { Client, CreateClientDto } from '../../api/clients';
 import EmptyState from '../../components/EmptyState';
+import { getErrorMessage } from '../../api/errors';
 
 export default function ClientsPage() {
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -25,7 +26,7 @@ export default function ClientsPage() {
       message.success('Client cree');
       closeModal();
     },
-    onError: () => message.error('Erreur lors de la creation'),
+    onError: (err: unknown) => message.error(getErrorMessage(err)),
   });
 
   const updateMutation = useMutation({
@@ -36,7 +37,7 @@ export default function ClientsPage() {
       message.success('Client modifie');
       closeModal();
     },
-    onError: () => message.error('Erreur lors de la modification'),
+    onError: (err: unknown) => message.error(getErrorMessage(err)),
   });
 
   const deleteMutation = useMutation({
@@ -45,7 +46,7 @@ export default function ClientsPage() {
       queryClient.invalidateQueries({ queryKey: ['clients'] });
       message.success('Client supprime');
     },
-    onError: () => message.error('Erreur lors de la suppression'),
+    onError: (err: unknown) => message.error(getErrorMessage(err)),
   });
 
   const openCreate = () => {

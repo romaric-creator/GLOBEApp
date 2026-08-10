@@ -11,6 +11,7 @@ import {
 import dayjs from 'dayjs';
 import { comptabiliteApi } from '../../api/comptabilite';
 import type { Depense, MoisHistorique } from '../../api/comptabilite';
+import { getErrorMessage } from '../../api/errors';
 
 const CENTRES = [
   { value: 'HOTEL', label: 'Hotel', color: 'gold' },
@@ -115,7 +116,7 @@ export default function ComptabilitePage() {
       form.resetFields();
       invalidate();
     },
-    onError: () => message.error('Erreur'),
+    onError: (err: unknown) => message.error(getErrorMessage(err)),
   });
 
   const deleteMutation = useMutation({

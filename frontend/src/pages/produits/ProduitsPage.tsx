@@ -28,6 +28,7 @@ import type { Produit, CreateProduitDto } from "../../api/produits";
 import CategoriesTab from "./CategoriesTab";
 import MouvementsTab from "./MouvementsTab";
 import BoissonsGrid from "./BoissonsGrid";
+import { getErrorMessage } from "../../api/errors";
 
 export default function ProduitsPage() {
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -54,7 +55,7 @@ export default function ProduitsPage() {
       message.success("Produit cree");
       closeModal();
     },
-    onError: () => message.error("Erreur lors de la creation"),
+    onError: (err: unknown) => message.error(getErrorMessage(err)),
   });
 
   const updateMutation = useMutation({
@@ -70,7 +71,7 @@ export default function ProduitsPage() {
       message.success("Produit modifie");
       closeModal();
     },
-    onError: () => message.error("Erreur lors de la modification"),
+    onError: (err: unknown) => message.error(getErrorMessage(err)),
   });
 
   const deleteMutation = useMutation({

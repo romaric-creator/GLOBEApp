@@ -4,6 +4,7 @@ import { Table, Button, Modal, Form, Select, DatePicker, Input, Tag, Space, App 
 import { PlusOutlined, CheckOutlined, CloseOutlined } from '@ant-design/icons';
 import { personnelApi } from '../../api/personnel';
 import type { Conge } from '../../api/personnel';
+import { getErrorMessage } from '../../api/errors';
 
 const statutColors: Record<string, string> = {
   EN_ATTENTE: 'processing',
@@ -44,9 +45,7 @@ export default function CongesTab() {
       form.resetFields();
       queryClient.invalidateQueries({ queryKey: ['conges'] });
     },
-    onError: (err: { response?: { data?: { message?: string } } }) => {
-      message.error(err.response?.data?.message || 'Erreur');
-    },
+    onError: (err: unknown) => message.error(getErrorMessage(err)),
   });
 
   const approuverMutation = useMutation({

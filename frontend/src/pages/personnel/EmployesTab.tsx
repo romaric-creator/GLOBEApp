@@ -4,6 +4,7 @@ import { Table, Button, Modal, Form, Input, InputNumber, Select, Space, Tag, Pop
 import { PlusOutlined, EditOutlined, UserSwitchOutlined } from '@ant-design/icons';
 import { personnelApi } from '../../api/personnel';
 import type { Employe, CreateEmployeDto } from '../../api/personnel';
+import { getErrorMessage } from '../../api/errors';
 
 const contratColors: Record<string, string> = {
   CDI: 'green',
@@ -34,9 +35,7 @@ export default function EmployesTab() {
       form.resetFields();
       queryClient.invalidateQueries({ queryKey: ['employes'] });
     },
-    onError: (err: { response?: { data?: { message?: string } } }) => {
-      message.error(err.response?.data?.message || 'Erreur');
-    },
+    onError: (err: unknown) => message.error(getErrorMessage(err)),
   });
 
   const toggleMutation = useMutation({
