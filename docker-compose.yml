@@ -1,52 +1,41 @@
 services:
-  postgres:
-    image: postgres:15-alpine
-    container_name: gestion_residence_db
+  mysql:
+    image: mysql:8.0
+    container_name: globe_manager_db
     restart: unless-stopped
     environment:
-      POSTGRES_DB: gestion_residence
-      POSTGRES_USER: postgres
-      POSTGRES_PASSWORD: postgres
+      MYSQL_DATABASE: gestion_residence
+      MYSQL_USER: globe
+      MYSQL_PASSWORD: globe_secret
+      MYSQL_ROOT_PASSWORD: root_secret
     ports:
-      - "5432:5432"
+      - "3306:3306"
     volumes:
-      - postgres_data:/var/lib/postgresql/data
-
-  redis:
-    image: redis:7-alpine
-    container_name: gestion_residence_redis
-    restart: unless-stopped
-    ports:
-      - "6379:6379"
-    volumes:
-      - redis_data:/data
+      - mysql_data:/var/lib/mysql
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-u", "globe", "-pglobe_secret"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 30s
 
   backend:
     build: ./backend
-    container_name: gestion_residence_backend
+    container_name: globe_manager_backend
     restart: unless-stopped
     ports:
       - "3001:3001"
     environment:
-      DATABASE_URL: postgresql://postgres:postgres@postgres:5432/gestion_residence
-      REDIS_URL: redis://redis:6379
-      JWT_SECRET: ${JWT_SECRET:-super-secret-key}
+      DATABASE_URL: mysql://globe:globe_secret@mysql:3306/gestion_residence
+      JWT_SECRET: ${JWT_SECRET:-globe-super-secret-key-change-in-production}
       JWT_EXPIRES_IN: 1h
       JWT_REFRESH_EXPIRES_IN: 7d
       PORT: 3001
+      SYNC_REMOTE_URL: ${SYNC_REMOTE_URL:-}
+      SYNC_API_KEY: ${SYNC_API_KEY:-}
     depends_on:
-      - postgres
-      - redis
-
-  frontend:
-    build: ./frontend
-    container_name: gestion_residence_frontend
-    restart: unless-stopped
-    ports:
-      - "8080:80"
-    depends_on:
-      - backend
+      mysql:
+        condition: service_healthy
 
 volumes:
-  postgres_data:
-  redis_data:
+  mysql_data:
