@@ -23,7 +23,7 @@ export default defineConfig({
     target: isTauri
       ? (process.env.TAURI_ENV_PLATFORM === 'windows' ? 'chrome105' : 'safari16')
       : 'es2020',
-    minify: isTauri ? 'esbuild' : true,
+    minify: isTauri ? 'oxc' : true,
     sourcemap: !isTauri,
   },
   test: {
