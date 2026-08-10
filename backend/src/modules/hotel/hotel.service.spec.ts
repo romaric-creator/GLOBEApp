@@ -25,6 +25,8 @@ describe('HotelService', () => {
       factureSejour: {
         findMany: jest.fn(),
         findUnique: jest.fn(),
+        findFirst: jest.fn().mockResolvedValue(null),
+        create: jest.fn().mockResolvedValue({}),
       },
       $transaction: jest.fn().mockImplementation((fn) => fn(prisma)),
     };
@@ -123,6 +125,8 @@ describe('HotelService', () => {
         id: 'r1',
         statut: 'CONFIRMEE',
         chambreId: 'ch1',
+        dateArrivee: new Date('2026-09-01'),
+        dateDepart: new Date('2026-09-05'),
         chambre: {},
         client: {},
       });
@@ -130,6 +134,8 @@ describe('HotelService', () => {
       prisma.reservation.update.mockResolvedValue({
         id: 'r1',
         statut: 'EN_COURS',
+        chambre: { numero: '101', type: 'SIMPLE', prixNuit: 100 },
+        client: { nom: 'Test', prenom: 'Client' },
       });
 
       const result = await service.checkIn('r1');
