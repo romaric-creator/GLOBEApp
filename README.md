@@ -2,98 +2,132 @@
 
 Application de gestion commerciale et de comptabilite destinee aux residences, hotels, restaurants, bars et PME.
 
+## Stack technique
+
+| Couche | Technologies |
+|--------|-------------|
+| **Frontend** | React 19, Ant Design 6, TailwindCSS 4, React Query 5, Zustand, Vite 8 |
+| **Backend** | NestJS (Node.js / TypeScript), Prisma ORM |
+| **Base de donnees** | PostgreSQL 15 |
+| **Cache** | Redis 7 |
+| **Auth** | JWT (Access + Refresh tokens), RBAC (admin, manager, caissier, serveur, employe) |
+| **Infra** | Docker & Docker Compose, Nginx |
+
 ## Modules
 
 ### Modules principaux
 
 | Module | Description |
 |--------|-------------|
-| Authentification & Securite | Gestion des utilisateurs, roles et permissions |
-| Tableau de Bord | KPI, graphiques d'activite, alertes |
-| Gestion des Clients | Repertoire clients, creances, historique, fidelite |
-| Produits & Stock | Catalogue, categories, mouvements stock, seuils d'alerte, fournisseurs |
-| Ventes & Caisse | Enregistrement ventes, facturation, tickets, avoirs, cloture caisse |
-| Gestion du Personnel | Fiches employes, contrats, conges, paie |
-| Pointage Biometrique | Presence par empreinte digitale |
-| Comptabilite | Journal recettes/depenses, tresorerie, bilan, clotures |
-| Rapports & Statistiques | Generation de rapports PDF/Excel |
-| Sauvegarde & Securite | Backup et restauration des donnees |
+| Authentification & Securite | Gestion des utilisateurs, roles et permissions, refresh token automatique |
+| Tableau de Bord | KPI temps reel, statistiques par module, taux d'occupation |
+| Gestion des Clients | Repertoire clients, creances, historique |
+| Produits & Stock | Catalogue, categories, mouvements stock, seuils d'alerte, vue grille |
+| Ventes & Caisse | Enregistrement ventes, tickets, avoirs, cloture caisse avec ecarts |
+| Gestion du Personnel | Fiches employes, contrats, conges (avec detection chevauchement), pointage |
+| Comptabilite | Plan comptable, ecritures en partie double, clotures periodiques |
+| Rapports & Statistiques | Chiffre d'affaires, occupation hotel, top produits, resume mensuel |
+| Sauvegarde | Backup PostgreSQL complet/incrementiel, historique |
 
-### Modules optionnels
+### Modules metier
 
 | Module | Description |
 |--------|-------------|
-| Gestion Hotel | Reservations, chambres, facturation sejours |
-| Bar & Restauration | Prise de commande sur table, gestion cuisine |
-| Piscine & Loisirs | Tickets d'acces, abonnements |
-| Livraison | Suivi des livreurs et livraisons |
-| Synchronisation Cloud | Sauvegarde automatique distante |
+| Hotel | Reservations (avec detection conflit), chambres, check-in/out, taux d'occupation |
+| Bar & Restaurant | Tables, commandes multi-articles, workflow cuisine, gestion stock integree |
+| Piscine & Loisirs | Tickets d'acces, abonnements avec expiration automatique |
+| Salle de fete | Reservations avec detection de chevauchement horaire |
 
-## Stack technique
+## Architecture
 
-- **Backend** : NestJS (Node.js / TypeScript)
-- **Base de donnees** : PostgreSQL 15
-- **Cache** : Redis 7
-- **ORM** : Prisma
-- **Conteneurisation** : Docker & Docker Compose
-- **Authentification** : JWT (Access + Refresh tokens)
+```
+├── backend/
+│   ├── prisma/
+│   │   ├── schema.prisma          # Schema BDD (23 index, cascades)
+│   │   ├── migrations/            # Migrations SQL
+│   │   └── seed.ts                # Donnees initiales
+│   ├── src/
+│   │   ├── modules/               # Modules metier (auth, hotel, ventes, restaurant, etc.)
+│   │   ├── common/                # Guards, decorators, filtres
+│   │   ├── prisma/                # Service Prisma global
+│   │   └── main.ts               # Point d'entree (port 3001)
+│   └── Dockerfile
+├── frontend/
+│   ├── src/
+│   │   ├── api/                   # Clients API (axios + intercepteur refresh)
+│   │   ├── components/            # Layout, ProtectedRoute
+│   │   ├── pages/                 # Pages par module
+│   │   ├── store/                 # Zustand (auth)
+│   │   └── hooks/                 # Hooks custom (useAuth)
+│   ├── Dockerfile
+│   └── nginx.conf                 # Reverse proxy /api → backend
+├── docker-compose.yml             # Orchestration complète
+└── README.md
+```
 
 ## Installation
 
 ### Prerequis
 
-- Node.js >= 18
 - Docker & Docker Compose
-- npm
 
-### Lancement
+### Lancement (production)
 
 ```bash
-# Cloner le repo
 git clone https://github.com/romaric-creator/GLOBEApp.git
-cd GLOBEApp/backend
+cd GLOBEApp
 
-# Installer les dependances
-npm install
-
-# Lancer la base de donnees
+# Lancer tous les services
 docker compose up -d
 
-# Configurer l'environnement
-cp .env.example .env
+# L'application est accessible sur http://localhost:8080
+```
 
-# Generer le client Prisma et appliquer le schema
+### Lancement (developpement)
+
+```bash
+# Backend
+cd backend
+npm install
+cp .env.example .env
+docker compose up -d postgres redis
 npx prisma generate
 npx prisma db push
-
-# Peupler la base avec les donnees initiales
 npx prisma db seed
+npm run start:dev          # http://localhost:3001
 
-# Lancer le serveur en mode developpement
-npm run start:dev
+# Frontend
+cd ../frontend
+npm install
+npm run dev                # http://localhost:3000 (proxy /api → :3001)
 ```
 
-## Structure du projet
+## Securite
 
-```
-backend/
-├── prisma/
-│   ├── schema.prisma       # Schema de la base de donnees
-│   └── seed.ts             # Donnees initiales
-├── src/
-│   ├── modules/            # Modules metier
-│   ├── common/             # Utilitaires partages
-│   ├── prisma/             # Service Prisma global
-│   └── main.ts            # Point d'entree
-├── docker-compose.yml      # PostgreSQL + Redis
-└── package.json
-```
+- Authentification JWT avec rotation automatique des tokens
+- Controle d'acces par role (RBAC) sur les routes backend ET frontend
+- Validation des DTOs via class-validator sur tous les endpoints
+- Protection CSRF, rate limiting sur l'auth
+- Transactions Prisma pour l'integrite des donnees (ventes, stock, reservations)
+- Verification caisse ouverte avant enregistrement de vente
+- Soft-delete sur les produits (desactivation au lieu de suppression)
 
 ## Utilisateur par defaut
 
-- **Email** : admin@residence.local
-- **Mot de passe** : admin123
-- **Role** : Administrateur
+| Role | Email | Mot de passe |
+|------|-------|-------------|
+| Admin | admin@residence.local | admin123 |
+| Manager | manager@residence.local | manager123 |
+
+## Ports
+
+| Service | Port |
+|---------|------|
+| Frontend (nginx) | 8080 |
+| Backend (NestJS) | 3001 |
+| PostgreSQL | 5432 |
+| Redis | 6379 |
+| Vite dev server | 3000 |
 
 ## Licence
 

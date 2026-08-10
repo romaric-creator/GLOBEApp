@@ -1,9 +1,10 @@
 import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { Table, Button, Modal, Form, Input, Select, Space, Popconfirm, Tag, App } from 'antd';
-import { PlusOutlined, EditOutlined, DeleteOutlined } from '@ant-design/icons';
+import { PlusOutlined, EditOutlined, DeleteOutlined, SearchOutlined } from '@ant-design/icons';
 import { clientsApi } from '../../api/clients';
 import type { Client, CreateClientDto } from '../../api/clients';
+import EmptyState from '../../components/EmptyState';
 
 export default function ClientsPage() {
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -80,7 +81,7 @@ export default function ClientsPage() {
       dataIndex: 'type',
       key: 'type',
       render: (type: string) => (
-        <Tag color={type === 'ENTREPRISE' ? 'blue' : 'green'}>
+        <Tag color={type === 'ENTREPRISE' ? 'gold' : 'green'}>
           {type === 'ENTREPRISE' ? 'Entreprise' : 'Particulier'}
         </Tag>
       ),
@@ -104,22 +105,52 @@ export default function ClientsPage() {
     },
   ];
 
+  const [searchText, setSearchText] = useState('');
+
+  const filteredClients = clients?.filter((c) => {
+    if (!searchText) return true;
+    const q = searchText.toLowerCase();
+    return c.nom.toLowerCase().includes(q) ||
+      (c.prenom || '').toLowerCase().includes(q) ||
+      (c.telephone || '').includes(q) ||
+      (c.email || '').toLowerCase().includes(q);
+  });
+
   return (
-    <div>
+    <div id="tour-clients-page">
       <div className="flex justify-between items-center mb-4">
         <h2 className="text-xl font-semibold">Gestion des Clients</h2>
-        <Button type="primary" icon={<PlusOutlined />} onClick={openCreate}>
-          Nouveau client
-        </Button>
+        <div className="flex gap-3">
+          <Input
+            placeholder="Rechercher..."
+            prefix={<SearchOutlined />}
+            value={searchText}
+            onChange={(e) => setSearchText(e.target.value)}
+            allowClear
+            style={{ width: 220 }}
+          />
+          <Button type="primary" icon={<PlusOutlined />} onClick={openCreate}>
+            Nouveau client
+          </Button>
+        </div>
       </div>
 
-      <Table
-        columns={columns}
-        dataSource={clients}
-        rowKey="id"
-        loading={isLoading}
-        pagination={{ pageSize: 10, showTotal: (total) => `${total} client(s)` }}
-      />
+      {!isLoading && clients?.length === 0 ? (
+        <EmptyState
+          title="Aucun client"
+          description="Ajoutez votre premier client pour commencer"
+          actionLabel="Nouveau client"
+          onAction={openCreate}
+        />
+      ) : (
+        <Table
+          columns={columns}
+          dataSource={filteredClients}
+          rowKey="id"
+          loading={isLoading}
+          pagination={{ pageSize: 10, showTotal: (total) => `${total} client(s)` }}
+        />
+      )}
 
       <Modal
         title={editingClient ? 'Modifier le client' : 'Nouveau client'}
