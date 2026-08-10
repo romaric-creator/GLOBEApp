@@ -3,6 +3,7 @@ import { UserOutlined, LockOutlined, SafetyOutlined, TeamOutlined } from "@ant-d
 import { useNavigate } from "react-router-dom";
 import { authApi } from "../../api/auth";
 import type { LoginDto } from "../../api/auth";
+import { getErrorMessage } from "../../api/errors";
 import { useAuthStore } from "../../store/auth";
 
 export default function LoginPage() {
@@ -18,8 +19,8 @@ export default function LoginPage() {
       localStorage.setItem("refreshToken", data.refreshToken);
       setUser(data.user);
       navigate("/dashboard");
-    } catch (error: any) {
-      message.error(error.response?.data?.message || "Erreur de connexion");
+    } catch (error) {
+      message.error(getErrorMessage(error));
     }
   };
 

@@ -13,6 +13,7 @@ import { salleFeteApi } from '../../api/salle-fete';
 import { clientsApi } from '../../api/clients';
 import type { ReservationSalle, TypeReservationSalle } from '../../api/salle-fete';
 import type { Client } from '../../api/clients';
+import { getErrorMessage } from '../../api/errors';
 
 const STATUT_COLORS: Record<string, string> = {
   EN_ATTENTE: 'orange',
@@ -50,7 +51,7 @@ function TypesTab() {
       closeModal();
       queryClient.invalidateQueries({ queryKey: ['types-reservation-salle'] });
     },
-    onError: () => message.error('Erreur lors de la creation'),
+    onError: (err: unknown) => message.error(getErrorMessage(err)),
   });
 
   const updateMutation = useMutation({
@@ -61,7 +62,7 @@ function TypesTab() {
       closeModal();
       queryClient.invalidateQueries({ queryKey: ['types-reservation-salle'] });
     },
-    onError: () => message.error('Erreur lors de la modification'),
+    onError: (err: unknown) => message.error(getErrorMessage(err)),
   });
 
   const deleteMutation = useMutation({
@@ -70,7 +71,7 @@ function TypesTab() {
       message.success('Type desactive');
       queryClient.invalidateQueries({ queryKey: ['types-reservation-salle'] });
     },
-    onError: () => message.error('Erreur'),
+    onError: (err: unknown) => message.error(getErrorMessage(err)),
   });
 
   const closeModal = () => {
@@ -240,17 +241,13 @@ function ReservationsTab() {
       form.resetFields();
       invalidateAll();
     },
-    onError: (err: { response?: { data?: { message?: string } } }) => {
-      message.error(err.response?.data?.message || 'Erreur');
-    },
+    onError: (err: unknown) => message.error(getErrorMessage(err)),
   });
 
   const confirmerMutation = useMutation({
     mutationFn: salleFeteApi.confirmer,
     onSuccess: () => { message.success('Reservation confirmee'); invalidateAll(); },
-    onError: (err: { response?: { data?: { message?: string } } }) => {
-      message.error(err.response?.data?.message || 'Erreur');
-    },
+    onError: (err: unknown) => message.error(getErrorMessage(err)),
   });
 
   const annulerMutation = useMutation({

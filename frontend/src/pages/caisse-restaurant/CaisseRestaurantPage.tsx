@@ -11,6 +11,7 @@ import { caisseApi, MOYEN_OPTIONS } from '../../api/caisse';
 import type { Caisse, SessionCaisse, Paiement } from '../../api/caisse';
 import { restaurantApi } from '../../api/restaurant';
 import type { Commande } from '../../api/restaurant';
+import { getErrorMessage } from '../../api/errors';
 
 export default function CaisseRestaurantPage() {
   const { message } = App.useApp();
@@ -59,21 +60,21 @@ export default function CaisseRestaurantPage() {
   const ouvrirMutation = useMutation({
     mutationFn: (fondInitial: number) => caisseApi.ouvrirSession(caisse!.id, fondInitial),
     onSuccess: () => { message.success('Caisse ouverte'); setOuvrirModalOpen(false); fondInitialForm.resetFields(); invalidate(); },
-    onError: (err: { response?: { data?: { message?: string } } }) => message.error(err.response?.data?.message || 'Erreur'),
+    onError: (err: unknown) => message.error(getErrorMessage(err)),
   });
 
   const fermerMutation = useMutation({
     mutationFn: ({ totalReel, notes }: { totalReel: number; notes?: string }) =>
       caisseApi.fermerSession((session as SessionCaisse).id, totalReel, notes),
     onSuccess: () => { message.success('Caisse cloturee'); setFermerModalOpen(false); fermerForm.resetFields(); invalidate(); },
-    onError: (err: { response?: { data?: { message?: string } } }) => message.error(err.response?.data?.message || 'Erreur'),
+    onError: (err: unknown) => message.error(getErrorMessage(err)),
   });
 
   const encaisserMutation = useMutation({
     mutationFn: (data: { commandeId: string; montant: number; moyen: string }) =>
       caisseApi.encaisserRestaurant({ ...data, sessionId: (session as SessionCaisse).id }),
     onSuccess: () => { message.success('Paiement enregistre'); setEncaisserModal(null); encaisserForm.resetFields(); invalidate(); },
-    onError: (err: { response?: { data?: { message?: string } } }) => message.error(err.response?.data?.message || 'Erreur'),
+    onError: (err: unknown) => message.error(getErrorMessage(err)),
   });
 
   const loading = caisseLoading || sessionLoading;

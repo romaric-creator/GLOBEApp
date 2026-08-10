@@ -4,6 +4,7 @@ import { Table, Button, Modal, Form, InputNumber, Select, Input, Tag, App } from
 import { PlusOutlined } from '@ant-design/icons';
 import { produitsApi } from '../../api/produits';
 import type { CreateMouvementDto, Produit } from '../../api/produits';
+import { getErrorMessage } from '../../api/errors';
 
 const typeColors: Record<string, string> = {
   ENTREE: 'green',
@@ -37,7 +38,7 @@ export default function MouvementsTab() {
       setIsModalOpen(false);
       form.resetFields();
     },
-    onError: (err: any) => message.error(err.response?.data?.message || 'Erreur'),
+    onError: (err: unknown) => message.error(getErrorMessage(err)),
   });
 
   const columns = [

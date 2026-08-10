@@ -4,6 +4,7 @@ import { Table, Button, Modal, Form, Input, Space, Popconfirm, App } from 'antd'
 import { PlusOutlined, DeleteOutlined } from '@ant-design/icons';
 import { produitsApi } from '../../api/produits';
 import type { Categorie } from '../../api/produits';
+import { getErrorMessage } from '../../api/errors';
 
 export default function CategoriesTab() {
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -24,7 +25,7 @@ export default function CategoriesTab() {
       setIsModalOpen(false);
       form.resetFields();
     },
-    onError: () => message.error('Erreur lors de la creation'),
+    onError: (err: unknown) => message.error(getErrorMessage(err)),
   });
 
   const deleteMutation = useMutation({
@@ -33,7 +34,7 @@ export default function CategoriesTab() {
       queryClient.invalidateQueries({ queryKey: ['categories'] });
       message.success('Categorie supprimee');
     },
-    onError: () => message.error('Impossible de supprimer (contient des produits)'),
+    onError: (err: unknown) => message.error(getErrorMessage(err)),
   });
 
   const columns = [

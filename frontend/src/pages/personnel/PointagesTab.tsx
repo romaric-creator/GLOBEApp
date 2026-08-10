@@ -5,6 +5,7 @@ import { PlusOutlined, CheckCircleOutlined, CloseCircleOutlined, ToolOutlined } 
 import { personnelApi } from '../../api/personnel';
 import type { Pointage, Presence } from '../../api/personnel';
 import dayjs from 'dayjs';
+import { getErrorMessage } from '../../api/errors';
 
 export default function PointagesTab() {
   const { message } = App.useApp();
@@ -37,9 +38,7 @@ export default function PointagesTab() {
       queryClient.invalidateQueries({ queryKey: ['pointages'] });
       queryClient.invalidateQueries({ queryKey: ['presences'] });
     },
-    onError: (err: { response?: { data?: { message?: string } } }) => {
-      message.error(err.response?.data?.message || 'Erreur');
-    },
+    onError: (err: unknown) => message.error(getErrorMessage(err)),
   });
 
   const nbPresents = presences?.filter((p: Presence) => p.present).length || 0;
