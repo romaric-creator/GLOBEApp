@@ -1,6 +1,6 @@
 use std::process::Command;
 use std::time::{Duration, Instant};
-use tauri::Manager;
+use tauri::{Emitter, Manager};
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
@@ -123,7 +123,7 @@ pub fn run() {
 }
 
 // Contenu du docker-compose.yml embarqué dans le binaire
-const COMPOSE_CONTENT: &str = include_str!("../../docker-compose.yml");
+const COMPOSE_CONTENT: &str = include_str!("../../../docker-compose.yml");
 
 fn get_compose_dir() -> std::path::PathBuf {
     // En production : %APPDATA%\GlobeManager (créé + docker-compose.yml écrit au démarrage)
