@@ -6,7 +6,10 @@ import {
 import { PrismaService } from '../../prisma/prisma.service';
 import { CreateTicketPiscineDto } from './dto/create-ticket.dto';
 import { CreateAbonnementDto } from './dto/create-abonnement.dto';
-import { CreateAccessoireDto, CreateTransactionDto } from './dto/create-accessoire.dto';
+import {
+  CreateAccessoireDto,
+  CreateTransactionDto,
+} from './dto/create-accessoire.dto';
 
 @Injectable()
 export class PiscineService {
@@ -35,12 +38,12 @@ export class PiscineService {
 
     if (dto.dateFin) {
       dateFin = new Date(dto.dateFin);
-    } else if (dto.type === 'JOURNALIER') {
+    } else if (String(dto.type) === 'JOURNALIER') {
       dateFin = dateDebut;
-    } else if (dto.type === 'ABONNEMENT_MENSUEL') {
+    } else if (String(dto.type) === 'ABONNEMENT_MENSUEL') {
       dateFin = new Date(dateDebut);
       dateFin.setMonth(dateFin.getMonth() + 1);
-    } else if (dto.type === 'ABONNEMENT_ANNUEL') {
+    } else if (String(dto.type) === 'ABONNEMENT_ANNUEL') {
       dateFin = new Date(dateDebut);
       dateFin.setFullYear(dateFin.getFullYear() + 1);
     }
@@ -91,7 +94,9 @@ export class PiscineService {
     return this.prisma.abonnementLoisir.findMany({
       where,
       orderBy: { createdAt: 'desc' },
-      include: { client: { select: { nom: true, prenom: true, telephone: true } } },
+      include: {
+        client: { select: { nom: true, prenom: true, telephone: true } },
+      },
     });
   }
 
@@ -172,13 +177,17 @@ export class PiscineService {
   }
 
   async updateAccessoire(id: string, dto: Partial<CreateAccessoireDto>) {
-    const acc = await this.prisma.accessoirePiscine.findUnique({ where: { id } });
+    const acc = await this.prisma.accessoirePiscine.findUnique({
+      where: { id },
+    });
     if (!acc) throw new NotFoundException('Accessoire introuvable');
     return this.prisma.accessoirePiscine.update({ where: { id }, data: dto });
   }
 
   async deleteAccessoire(id: string) {
-    const acc = await this.prisma.accessoirePiscine.findUnique({ where: { id } });
+    const acc = await this.prisma.accessoirePiscine.findUnique({
+      where: { id },
+    });
     if (!acc) throw new NotFoundException('Accessoire introuvable');
     return this.prisma.accessoirePiscine.update({
       where: { id },

@@ -1,10 +1,8 @@
 import { Injectable } from '@nestjs/common';
+import { CentreDepense } from '@prisma/client';
 import { PrismaService } from '../../prisma/prisma.service';
 import { CreateDepenseDto } from './dto/create-depense.dto';
 
-function startOfDay(d: Date) {
-  return new Date(d.getFullYear(), d.getMonth(), d.getDate());
-}
 function endOfDay(d: Date) {
   return new Date(d.getFullYear(), d.getMonth(), d.getDate(), 23, 59, 59, 999);
 }
@@ -42,7 +40,7 @@ export class ComptabiliteService {
       data: {
         libelle: dto.libelle,
         montant: dto.montant,
-        centre: (dto.centre as any) ?? 'GENERAL',
+        centre: (dto.centre as CentreDepense) ?? CentreDepense.GENERAL,
         date: dto.date ? new Date(dto.date) : new Date(),
         notes: dto.notes,
       },
@@ -137,7 +135,11 @@ export class ComptabiliteService {
     const totalRecettes = hotel + restaurant + piscine + salle;
 
     const depensesParCentre: Record<string, number> = {
-      HOTEL: 0, RESTAURANT: 0, PISCINE: 0, SALLE_FETE: 0, GENERAL: 0,
+      HOTEL: 0,
+      RESTAURANT: 0,
+      PISCINE: 0,
+      SALLE_FETE: 0,
+      GENERAL: 0,
     };
     let totalDepenses = 0;
     for (const d of depenses) {
@@ -158,13 +160,21 @@ export class ComptabiliteService {
 
   async getHistoriqueMensuel() {
     const now = new Date();
-    const mois: { label: string; recettes: number; depenses: number; resultat: number }[] = [];
+    const mois: {
+      label: string;
+      recettes: number;
+      depenses: number;
+      resultat: number;
+    }[] = [];
 
     for (let i = 11; i >= 0; i--) {
       const ref = new Date(now.getFullYear(), now.getMonth() - i, 1);
       const debut = startOfMonth(ref);
       const fin = endOfMonth(ref);
-      const label = ref.toLocaleDateString('fr-FR', { month: 'short', year: '2-digit' });
+      const label = ref.toLocaleDateString('fr-FR', {
+        month: 'short',
+        year: '2-digit',
+      });
 
       const [hotel, restaurant, piscine, salle, depTotal] = await Promise.all([
         this.getRecettesHotel(debut, fin),
@@ -205,7 +215,9 @@ export class ComptabiliteService {
       type: s.caisse.type,
       fondInitial: Number(s.fondInitial),
       totalEncaisse: s.paiements.reduce((sum, p) => sum + Number(p.montant), 0),
-      total: Number(s.fondInitial) + s.paiements.reduce((sum, p) => sum + Number(p.montant), 0),
+      total:
+        Number(s.fondInitial) +
+        s.paiements.reduce((sum, p) => sum + Number(p.montant), 0),
     }));
 
     const totalTresorerie = caisses.reduce((sum, c) => sum + c.total, 0);
@@ -226,7 +238,13 @@ export class ComptabiliteService {
           statut: 'ENCAISSE',
           createdAt: { gte: debut, lte: fin },
         },
-        include: { factureSejour: { include: { reservation: { include: { client: true, chambre: true } } } } },
+        include: {
+          factureSejour: {
+            include: {
+              reservation: { include: { client: true, chambre: true } },
+            },
+          },
+        },
         orderBy: { createdAt: 'desc' },
       }),
       this.prisma.paiement.findMany({

@@ -56,7 +56,8 @@ export class SauvegardeService {
         },
       });
     } catch (error) {
-      this.logger.error(`Echec de la sauvegarde: ${error.message}`);
+      const msg = error instanceof Error ? error.message : String(error);
+      this.logger.error(`Echec de la sauvegarde: ${msg}`);
 
       return this.prisma.sauvegarde.update({
         where: { id: sauvegarde.id },
