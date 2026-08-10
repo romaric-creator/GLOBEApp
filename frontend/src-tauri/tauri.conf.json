@@ -13,6 +13,7 @@
     "withGlobalTauri": false,
     "windows": [
       {
+        "label": "main",
         "title": "GLOBE Manager",
         "width": 1440,
         "height": 900,
@@ -22,8 +23,20 @@
         "resizable": true,
         "fullscreen": false,
         "decorations": true,
-        "visible": true,
+        "visible": false,
         "shadow": true
+      },
+      {
+        "label": "splash",
+        "title": "GLOBE Manager",
+        "width": 400,
+        "height": 280,
+        "center": true,
+        "resizable": false,
+        "decorations": false,
+        "visible": false,
+        "shadow": true,
+        "url": "splash.html"
       }
     ],
     "security": {
@@ -48,7 +61,9 @@
       },
       "nsis": {
         "languages": ["French"],
-        "displayLanguageSelector": false
+        "displayLanguageSelector": false,
+        "customNsisCommands": "!include \"nsis\\installer.nsh\"",
+        "sidebarImage": null
       }
     },
     "linux": {
