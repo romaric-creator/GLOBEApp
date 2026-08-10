@@ -13,7 +13,10 @@ import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { PiscineService } from './piscine.service';
 import { CreateTicketPiscineDto } from './dto/create-ticket.dto';
 import { CreateAbonnementDto } from './dto/create-abonnement.dto';
-import { CreateAccessoireDto, CreateTransactionDto } from './dto/create-accessoire.dto';
+import {
+  CreateAccessoireDto,
+  CreateTransactionDto,
+} from './dto/create-accessoire.dto';
 
 @Controller('piscine')
 @UseGuards(JwtAuthGuard)

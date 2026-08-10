@@ -51,7 +51,10 @@ describe('CaisseService', () => {
   describe('ouvrirSession', () => {
     it('echoue si une session est deja ouverte pour cette caisse', async () => {
       prisma.caisse.findUnique.mockResolvedValue({ id: 'c1', nom: 'Caisse' });
-      prisma.sessionCaisse.findFirst.mockResolvedValue({ id: 's1', statut: 'OUVERTE' });
+      prisma.sessionCaisse.findFirst.mockResolvedValue({
+        id: 's1',
+        statut: 'OUVERTE',
+      });
 
       await expect(service.ouvrirSession('c1', 'u1', 100)).rejects.toThrow(
         BadRequestException,
@@ -61,14 +64,14 @@ describe('CaisseService', () => {
     it('echoue si la caisse est introuvable', async () => {
       prisma.caisse.findUnique.mockResolvedValue(null);
 
-      await expect(service.ouvrirSession('inexistant', 'u1', 100)).rejects.toThrow(
-        NotFoundException,
-      );
+      await expect(
+        service.ouvrirSession('inexistant', 'u1', 100),
+      ).rejects.toThrow(NotFoundException);
     });
   });
 
   describe('fermerSession', () => {
-    it('calcule l\'ecart en excluant les paiements non encaisses', async () => {
+    it("calcule l'ecart en excluant les paiements non encaisses", async () => {
       prisma.sessionCaisse.findUnique.mockResolvedValue({
         id: 's1',
         statut: 'OUVERTE',
@@ -134,7 +137,7 @@ describe('CaisseService', () => {
   });
 
   describe('encaisserCommandeRestaurant', () => {
-    it('echoue si la commande n\'est pas TERMINEE', async () => {
+    it("echoue si la commande n'est pas TERMINEE", async () => {
       prisma.commandeTable.findUnique.mockResolvedValue({
         id: 'cmd1',
         statut: 'EN_PREPARATION',
@@ -161,7 +164,13 @@ describe('CaisseService', () => {
       prisma.commandeTable.findUnique.mockResolvedValue(null);
 
       await expect(
-        service.encaisserCommandeRestaurant('inexistant', 's1', 'u1', 80, 'ESPECES'),
+        service.encaisserCommandeRestaurant(
+          'inexistant',
+          's1',
+          'u1',
+          80,
+          'ESPECES',
+        ),
       ).rejects.toThrow(NotFoundException);
     });
   });

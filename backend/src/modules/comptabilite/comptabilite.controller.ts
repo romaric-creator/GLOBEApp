@@ -1,6 +1,12 @@
 import {
-  Controller, Get, Post, Delete,
-  Body, Query, Param, UseGuards,
+  Controller,
+  Get,
+  Post,
+  Delete,
+  Body,
+  Query,
+  Param,
+  UseGuards,
 } from '@nestjs/common';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { ComptabiliteService } from './comptabilite.service';

@@ -53,7 +53,7 @@ describe('RestaurantService', () => {
           { produitId: 'p1', quantite: 2 },
           { produitId: 'p2', quantite: 1 },
         ],
-      } as any);
+      });
 
       expect(prisma.produit.update).toHaveBeenCalledWith({
         where: { id: 'p1' },
@@ -104,17 +104,22 @@ describe('RestaurantService', () => {
         serveur: {},
         paiement: null,
       });
-      prisma.commandeTable.update.mockResolvedValue({ id: 'cmd1', statut: 'TERMINEE' });
+      prisma.commandeTable.update.mockResolvedValue({
+        id: 'cmd1',
+        statut: 'TERMINEE',
+      });
 
       const result = await service.changerStatut('cmd1', 'TERMINEE');
 
       expect(prisma.commandeTable.update).toHaveBeenCalledWith(
-        expect.objectContaining({ data: expect.objectContaining({ statut: 'TERMINEE' }) }),
+        expect.objectContaining({
+          data: expect.objectContaining({ statut: 'TERMINEE' }),
+        }),
       );
       expect(result.statut).toBe('TERMINEE');
     });
 
-    it('echoue si la commande n\'est pas EN_PREPARATION', async () => {
+    it("echoue si la commande n'est pas EN_PREPARATION", async () => {
       prisma.commandeTable.findUnique.mockResolvedValue({
         id: 'cmd1',
         statut: 'TERMINEE',
@@ -123,12 +128,12 @@ describe('RestaurantService', () => {
         paiement: null,
       });
 
-      await expect(service.changerStatut('cmd1', 'EN_PREPARATION' as any)).rejects.toThrow(
-        BadRequestException,
-      );
+      await expect(
+        service.changerStatut('cmd1', 'EN_PREPARATION' as any),
+      ).rejects.toThrow(BadRequestException);
     });
 
-    it('re-incremente le stock lors d\'une annulation', async () => {
+    it("re-incremente le stock lors d'une annulation", async () => {
       prisma.commandeTable.findUnique.mockResolvedValue({
         id: 'cmd1',
         numero: 'CMD-2026-0001',
@@ -142,7 +147,10 @@ describe('RestaurantService', () => {
       });
       prisma.produit.update.mockResolvedValue({});
       prisma.mouvementStock.create.mockResolvedValue({});
-      prisma.commandeTable.update.mockResolvedValue({ id: 'cmd1', statut: 'ANNULEE' });
+      prisma.commandeTable.update.mockResolvedValue({
+        id: 'cmd1',
+        statut: 'ANNULEE',
+      });
 
       await service.changerStatut('cmd1', 'ANNULEE');
 

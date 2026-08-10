@@ -1,6 +1,19 @@
-import { IsString, IsNumber, IsPositive, IsOptional, IsIn, IsDateString } from 'class-validator';
+import {
+  IsString,
+  IsNumber,
+  IsPositive,
+  IsOptional,
+  IsIn,
+  IsDateString,
+} from 'class-validator';
 
-const CENTRES = ['HOTEL', 'RESTAURANT', 'PISCINE', 'SALLE_FETE', 'GENERAL'] as const;
+const CENTRES = [
+  'HOTEL',
+  'RESTAURANT',
+  'PISCINE',
+  'SALLE_FETE',
+  'GENERAL',
+] as const;
 
 export class CreateDepenseDto {
   @IsString()

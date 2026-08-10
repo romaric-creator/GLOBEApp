@@ -64,11 +64,15 @@ describe('HotelService', () => {
         prixNuit: 100,
       });
       prisma.reservation.findFirst.mockResolvedValue(null);
-      const reservationCreee = { id: 'r1', statut: 'EN_ATTENTE', montantTotal: 400 };
+      const reservationCreee = {
+        id: 'r1',
+        statut: 'EN_ATTENTE',
+        montantTotal: 400,
+      };
       prisma.reservation.create.mockResolvedValue(reservationCreee);
       prisma.chambre.update.mockResolvedValue({});
 
-      const result = await service.createReservation(dto as any);
+      const result = await service.createReservation(dto);
 
       expect(result).toBe(reservationCreee);
       expect(prisma.chambre.update).toHaveBeenCalledWith(
@@ -96,7 +100,7 @@ describe('HotelService', () => {
       ).rejects.toThrow(BadRequestException);
     });
 
-    it('echoue si la date de depart est avant la date d\'arrivee', async () => {
+    it("echoue si la date de depart est avant la date d'arrivee", async () => {
       prisma.chambre.findUnique.mockResolvedValue({
         id: 'ch1',
         capacite: 3,
@@ -123,7 +127,10 @@ describe('HotelService', () => {
         client: {},
       });
       prisma.chambre.update.mockResolvedValue({});
-      prisma.reservation.update.mockResolvedValue({ id: 'r1', statut: 'EN_COURS' });
+      prisma.reservation.update.mockResolvedValue({
+        id: 'r1',
+        statut: 'EN_COURS',
+      });
 
       const result = await service.checkIn('r1');
 
@@ -137,7 +144,7 @@ describe('HotelService', () => {
       expect(result.statut).toBe('EN_COURS');
     });
 
-    it('echoue si la reservation n\'est pas CONFIRMEE ou EN_ATTENTE', async () => {
+    it("echoue si la reservation n'est pas CONFIRMEE ou EN_ATTENTE", async () => {
       prisma.reservation.findUnique.mockResolvedValue({
         id: 'r1',
         statut: 'TERMINEE',
@@ -160,7 +167,10 @@ describe('HotelService', () => {
         client: {},
       });
       prisma.chambre.update.mockResolvedValue({});
-      prisma.reservation.update.mockResolvedValue({ id: 'r1', statut: 'TERMINEE' });
+      prisma.reservation.update.mockResolvedValue({
+        id: 'r1',
+        statut: 'TERMINEE',
+      });
 
       const result = await service.checkOut('r1');
 
@@ -174,7 +184,7 @@ describe('HotelService', () => {
       expect(result.statut).toBe('TERMINEE');
     });
 
-    it('echoue si la reservation n\'est pas EN_COURS', async () => {
+    it("echoue si la reservation n'est pas EN_COURS", async () => {
       prisma.reservation.findUnique.mockResolvedValue({
         id: 'r1',
         statut: 'EN_ATTENTE',
@@ -198,7 +208,10 @@ describe('HotelService', () => {
       });
       prisma.reservation.findFirst.mockResolvedValue(null);
       prisma.chambre.update.mockResolvedValue({});
-      prisma.reservation.update.mockResolvedValue({ id: 'r1', statut: 'ANNULEE' });
+      prisma.reservation.update.mockResolvedValue({
+        id: 'r1',
+        statut: 'ANNULEE',
+      });
 
       await service.annulerReservation('r1');
 
@@ -208,7 +221,7 @@ describe('HotelService', () => {
       });
     });
 
-    it('ne modifie pas la chambre si d\'autres reservations actives existent', async () => {
+    it("ne modifie pas la chambre si d'autres reservations actives existent", async () => {
       prisma.reservation.findUnique.mockResolvedValue({
         id: 'r1',
         statut: 'CONFIRMEE',
@@ -216,8 +229,14 @@ describe('HotelService', () => {
         chambre: {},
         client: {},
       });
-      prisma.reservation.findFirst.mockResolvedValue({ id: 'r2', statut: 'EN_ATTENTE' });
-      prisma.reservation.update.mockResolvedValue({ id: 'r1', statut: 'ANNULEE' });
+      prisma.reservation.findFirst.mockResolvedValue({
+        id: 'r2',
+        statut: 'EN_ATTENTE',
+      });
+      prisma.reservation.update.mockResolvedValue({
+        id: 'r1',
+        statut: 'ANNULEE',
+      });
 
       await service.annulerReservation('r1');
 

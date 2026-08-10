@@ -40,7 +40,7 @@ describe('ClientsService', () => {
       const clientCree = { id: 'cl1', ...dto };
       prisma.client.create.mockResolvedValue(clientCree);
 
-      const result = await service.create(dto as any);
+      const result = await service.create(dto);
 
       expect(prisma.client.create).toHaveBeenCalledWith({ data: dto });
       expect(result).toBe(clientCree);
@@ -55,14 +55,18 @@ describe('ClientsService', () => {
 
       const result = await service.remove('cl1');
 
-      expect(prisma.client.delete).toHaveBeenCalledWith({ where: { id: 'cl1' } });
+      expect(prisma.client.delete).toHaveBeenCalledWith({
+        where: { id: 'cl1' },
+      });
       expect(result).toBe(client);
     });
 
     it('echoue si le client est introuvable', async () => {
       prisma.client.findUnique.mockResolvedValue(null);
 
-      await expect(service.remove('inexistant')).rejects.toThrow(NotFoundException);
+      await expect(service.remove('inexistant')).rejects.toThrow(
+        NotFoundException,
+      );
     });
   });
 
@@ -72,7 +76,7 @@ describe('ClientsService', () => {
       prisma.client.findUnique.mockResolvedValue(client);
       prisma.client.update.mockResolvedValue({ ...client, nom: 'Durand' });
 
-      const result = await service.update('cl1', { nom: 'Durand' } as any);
+      const result = await service.update('cl1', { nom: 'Durand' });
 
       expect(prisma.client.update).toHaveBeenCalledWith({
         where: { id: 'cl1' },

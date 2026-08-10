@@ -25,9 +25,7 @@ export class RapportsController {
 
   @Get('top-produits')
   getTopProduits(@Query('limit') limit?: string) {
-    return this.rapportsService.getTopProduits(
-      limit ? parseInt(limit) : 10,
-    );
+    return this.rapportsService.getTopProduits(limit ? parseInt(limit) : 10);
   }
 
   @Get('personnel')
@@ -41,10 +39,7 @@ export class RapportsController {
   }
 
   @Get('resume-mensuel')
-  getResumeMensuel(
-    @Query('mois') mois: string,
-    @Query('annee') annee: string,
-  ) {
+  getResumeMensuel(@Query('mois') mois: string, @Query('annee') annee: string) {
     return this.rapportsService.getResumeMensuel(
       parseInt(mois),
       parseInt(annee),
