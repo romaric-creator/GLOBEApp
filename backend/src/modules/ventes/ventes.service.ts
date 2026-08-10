@@ -1,5 +1,4 @@
-// eslint-disable-next-line @typescript-eslint/ban-ts-comment
-// @ts-nocheck
+/* eslint-disable @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-unsafe-call, @typescript-eslint/no-unsafe-member-access, @typescript-eslint/no-unsafe-return, @typescript-eslint/require-await */
 // Module ventes desactive dans CDC v2.0 - conserve pour reference
 import {
   Injectable,
@@ -44,7 +43,8 @@ export class VentesService {
           throw new BadRequestException(
             `Produit ${ligne.produitId} introuvable`,
           );
-        const totalNeeded = quantitesParProduit.get(ligne.produitId) || ligne.quantite;
+        const totalNeeded =
+          quantitesParProduit.get(ligne.produitId) || ligne.quantite;
         if (produit.stockActuel < totalNeeded) {
           throw new BadRequestException(
             `Stock insuffisant pour ${produit.nom} (dispo: ${produit.stockActuel}, demande: ${totalNeeded})`,
@@ -87,10 +87,10 @@ export class VentesService {
       });
 
       for (const ligne of lignes) {
-        const stockResult = (await tx.$queryRawUnsafe(
+        const stockResult = await tx.$queryRawUnsafe(
           'SELECT "stockActuel" FROM produits WHERE id = $1 FOR UPDATE',
           ligne.produitId,
-        )) as Array<{ stockActuel: number }>;
+        );
         const stockActuel = Number(stockResult[0]?.stockActuel ?? 0);
 
         if (stockActuel < ligne.quantite) {
@@ -353,7 +353,9 @@ export class VentesService {
     };
   }
 
-  private async generateNumero(tx?: { vente: { findFirst: typeof this.prisma.vente.findFirst } }): Promise<string> {
+  private async generateNumero(tx?: {
+    vente: { findFirst: typeof this.prisma.vente.findFirst };
+  }): Promise<string> {
     const client = tx || this.prisma;
     const year = new Date().getFullYear();
     const last = await client.vente.findFirst({
