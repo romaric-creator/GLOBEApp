@@ -70,10 +70,6 @@ jobs:
         working-directory: frontend
         run: npm ci
 
-      - name: Copier docker-compose.yml pour l'installeur NSIS
-        run: Copy-Item docker-compose.yml frontend/src-tauri/nsis/docker-compose.yml
-        shell: pwsh
-
       - name: Build desktop Windows
         working-directory: frontend
         env:
