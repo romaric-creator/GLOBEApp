@@ -29,8 +29,8 @@
       {
         "label": "splash",
         "title": "GLOBE Manager",
-        "width": 400,
-        "height": 280,
+        "width": 480,
+        "height": 320,
         "center": true,
         "resizable": false,
         "decorations": false,
