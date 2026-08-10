@@ -81,7 +81,7 @@ export default function ClientsPage() {
       dataIndex: 'type',
       key: 'type',
       render: (type: string) => (
-        <Tag color={type === 'ENTREPRISE' ? 'blue' : 'green'}>
+        <Tag color={type === 'ENTREPRISE' ? 'gold' : 'green'}>
           {type === 'ENTREPRISE' ? 'Entreprise' : 'Particulier'}
         </Tag>
       ),

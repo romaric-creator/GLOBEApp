@@ -33,12 +33,14 @@ export default function CaisseRestaurantPage() {
     queryKey: ['session-active-resto', caisse?.id],
     queryFn: () => caisseApi.getSessionActive(caisse!.id),
     enabled: !!caisse,
+    refetchInterval: 15_000,
   });
 
   const { data: commandesTerminees } = useQuery({
     queryKey: ['commandes-terminee'],
     queryFn: () => restaurantApi.getCommandes('TERMINEE'),
     enabled: !!session,
+    refetchInterval: 15_000,
   });
 
   const commandesAEncaisser = (commandesTerminees || []).filter((c: Commande) => !c.paiement);
@@ -263,7 +265,7 @@ export default function CaisseRestaurantPage() {
             <Descriptions.Item label="Articles" span={2}>
               <div className="flex flex-wrap gap-1">
                 {encaisserModal.lignes.map((l) => (
-                  <Tag key={l.id} color="blue">{l.quantite}x {l.produit.nom}</Tag>
+                  <Tag key={l.id} color="gold">{l.quantite}x {l.produit.nom}</Tag>
                 ))}
               </div>
             </Descriptions.Item>

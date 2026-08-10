@@ -59,14 +59,14 @@ function CA7Chart({ data }: { data: CA7JoursItem[] }) {
         </text>
       ))}
       {/* Aire totale */}
-      <path d={areaPath} fill="rgba(22,119,255,0.08)" />
+      <path d={areaPath} fill="rgba(201,168,76,0.10)" />
       {/* Lignes */}
-      <polyline points={pointsTotal} fill="none" stroke="#1677ff" strokeWidth={2} strokeLinejoin="round" />
+      <polyline points={pointsTotal} fill="none" stroke="#C9A84C" strokeWidth={2} strokeLinejoin="round" />
       <polyline points={pointsHotel} fill="none" stroke="#52c41a" strokeWidth={1.5} strokeDasharray="4 2" strokeLinejoin="round" />
       <polyline points={pointsResto} fill="none" stroke="#fa8c16" strokeWidth={1.5} strokeDasharray="4 2" strokeLinejoin="round" />
       {/* Points sur la ligne totale */}
       {data.map((d, i) => (
-        <circle key={d.date} cx={toX(i)} cy={toY(d.total)} r={3} fill="#1677ff" />
+        <circle key={d.date} cx={toX(i)} cy={toY(d.total)} r={3} fill="#C9A84C" />
       ))}
     </svg>
   );
@@ -77,7 +77,7 @@ function ChartLegend() {
   return (
     <div className="flex gap-4 mt-2 text-xs text-slate-500">
       <span className="flex items-center gap-1">
-        <span style={{ display: 'inline-block', width: 16, height: 2, background: '#1677ff' }} />
+        <span style={{ display: 'inline-block', width: 16, height: 2, background: '#C9A84C' }} />
         Total
       </span>
       <span className="flex items-center gap-1">
@@ -237,7 +237,7 @@ export default function DashboardPage() {
                   <Progress
                     percent={hotelStats?.tauxOccupation || 0}
                     showInfo={false}
-                    strokeColor={hotelStats?.tauxOccupation && hotelStats.tauxOccupation > 80 ? '#52c41a' : '#1677ff'}
+                    strokeColor={hotelStats?.tauxOccupation && hotelStats.tauxOccupation > 80 ? '#52c41a' : '#C9A84C'}
                     size="small"
                     className="mt-2 mb-0"
                   />
@@ -277,7 +277,7 @@ export default function DashboardPage() {
             <Row gutter={[12, 12]} className="mt-3">
               <Col xs={12} sm={6}>
                 <Card size="small">
-                  <Statistic title="CA Hôtel" value={ca?.hotel || 0} suffix="FCFA" valueStyle={{ fontSize: 15, color: '#1677ff' }} prefix={<HomeOutlined />} />
+                  <Statistic title="CA Hôtel" value={ca?.hotel || 0} suffix="FCFA" valueStyle={{ fontSize: 15, color: '#C9A84C' }} prefix={<HomeOutlined />} />
                 </Card>
               </Col>
               <Col xs={12} sm={6}>
@@ -287,7 +287,7 @@ export default function DashboardPage() {
               </Col>
               <Col xs={12} sm={6}>
                 <Card size="small">
-                  <Statistic title="Commandes en cours" value={restoStats?.commandesEnPreparation || 0} valueStyle={{ fontSize: 15, color: '#1677ff' }} prefix={<CoffeeOutlined />} />
+                  <Statistic title="Commandes en cours" value={restoStats?.commandesEnPreparation || 0} valueStyle={{ fontSize: 15, color: '#C9A84C' }} prefix={<CoffeeOutlined />} />
                 </Card>
               </Col>
               <Col xs={12} sm={6}>
@@ -325,7 +325,7 @@ export default function DashboardPage() {
                   <div className="space-y-2">
                     {[
                       { label: 'Occupées', count: hotelStats?.occupees || 0, color: '#52c41a', bg: '#f6ffed' },
-                      { label: 'Disponibles', count: hotelStats?.disponibles || 0, color: '#1677ff', bg: '#e6f4ff' },
+                      { label: 'Disponibles', count: hotelStats?.disponibles || 0, color: '#C9A84C', bg: 'rgba(201,168,76,0.08)' },
                       { label: 'Réservées', count: hotelStats?.reservees || 0, color: '#fa8c16', bg: '#fff7e6' },
                       { label: 'Maintenance', count: hotelStats?.maintenance || 0, color: '#ff4d4f', bg: '#fff2f0' },
                     ].map(({ label, count, color, bg }) => (
@@ -348,7 +348,7 @@ export default function DashboardPage() {
                 <Col xs={24} lg={12}>
                   <Card title="Répartition CA du mois" size="small">
                     {[
-                      { label: 'Hôtel', value: ca.hotel, color: '#1677ff' },
+                      { label: 'Hôtel', value: ca.hotel, color: '#C9A84C' },
                       { label: 'Restaurant', value: ca.restaurant, color: '#fa8c16' },
                       { label: 'Piscine', value: ca.piscine, color: '#13c2c2' },
                       { label: 'Salle de fête', value: ca.salle_fete, color: '#722ed1' },
@@ -438,7 +438,7 @@ export default function DashboardPage() {
             <Row gutter={[12, 12]} className="mt-3">
               <Col xs={12} sm={6}>
                 <Card size="small">
-                  <Statistic title="Commandes en cours" value={restoStats?.commandesEnPreparation || 0} valueStyle={{ color: '#1677ff' }} />
+                  <Statistic title="Commandes en cours" value={restoStats?.commandesEnPreparation || 0} valueStyle={{ color: '#C9A84C' }} />
                 </Card>
               </Col>
               <Col xs={12} sm={6}>
@@ -469,7 +469,7 @@ export default function DashboardPage() {
                   title="En préparation"
                   value={restoStats?.commandesEnPreparation || 0}
                   prefix={<CoffeeOutlined />}
-                  valueStyle={{ color: '#1677ff', fontSize: 28 }}
+                  valueStyle={{ color: '#C9A84C', fontSize: 28 }}
                 />
               </Card>
             </Col>

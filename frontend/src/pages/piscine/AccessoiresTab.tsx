@@ -20,14 +20,14 @@ const TYPE_LABELS: Record<string, string> = {
 };
 
 const TYPE_COLORS: Record<string, string> = {
-  VENTE: 'blue',
+  VENTE: 'gold',
   LOCATION: 'purple',
   VENTE_ET_LOCATION: 'cyan',
 };
 
 const TX_COLORS: Record<string, string> = {
   VENTE: 'green',
-  LOCATION: 'blue',
+  LOCATION: 'orange',
   RETOUR: 'orange',
 };
 
@@ -265,7 +265,7 @@ export default function AccessoiresTab() {
         </Col>
         <Col span={6}>
           <Card size="small">
-            <Statistic title="CA Total" value={totalCA} suffix="F" valueStyle={{ color: '#1677ff' }} />
+            <Statistic title="CA Total" value={totalCA} suffix="F" valueStyle={{ color: '#C9A84C' }} />
           </Card>
         </Col>
       </Row>

@@ -13,7 +13,7 @@ import { comptabiliteApi } from '../../api/comptabilite';
 import type { Depense, MoisHistorique } from '../../api/comptabilite';
 
 const CENTRES = [
-  { value: 'HOTEL', label: 'Hotel', color: 'blue' },
+  { value: 'HOTEL', label: 'Hotel', color: 'gold' },
   { value: 'RESTAURANT', label: 'Restaurant', color: 'orange' },
   { value: 'PISCINE', label: 'Piscine', color: 'cyan' },
   { value: 'SALLE_FETE', label: 'Salle des fetes', color: 'purple' },
@@ -131,7 +131,7 @@ export default function ComptabilitePage() {
 
   // Calcul parts recettes pour barres de progression
   const recettesRows = [
-    { label: 'Hotel', value: tb_recettes?.hotel ?? 0, color: '#1890ff' },
+    { label: 'Hotel', value: tb_recettes?.hotel ?? 0, color: '#C9A84C' },
     { label: 'Restaurant', value: tb_recettes?.restaurant ?? 0, color: '#fa8c16' },
     { label: 'Piscine', value: tb_recettes?.piscine ?? 0, color: '#13c2c2' },
     { label: 'Salle des fetes', value: tb_recettes?.salle ?? 0, color: '#722ed1' },
@@ -308,7 +308,7 @@ export default function ComptabilitePage() {
               value={tresorerie?.total ?? 0}
               suffix="FCFA"
               prefix={<DollarOutlined />}
-              valueStyle={{ color: '#1890ff', fontSize: 24 }}
+              valueStyle={{ color: '#C9A84C', fontSize: 24 }}
               formatter={(v) => Number(v).toLocaleString('fr-FR')}
             />
           </Card>
@@ -328,7 +328,7 @@ export default function ComptabilitePage() {
                     </div>
                     <div className="flex justify-between border-t pt-1 mt-1">
                       <span className="font-medium">Total en caisse</span>
-                      <span className="font-semibold text-blue-600">{fmtFull(c.total)}</span>
+                      <span className="font-semibold" style={{ color: '#C9A84C' }}>{fmtFull(c.total)}</span>
                     </div>
                   </div>
                 </Card>

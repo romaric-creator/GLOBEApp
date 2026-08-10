@@ -6,17 +6,17 @@ import { hotelApi } from '../../api/hotel';
 import type { Chambre } from '../../api/hotel';
 
 const TYPE_COLORS: Record<string, string> = {
-  SIMPLE: 'blue',
+  SIMPLE: 'gold',
   DOUBLE: 'green',
   SUITE: 'purple',
-  VIP: 'gold',
+  VIP: 'orange',
 };
 
 const STATUT_BG: Record<string, string> = {
   DISPONIBLE: 'border-green-400 bg-green-50',
   OCCUPEE: 'border-red-400 bg-red-50',
   MAINTENANCE: 'border-orange-400 bg-orange-50',
-  RESERVEE: 'border-blue-400 bg-blue-50',
+  RESERVEE: 'border-amber-400 bg-amber-50',
 };
 
 export default function ChambresTab() {
@@ -110,7 +110,7 @@ export default function ChambresTab() {
         <div className="flex gap-3 text-xs">
           <span className="flex items-center gap-1"><span className="w-3 h-3 rounded bg-green-400 inline-block" /> Disponible</span>
           <span className="flex items-center gap-1"><span className="w-3 h-3 rounded bg-red-400 inline-block" /> Occupee</span>
-          <span className="flex items-center gap-1"><span className="w-3 h-3 rounded bg-blue-400 inline-block" /> Reservee</span>
+          <span className="flex items-center gap-1"><span className="w-3 h-3 rounded bg-amber-400 inline-block" /> Reservee</span>
           <span className="flex items-center gap-1"><span className="w-3 h-3 rounded bg-orange-400 inline-block" /> Maintenance</span>
         </div>
         <Button type="primary" icon={<PlusOutlined />} onClick={() => setModalOpen(true)}>

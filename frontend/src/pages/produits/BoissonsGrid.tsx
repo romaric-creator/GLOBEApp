@@ -78,8 +78,8 @@ export default function BoissonsGrid({ produits, categories, loading, onEdit }: 
                 onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') onEdit(produit); }}
                 className="relative group cursor-pointer rounded-xl border border-gray-200 bg-white p-4
                            flex flex-col items-center transition-all duration-200 outline-none
-                           hover:shadow-lg hover:border-blue-300 hover:-translate-y-1
-                           focus-visible:ring-2 focus-visible:ring-blue-400 focus-visible:border-blue-400"
+                           hover:shadow-lg hover:border-amber-300 hover:-translate-y-1
+                           focus-visible:ring-2 focus-visible:ring-amber-400 focus-visible:border-amber-400"
               >
                 {isLowStock && (
                   <div className="absolute top-2 right-2">
@@ -105,7 +105,7 @@ export default function BoissonsGrid({ produits, categories, loading, onEdit }: 
                   <p className="text-[11px] text-gray-500">
                     {produit.categorie?.nom}
                   </p>
-                  <p className="text-sm font-bold text-blue-600">
+                  <p className="text-sm font-bold" style={{ color: '#C9A84C' }}>
                     {Number(produit.prixVente).toLocaleString()} FCFA
                   </p>
                   <div>

@@ -78,7 +78,7 @@ export default function PointagesTab() {
       dataIndex: 'methode',
       key: 'methode',
       width: 110,
-      render: (m: string) => <Tag color={m === 'BIOMETRIQUE' ? 'blue' : 'default'}>{m}</Tag>,
+      render: (m: string) => <Tag color={m === 'BIOMETRIQUE' ? 'gold' : 'default'}>{m}</Tag>,
     },
   ];
 

@@ -7,7 +7,7 @@ import type { Employe, CreateEmployeDto } from '../../api/personnel';
 
 const contratColors: Record<string, string> = {
   CDI: 'green',
-  CDD: 'blue',
+  CDD: 'gold',
   STAGE: 'orange',
   FREELANCE: 'purple',
 };

@@ -13,7 +13,7 @@ const TYPE_LABELS: Record<string, string> = {
 };
 
 const TYPE_COLORS: Record<string, string> = {
-  JOURNALIER: 'blue',
+  JOURNALIER: 'gold',
   ABONNEMENT_MENSUEL: 'purple',
   ABONNEMENT_ANNUEL: 'gold',
 };
