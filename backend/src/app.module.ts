@@ -15,6 +15,7 @@ import { SalleFeteModule } from './modules/salle-fete/salle-fete.module';
 import { ComptabiliteModule } from './modules/comptabilite/comptabilite.module';
 import { RapportsModule } from './modules/rapports/rapports.module';
 import { SauvegardeModule } from './modules/sauvegarde/sauvegarde.module';
+import { SyncModule } from './modules/sync/sync.module';
 
 @Module({
   imports: [
@@ -34,6 +35,7 @@ import { SauvegardeModule } from './modules/sauvegarde/sauvegarde.module';
     ComptabiliteModule,
     RapportsModule,
     SauvegardeModule,
+    SyncModule,
   ],
 })
 export class AppModule {}

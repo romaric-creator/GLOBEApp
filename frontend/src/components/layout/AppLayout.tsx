@@ -31,6 +31,7 @@ import { useAuthStore } from "../../store/auth";
 import { useAuth } from "../../hooks/useAuth";
 import { authApi } from "../../api/auth";
 import GlobalSearch from "../GlobalSearch";
+import { SyncWidget } from "../SyncWidget";
 import { startTour } from "../../hooks/useTour";
 
 const { Header, Sider, Content } = Layout;
@@ -281,6 +282,7 @@ export default function AppLayout() {
             </div>
           </div>
           <div className="flex items-center gap-2">
+            <SyncWidget />
             <Tooltip title="Visite guidee">
               <Button
                 type="text"

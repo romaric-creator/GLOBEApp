@@ -444,6 +444,8 @@ model Depense {
   date        DateTime      @default(now())
   notes       String?
   createdAt   DateTime      @default(now())
+  syncStatus  SyncStatus    @default(PENDING)
+  syncedAt    DateTime?
 
   @@index([date])
   @@index([centre])
@@ -526,6 +528,8 @@ model Reservation {
   montantTotal Decimal           @db.Decimal(10, 2)
   notes        String?
   createdAt    DateTime          @default(now())
+  syncStatus   SyncStatus        @default(PENDING)
+  syncedAt     DateTime?
 
   chambreId String  @db.Uuid
   chambre   Chambre @relation(fields: [chambreId], references: [id])
@@ -542,15 +546,17 @@ model Reservation {
 }
 
 model FactureSejour {
-  id            String   @id @default(uuid()) @db.Uuid
-  numero        String   @unique
-  montantNuitee Decimal  @db.Decimal(10, 2)
-  montantExtras Decimal  @db.Decimal(10, 2) @default(0)
-  total         Decimal  @db.Decimal(10, 2)
-  montantPaye   Decimal  @db.Decimal(10, 2) @default(0)
-  reste         Decimal  @db.Decimal(10, 2) @default(0)
-  payee         Boolean  @default(false)
-  createdAt     DateTime @default(now())
+  id            String     @id @default(uuid()) @db.Uuid
+  numero        String     @unique
+  montantNuitee Decimal    @db.Decimal(10, 2)
+  montantExtras Decimal    @db.Decimal(10, 2) @default(0)
+  total         Decimal    @db.Decimal(10, 2)
+  montantPaye   Decimal    @db.Decimal(10, 2) @default(0)
+  reste         Decimal    @db.Decimal(10, 2) @default(0)
+  payee         Boolean    @default(false)
+  createdAt     DateTime   @default(now())
+  syncStatus    SyncStatus @default(PENDING)
+  syncedAt      DateTime?
 
   reservationId String      @unique @db.Uuid
   reservation   Reservation @relation(fields: [reservationId], references: [id])
@@ -580,6 +586,8 @@ model CommandeTable {
   createdAt      DateTime       @default(now())
   completedAt    DateTime?
   cancelledAt    DateTime?
+  syncStatus     SyncStatus     @default(PENDING)
+  syncedAt       DateTime?
 
   serveurId String @db.Uuid
   serveur   User   @relation(fields: [serveurId], references: [id])
@@ -750,13 +758,20 @@ enum StatutSync {
   ECHOUEE
 }
 
+enum SyncStatus {
+  PENDING
+  SYNCED
+}
+
 model SyncLog {
-  id        String     @id @default(uuid()) @db.Uuid
-  statut    StatutSync
-  details   String?
-  nbEnvois  Int        @default(0)
-  nbRecus   Int        @default(0)
-  createdAt DateTime   @default(now())
+  id           String     @id @default(uuid()) @db.Uuid
+  statut       StatutSync
+  details      String?
+  nbEnvois     Int        @default(0)
+  nbRecus      Int        @default(0)
+  erreur       String?
+  createdAt    DateTime   @default(now())
+  completedAt  DateTime?
 
   @@map("sync_logs")
 }
@@ -831,14 +846,16 @@ enum StatutPaiement {
 }
 
 model Paiement {
-  id        String         @id @default(uuid()) @db.Uuid
-  reference String         @unique
-  montant   Decimal        @db.Decimal(10, 2)
-  moyen     MoyenPaiement  @default(ESPECES)
+  id         String         @id @default(uuid()) @db.Uuid
+  reference  String         @unique
+  montant    Decimal        @db.Decimal(10, 2)
+  moyen      MoyenPaiement  @default(ESPECES)
   sourceType SourcePaiement
-  statut    StatutPaiement @default(ENCAISSE)
-  notes     String?
-  createdAt DateTime       @default(now())
+  statut     StatutPaiement @default(ENCAISSE)
+  notes      String?
+  createdAt  DateTime       @default(now())
+  syncStatus SyncStatus     @default(PENDING)
+  syncedAt   DateTime?
 
   sessionId String        @db.Uuid
   session   SessionCaisse @relation(fields: [sessionId], references: [id])
