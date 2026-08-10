@@ -20,7 +20,7 @@ services:
       start_period: 30s
 
   backend:
-    build: ./backend
+    image: ghcr.io/romaric-creator/globeapp/backend:latest
     container_name: globe_manager_backend
     restart: unless-stopped
     ports:

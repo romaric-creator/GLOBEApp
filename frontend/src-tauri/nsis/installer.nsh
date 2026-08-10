@@ -5,8 +5,8 @@
   ; Créer le dossier de données de l'app
   CreateDirectory "$APPDATA\GlobeManager"
 
-  ; Copier le docker-compose.yml
-  File /oname=$APPDATA\GlobeManager\docker-compose.yml "$EXEDIR\docker-compose.yml"
+  ; Copier le docker-compose.yml (embarqué dans le répertoire de l'installeur)
+  File /oname=$APPDATA\GlobeManager\docker-compose.yml "$EXEDIR\nsis\docker-compose.yml"
 
   ; Copier le .env si présent
   IfFileExists "$EXEDIR\.env.desktop" 0 +2
