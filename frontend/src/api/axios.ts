@@ -32,7 +32,9 @@ function processQueue(error: unknown, token: string | null) {
 function forceLogout() {
   localStorage.removeItem('accessToken');
   localStorage.removeItem('refreshToken');
-  window.location.href = '/login';
+  localStorage.removeItem('user');
+  // Dispatch un event custom pour que AppLayout puisse réagir via React Router
+  window.dispatchEvent(new CustomEvent('auth:logout'));
 }
 
 api.interceptors.response.use(

@@ -253,8 +253,8 @@ export default function ProduitsPage() {
   ];
 
   return (
-    <div>
-      <Tabs items={tabItems} />
+    <div id="tour-produits-page">
+      <Tabs id="tour-produits-tabs" items={tabItems} />
 
       <Modal
         title={editingProduit ? "Modifier le produit" : "Nouveau produit"}
