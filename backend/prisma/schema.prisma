@@ -428,6 +428,28 @@ model Cloture {
   @@map("clotures")
 }
 
+enum CentreDepense {
+  HOTEL
+  RESTAURANT
+  PISCINE
+  SALLE_FETE
+  GENERAL
+}
+
+model Depense {
+  id          String        @id @default(uuid()) @db.Uuid
+  libelle     String
+  montant     Decimal       @db.Decimal(12, 2)
+  centre      CentreDepense @default(GENERAL)
+  date        DateTime      @default(now())
+  notes       String?
+  createdAt   DateTime      @default(now())
+
+  @@index([date])
+  @@index([centre])
+  @@map("depenses")
+}
+
 // ========================
 // Sauvegarde
 // ========================
