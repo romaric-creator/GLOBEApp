@@ -36,11 +36,25 @@ export default function App() {
         locale={frFR}
         theme={{
           token: {
-            colorPrimary: "#0f4c81",
-            colorInfo: "#8c6b3d",
+            colorPrimary: "#C9A84C",
+            colorInfo: "#C9A84C",
+            colorLink: "#C9A84C",
             borderRadius: 10,
             colorBgContainer: "#ffffff",
-            colorText: "#0f172a",
+            colorText: "#1C1C1C",
+            fontFamily: "Inter, 'Segoe UI', Roboto, sans-serif",
+          },
+          components: {
+            Button: {
+              colorPrimary: "#C9A84C",
+              colorPrimaryHover: "#b8932f",
+              colorPrimaryActive: "#a07d22",
+            },
+            Menu: {
+              itemSelectedBg: "rgba(201,168,76,0.12)",
+              itemSelectedColor: "#C9A84C",
+              itemHoverColor: "#C9A84C",
+            },
           },
         }}
       >
