@@ -139,7 +139,12 @@ export class RapportsService {
   }
 
   async getCA7Jours() {
-    const jours: { date: string; hotel: number; restaurant: number; total: number }[] = [];
+    const jours: {
+      date: string;
+      hotel: number;
+      restaurant: number;
+      total: number;
+    }[] = [];
     for (let i = 6; i >= 0; i--) {
       const d = new Date();
       d.setHours(0, 0, 0, 0);
@@ -179,12 +184,9 @@ export class RapportsService {
 
     const [ca, depenses, nbCommandes, nbReservations] = await Promise.all([
       this.getChiffreAffaires(debutISO, finISO),
-      this.prisma.ecriture.aggregate({
+      this.prisma.depense.aggregate({
         _sum: { montant: true },
-        where: {
-          date: { gte: debut, lte: fin },
-          categorieCompta: { type: 'DEPENSE' },
-        },
+        where: { date: { gte: debut, lte: fin } },
       }),
       this.prisma.commandeTable.count({
         where: {
