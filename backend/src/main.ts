@@ -20,7 +20,12 @@ async function bootstrap() {
 
   app.setGlobalPrefix('api');
   app.enableCors({
-    origin: ['http://localhost:3000', 'http://localhost:1420', 'tauri://localhost'],
+    origin: [
+      'http://localhost:3000',
+      'http://localhost:1420',
+      'tauri://localhost',         // Tauri v2 Linux/macOS
+      'https://tauri.localhost',   // Tauri v2 Windows (WebView2)
+    ],
     methods: ['GET', 'POST', 'PATCH', 'PUT', 'DELETE', 'OPTIONS'],
     credentials: true,
   });
