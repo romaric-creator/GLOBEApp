@@ -42,6 +42,12 @@ async function bootstrap() {
     },
   );
 
+  // Health check pour Tauri desktop auto-start
+  const httpAdapter = app.getHttpAdapter();
+  httpAdapter.get('/api/health', (_req: unknown, res: { json: (v: unknown) => void }) => {
+    res.json({ status: 'ok' });
+  });
+
   await app.listen(process.env.PORT ?? 3001);
 }
 void bootstrap();

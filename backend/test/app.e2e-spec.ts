@@ -48,23 +48,23 @@ describe('Auth (e2e)', () => {
   });
 
   describe('POST /api/auth/register', () => {
-    it('doit rejeter sans champs obligatoires', () => {
+    it('doit rejeter sans token (route admin uniquement)', () => {
       return request(app.getHttpServer())
         .post('/api/auth/register')
         .send({ email: 'test@test.com' })
-        .expect(400);
+        .expect(401);
     });
 
-    it('doit rejeter un mot de passe trop court', () => {
+    it('doit rejeter sans token meme avec un body valide', () => {
       return request(app.getHttpServer())
         .post('/api/auth/register')
         .send({
           email: 'test@test.com',
-          password: '123',
+          password: 'password123',
           nom: 'Test',
           prenom: 'User',
         })
-        .expect(400);
+        .expect(401);
     });
   });
 
