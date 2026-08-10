@@ -223,7 +223,7 @@ function ReservationsTab() {
   });
 
   const { data: clients } = useQuery({
-    queryKey: ['clients-list'],
+    queryKey: ['clients'],
     queryFn: () => clientsApi.findAll().then((r) => r.data),
   });
 

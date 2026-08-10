@@ -1,60 +1,71 @@
 import axios from './axios';
 
-export interface Compte {
-  id: string;
-  nom: string;
-  type: 'ACTIF' | 'PASSIF' | 'CHARGE' | 'PRODUIT';
-  solde: number;
+export interface TableauBord {
+  periode: { debut: string; fin: string };
+  recettes: {
+    hotel: number;
+    restaurant: number;
+    piscine: number;
+    salle: number;
+    total: number;
+  };
+  depenses: {
+    HOTEL: number;
+    RESTAURANT: number;
+    PISCINE: number;
+    SALLE_FETE: number;
+    GENERAL: number;
+    total: number;
+  };
+  resultat: number;
 }
 
-export interface Ecriture {
+export interface MoisHistorique {
+  label: string;
+  recettes: number;
+  depenses: number;
+  resultat: number;
+}
+
+export interface CaisseOuverte {
+  nom: string;
+  type: string;
+  fondInitial: number;
+  totalEncaisse: number;
+  total: number;
+}
+
+export interface Tresorerie {
+  caisses: CaisseOuverte[];
+  total: number;
+}
+
+export interface Depense {
   id: string;
-  date: string;
-  montant: number;
   libelle: string;
-  compteDebit: { id: string; nom: string };
-  compteCredit: { id: string; nom: string };
-  categorieCompta: { id: string; nom: string; type: string };
-}
-
-export interface CategorieCompta {
-  id: string;
-  nom: string;
-  type: 'RECETTE' | 'DEPENSE' | 'TRANSFERT';
-}
-
-export interface ComptaStats {
-  totalRecettes: number;
-  totalDepenses: number;
-  soldeGeneral: number;
-  nbEcritures: number;
+  montant: number;
+  centre: 'HOTEL' | 'RESTAURANT' | 'PISCINE' | 'SALLE_FETE' | 'GENERAL';
+  date: string;
+  notes: string | null;
+  createdAt: string;
 }
 
 export const comptabiliteApi = {
-  getComptes: () =>
-    axios.get<Compte[]>('/comptabilite/comptes').then((r) => r.data),
-  createCompte: (data: { nom: string; type: string }) =>
-    axios.post('/comptabilite/comptes', data).then((r) => r.data),
-  getEcritures: (dateDebut?: string, dateFin?: string) =>
-    axios.get<Ecriture[]>('/comptabilite/ecritures', {
-      params: {
-        ...(dateDebut ? { dateDebut } : {}),
-        ...(dateFin ? { dateFin } : {}),
-      },
-    }).then((r) => r.data),
-  createEcriture: (data: {
-    montant: number;
-    libelle: string;
-    compteDebitId: string;
-    compteCreditId: string;
-    categorieComptaId: string;
-  }) => axios.post('/comptabilite/ecritures', data).then((r) => r.data),
-  getCategories: () =>
-    axios.get<CategorieCompta[]>('/comptabilite/categories').then((r) => r.data),
-  createCategorie: (data: { nom: string; type: string }) =>
-    axios.post('/comptabilite/categories', data).then((r) => r.data),
-  getStats: () =>
-    axios.get<ComptaStats>('/comptabilite/stats').then((r) => r.data),
-  cloturerPeriode: (periode: string) =>
-    axios.post('/comptabilite/cloture', { periode }).then((r) => r.data),
+  getTableauBord: (mois?: string) =>
+    axios.get<TableauBord>('/comptabilite/tableau-bord', { params: mois ? { mois } : {} }).then((r) => r.data),
+
+  getHistoriqueMensuel: () =>
+    axios.get<MoisHistorique[]>('/comptabilite/historique-mensuel').then((r) => r.data),
+
+  getTresorerie: () =>
+    axios.get<Tresorerie>('/comptabilite/tresorerie').then((r) => r.data),
+
+  getDepenses: (params?: { dateDebut?: string; dateFin?: string; centre?: string }) =>
+    axios.get<Depense[]>('/comptabilite/depenses', { params }).then((r) => r.data),
+
+  createDepense: (data: { libelle: string; montant: number; centre?: string; date?: string; notes?: string }) =>
+    axios.post<Depense>('/comptabilite/depenses', data).then((r) => r.data),
+
+  deleteDepense: (id: string) =>
+    axios.delete(`/comptabilite/depenses/${id}`).then((r) => r.data),
 };

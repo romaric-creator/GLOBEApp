@@ -117,7 +117,7 @@ export default function ClientsPage() {
   });
 
   return (
-    <div>
+    <div id="tour-clients-page">
       <div className="flex justify-between items-center mb-4">
         <h2 className="text-xl font-semibold">Gestion des Clients</h2>
         <div className="flex gap-3">

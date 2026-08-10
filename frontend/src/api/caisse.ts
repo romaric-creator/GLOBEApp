@@ -31,6 +31,14 @@ export interface Paiement {
   createdAt: string;
 }
 
+export const MOYEN_OPTIONS = [
+  { value: 'ESPECES', label: 'Especes' },
+  { value: 'CARTE', label: 'Carte bancaire' },
+  { value: 'VIREMENT', label: 'Virement' },
+  { value: 'MOBILE_MONEY', label: 'Mobile Money' },
+  { value: 'AUTRE', label: 'Autre' },
+];
+
 export const caisseApi = {
   getCaisses: () => axios.get<Caisse[]>('/caisse').then((r) => r.data),
 
