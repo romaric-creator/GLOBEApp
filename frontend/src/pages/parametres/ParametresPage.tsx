@@ -93,7 +93,7 @@ function TabCompte({ userId, isAdmin }: { userId: string; isAdmin: boolean }) {
       message.success('Profil mis à jour');
       queryClient.invalidateQueries({ queryKey: ['profile'] });
     },
-    onError: () => message.error('Erreur lors de la mise à jour du profil'),
+    onError: () => message.error('Impossible de mettre à jour le profil. Veuillez réessayer.'),
   });
 
   return (
@@ -304,8 +304,8 @@ function TabReseau({ isAdmin }: { isAdmin: boolean }) {
               </Descriptions>
               <Paragraph type="secondary" style={{ fontSize: 12, marginBottom: 12 }}>
                 {config.mode === 'server'
-                  ? 'Ce poste héberge la base de données et le serveur NestJS via Docker.'
-                  : 'Ce poste se connecte à un serveur distant sur le réseau local (LAN).'}
+                  ? 'Ce poste héberge le serveur de données local.'
+                  : 'Ce poste se connecte à un serveur distant sur le réseau local.'}
               </Paragraph>
               {isAdmin && (
                 <>
@@ -364,7 +364,7 @@ function TabSync() {
       if (data.success) {
         message.success(`Synchronisation réussie — ${data.nbEnvois} enregistrement(s) envoyé(s)`);
       } else {
-        message.error(data.erreur || 'Erreur lors de la synchronisation');
+        message.error('La synchronisation a échoué. Veuillez réessayer.');
       }
     },
     onError: () => message.error('Impossible de joindre le serveur de synchronisation'),
@@ -409,12 +409,11 @@ function TabSync() {
       align: 'right',
     },
     {
-      title: 'Erreur',
+      title: 'Résultat',
       dataIndex: 'erreur',
       key: 'erreur',
-      ellipsis: true,
       render: (e: string | undefined) =>
-        e ? <Text type="danger" style={{ fontSize: 11 }}>{e}</Text> : '—',
+        e ? <Text type="danger" style={{ fontSize: 11 }}>Échec</Text> : '—',
     },
   ];
 
@@ -479,7 +478,7 @@ function TabSync() {
                   </Tag>
                   {syncStatus.dernierSync.erreur && (
                     <Paragraph type="danger" style={{ fontSize: 11, marginTop: 4 }}>
-                      {syncStatus.dernierSync.erreur}
+                      La synchronisation a échoué. Veuillez réessayer ou contacter l'administrateur.
                     </Paragraph>
                   )}
                 </div>
@@ -504,10 +503,7 @@ function TabSync() {
               message="Synchronisation non configurée"
               description={
                 <span style={{ fontSize: 12 }}>
-                  Définissez{' '}
-                  <Text code style={{ fontSize: 11 }}>SYNC_REMOTE_URL</Text> et{' '}
-                  <Text code style={{ fontSize: 11 }}>SYNC_API_KEY</Text>{' '}
-                  dans les variables d'environnement du serveur pour activer la synchronisation cloud.
+                  La synchronisation vers le cloud n'est pas configurée. Contactez l'administrateur.
                 </span>
               }
             />
@@ -574,7 +570,7 @@ function TabUtilisateurs() {
       setEditingUser(null);
       form.resetFields();
     },
-    onError: () => message.error('Erreur lors de la mise à jour'),
+    onError: () => message.error('Impossible de mettre à jour l\'utilisateur. Veuillez réessayer.'),
   });
 
   const deactivateMutation = useMutation({

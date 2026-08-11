@@ -32,12 +32,12 @@ export function SyncWidget() {
       if (result.success) {
         message.success(`Synchronisation réussie — ${result.nbEnvois} enregistrements envoyés`);
       } else {
-        message.error(`Échec : ${result.erreur}`);
+        message.error('La synchronisation a échoué. Veuillez réessayer.');
       }
       void qc.invalidateQueries({ queryKey: ['sync-status'] });
       void qc.invalidateQueries({ queryKey: ['sync-logs'] });
     },
-    onError: () => message.error('Erreur de connexion au serveur'),
+    onError: () => message.error('Impossible de synchroniser. Vérifiez votre connexion réseau.'),
   });
 
   if (!status?.remoteConfigure) return null;
@@ -63,9 +63,10 @@ export function SyncWidget() {
     },
     { title: 'Envois', dataIndex: 'nbEnvois' },
     {
-      title: 'Détail',
+      title: 'Résultat',
       dataIndex: 'erreur',
-      render: (err: string, row: SyncLog) => err || row.details || '—',
+      render: (err: string, row: SyncLog) =>
+        err || row.details ? <span style={{ color: '#ff4d4f', fontSize: 11 }}>Échec</span> : '—',
     },
   ];
 

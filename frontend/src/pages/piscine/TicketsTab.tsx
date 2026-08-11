@@ -49,7 +49,7 @@ export default function TicketsTab() {
       queryClient.invalidateQueries({ queryKey: ['piscine-stats'] });
     },
     onError: (err: { response?: { data?: { message?: string } } }) => {
-      message.error(err.response?.data?.message || 'Erreur');
+      message.error(err.response?.data?.message || 'Une erreur s\'est produite. Veuillez réessayer.');
     },
   });
 
@@ -60,7 +60,7 @@ export default function TicketsTab() {
       queryClient.invalidateQueries({ queryKey: ['tickets-piscine'] });
     },
     onError: (err: { response?: { data?: { message?: string } } }) => {
-      message.error(err.response?.data?.message || 'Erreur');
+      message.error(err.response?.data?.message || 'Une erreur s\'est produite. Veuillez réessayer.');
     },
   });
 

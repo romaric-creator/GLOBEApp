@@ -57,7 +57,7 @@ export default function ReservationsTab() {
       invalidateAll();
     },
     onError: (err: { response?: { data?: { message?: string } } }) => {
-      message.error(err.response?.data?.message || 'Erreur');
+      message.error(err.response?.data?.message || 'Une erreur s\'est produite. Veuillez réessayer.');
     },
   });
 
@@ -92,7 +92,7 @@ export default function ReservationsTab() {
       clientForm.resetFields();
     },
     onError: (err: { response?: { data?: { message?: string } } }) => {
-      message.error(err.response?.data?.message || 'Erreur');
+      message.error(err.response?.data?.message || 'Une erreur s\'est produite. Veuillez réessayer.');
     },
   });
 

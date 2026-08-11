@@ -75,21 +75,21 @@ export default function CaisseHotelPage() {
   const ouvrirMutation = useMutation({
     mutationFn: (fondInitial: number) => caisseApi.ouvrirSession(caisse!.id, fondInitial),
     onSuccess: () => { message.success('Caisse ouverte'); setOuvrirModalOpen(false); fondInitialForm.resetFields(); invalidate(); },
-    onError: (err: { response?: { data?: { message?: string } } }) => message.error(err.response?.data?.message || 'Erreur'),
+    onError: (err: { response?: { data?: { message?: string } } }) => message.error(err.response?.data?.message || 'Une erreur s\'est produite. Veuillez réessayer.'),
   });
 
   const fermerMutation = useMutation({
     mutationFn: ({ totalReel, notes }: { totalReel: number; notes?: string }) =>
       caisseApi.fermerSession((session as SessionCaisse).id, totalReel, notes),
     onSuccess: () => { message.success('Caisse cloturee'); setFermerModalOpen(false); fermerForm.resetFields(); invalidate(); },
-    onError: (err: { response?: { data?: { message?: string } } }) => message.error(err.response?.data?.message || 'Erreur'),
+    onError: (err: { response?: { data?: { message?: string } } }) => message.error(err.response?.data?.message || 'Une erreur s\'est produite. Veuillez réessayer.'),
   });
 
   const encaisserMutation = useMutation({
     mutationFn: (data: { factureId: string; montant: number; moyen: string }) =>
       caisseApi.encaisserHotel({ ...data, sessionId: (session as SessionCaisse).id }),
     onSuccess: () => { message.success('Paiement enregistre'); setEncaisserModal(null); encaisserForm.resetFields(); invalidate(); },
-    onError: (err: { response?: { data?: { message?: string } } }) => message.error(err.response?.data?.message || 'Erreur'),
+    onError: (err: { response?: { data?: { message?: string } } }) => message.error(err.response?.data?.message || 'Une erreur s\'est produite. Veuillez réessayer.'),
   });
 
   const loading = caisseLoading || sessionLoading;
