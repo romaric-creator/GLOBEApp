@@ -5,7 +5,7 @@ export function getErrorMessage(error: unknown): string {
 
   // Erreur réseau — backend inaccessible
   if (e.code === 'ERR_NETWORK' || e.code === 'ECONNREFUSED' || !e.response) {
-    return 'Impossible de joindre le serveur. Vérifiez que l\'application est bien démarrée.';
+    return 'Impossible de joindre le serveur. Vérifiez votre connexion réseau.';
   }
 
   const status = e.response.status;
@@ -29,6 +29,6 @@ export function getErrorMessage(error: unknown): string {
     case 500: return 'Erreur interne du serveur. Contactez l\'administrateur.';
     case 502:
     case 503: return 'Service temporairement indisponible. Réessayez dans quelques secondes.';
-    default:  return `Erreur inattendue (code ${status}).`;
+    default:  return 'Une erreur inattendue s\'est produite. Veuillez réessayer.';
   }
 }

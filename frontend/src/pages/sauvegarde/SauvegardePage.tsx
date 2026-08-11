@@ -77,10 +77,11 @@ export default function SauvegardePage() {
       render: (t: number | null) => formatTaille(t),
     },
     {
-      title: 'Chemin',
+      title: 'Fichier',
       dataIndex: 'chemin',
       key: 'chemin',
       ellipsis: true,
+      render: (path: string | null) => path ? path.split(/[\\/]/).pop() || '—' : '—',
     },
   ];
 
