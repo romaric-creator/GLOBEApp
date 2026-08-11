@@ -163,7 +163,9 @@ export class AuthService {
     }
 
     if (!session.user.actif) {
-      await this.prisma.session.deleteMany({ where: { userId: session.user.id } });
+      await this.prisma.session.deleteMany({
+        where: { userId: session.user.id },
+      });
       throw new UnauthorizedException('Compte desactive');
     }
 

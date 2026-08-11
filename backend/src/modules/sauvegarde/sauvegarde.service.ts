@@ -59,7 +59,8 @@ export class SauvegardeService {
         '--skip-ssl',
         '--single-transaction',
         '--routines',
-        '--result-file', chemin,
+        '--result-file',
+        chemin,
         database,
       ]);
 
@@ -72,7 +73,10 @@ export class SauvegardeService {
           taille: fileStats.size,
         },
       });
-      return { ...updated, taille: updated.taille ? Number(updated.taille) : null };
+      return {
+        ...updated,
+        taille: updated.taille ? Number(updated.taille) : null,
+      };
     } catch (error) {
       const msg = error instanceof Error ? error.message : String(error);
       this.logger.error(`Echec de la sauvegarde: ${msg}`);
