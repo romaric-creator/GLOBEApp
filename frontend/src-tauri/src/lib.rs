@@ -165,37 +165,33 @@ fn check_docker(docker: &std::path::Path) -> DockerStatus {
 fn ensure_docker_running(app: &tauri::AppHandle, env: &DockerEnv) -> bool {
     match check_docker(&env.docker) {
         DockerStatus::Running => {
-            emit_splash_status(app, "Docker est prêt");
             true
         }
         DockerStatus::InstalledNotRunning => {
-            emit_splash_status(app, "Démarrage de Docker...");
+            emit_splash_status(app, "Démarrage de l'environnement...");
             start_docker_service(app, &env.docker);
             if wait_for_docker(app, &env.docker, 90) {
-                emit_splash_status(app, "Docker démarré");
                 true
             } else {
-                emit_splash_status(app, "Docker ne répond pas — lancez Docker Desktop manuellement puis relancez l'app");
+                emit_splash_status(app, "L'environnement ne répond pas. Relancez l'application.");
                 std::thread::sleep(Duration::from_secs(5));
                 false
             }
         }
         DockerStatus::NotInstalled => {
-            emit_splash_status(app, "Docker n'est pas installé — installation en cours...");
+            emit_splash_status(app, "Installation des composants requis...");
             if !install_docker(app) {
-                emit_splash_status(app, "Échec de l'installation — téléchargez Docker sur https://docs.docker.com/get-docker/");
+                emit_splash_status(app, "L'installation a échoué. Relancez l'application.");
                 std::thread::sleep(Duration::from_secs(8));
                 return false;
             }
-            emit_splash_status(app, "Docker installé — démarrage...");
-            // Re-découvrir le binaire après installation
+            emit_splash_status(app, "Démarrage de l'environnement...");
             let new_docker = find_docker_binary();
             start_docker_service(app, &new_docker);
             if wait_for_docker(app, &new_docker, 120) {
-                emit_splash_status(app, "Docker prêt");
                 true
             } else {
-                emit_splash_status(app, "Redémarrez votre ordinateur puis relancez GLOBE Manager");
+                emit_splash_status(app, "Redémarrez votre ordinateur puis relancez GLOBE Manager.");
                 std::thread::sleep(Duration::from_secs(8));
                 false
             }
@@ -213,7 +209,7 @@ fn wait_for_docker(app: &tauri::AppHandle, docker: &std::path::Path, timeout_sec
         std::thread::sleep(Duration::from_secs(3));
         elapsed += 3;
         if elapsed % 15 == 0 {
-            emit_splash_status(app, &format!("Attente de Docker... ({}s)", elapsed));
+            emit_splash_status(app, "Démarrage de l'environnement...");
         }
     }
     false
@@ -272,13 +268,12 @@ fn install_docker(app: &tauri::AppHandle) -> bool {
     );
     let installer = std::env::temp_dir().join("DockerDesktopInstaller.exe");
 
-    emit_splash_status(app, "Téléchargement de Docker Desktop (~500 Mo)...");
-    if let Err(e) = download_file(&url, &installer) {
-        emit_log(app, &format!("Échec du téléchargement: {e}"));
+    emit_splash_status(app, "Téléchargement des composants requis...");
+    if let Err(_) = download_file(&url, &installer) {
         return false;
     }
 
-    emit_splash_status(app, "Installation de Docker Desktop (une autorisation Windows va s'afficher)...");
+    emit_splash_status(app, "Installation en cours — une autorisation va s'afficher...");
     // Utiliser PowerShell Start-Process -Verb RunAs pour déclencher l'UAC correctement
     Command::new("powershell")
         .args([
@@ -297,13 +292,12 @@ fn install_docker(app: &tauri::AppHandle) -> bool {
 fn install_docker(app: &tauri::AppHandle) -> bool {
     let script = std::path::PathBuf::from("/tmp/get-docker.sh");
 
-    emit_splash_status(app, "Téléchargement du script d'installation Docker...");
+    emit_splash_status(app, "Téléchargement des composants requis...");
     if download_file("https://get.docker.com", &script).is_err() {
-        emit_splash_status(app, "Impossible de télécharger le script d'installation Docker");
         return false;
     }
 
-    emit_splash_status(app, "Installation de Docker Engine (une autorisation va s'afficher)...");
+    emit_splash_status(app, "Installation en cours — une autorisation va s'afficher...");
 
     // Récupérer l'utilisateur réel (SUDO_USER si lancé via sudo, sinon USER)
     let real_user = std::env::var("SUDO_USER")
@@ -325,10 +319,7 @@ fn install_docker(app: &tauri::AppHandle) -> bool {
                     .status()
                     .ok();
             }
-            emit_splash_status(
-                app,
-                "Docker installé — si la connexion échoue, déconnectez-vous et reconnectez-vous (groupe docker)",
-            );
+            emit_splash_status(app, "Installation terminée.");
             return true;
         }
     }
@@ -572,7 +563,6 @@ pub fn run() {
                 let config = {
                     let loaded = load_config();
                     if !loaded.configured {
-                        emit_splash_status(&app_handle, "Configuration initiale...");
                         let _ = app_handle.emit("show-setup", ());
                         let state = app_handle.state::<Arc<SetupState>>();
                         let mut lock = state.config.lock().unwrap();
@@ -589,26 +579,24 @@ pub fn run() {
                     // Préparer le dossier compose
                     let compose_dir = match get_compose_dir() {
                         Ok(d) => d,
-                        Err(e) => {
-                            emit_splash_status(&app_handle, &format!("Erreur configuration: {e}"));
+                        Err(_) => {
+                            emit_splash_status(&app_handle, "Une erreur est survenue. Relancez l'application.");
                             std::thread::sleep(Duration::from_secs(5));
                             show_main(&app_handle);
                             return;
                         }
                     };
 
-                    // Vérifier / installer / démarrer Docker
-                    emit_splash_status(&app_handle, "Vérification de Docker...");
+                    emit_splash_status(&app_handle, "Préparation de l'environnement...");
                     if !ensure_docker_running(&app_handle, &docker_env) {
                         show_main(&app_handle);
                         return;
                     }
 
-                    // Lancer les conteneurs
                     emit_splash_status(&app_handle, "Démarrage des services...");
                     let started = docker_compose_up_with_log(&app_handle, &docker_env, &compose_dir);
                     if !started {
-                        emit_splash_status(&app_handle, "Erreur au démarrage des conteneurs — consultez les logs");
+                        emit_splash_status(&app_handle, "Un problème est survenu. Relancez l'application.");
                         std::thread::sleep(Duration::from_secs(3));
                     }
 
@@ -622,10 +610,9 @@ pub fn run() {
                     format!("{}/api/health", base)
                 };
 
-                // Attendre le backend — 180 s pour laisser le temps au premier pull d'images
-                emit_splash_status(&app_handle, "Chargement de GLOBE Manager...");
+                emit_splash_status(&app_handle, "Chargement des données...");
                 if !wait_for_backend(&app_handle, &health_url, 180) {
-                    emit_splash_status(&app_handle, "Impossible de joindre le serveur — vérifiez les logs");
+                    emit_splash_status(&app_handle, "Connexion impossible. Vérifiez le réseau et relancez.");
                     std::thread::sleep(Duration::from_secs(4));
                 }
 
