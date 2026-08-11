@@ -1,14 +1,544 @@
+use serde::{Deserialize, Serialize};
+use std::io;
 use std::process::Command;
+use std::sync::{Arc, Condvar, Mutex};
 use std::time::{Duration, Instant};
 use tauri::{Emitter, Manager};
 
+// ─── Configuration ────────────────────────────────────────────────────────────
+
+#[derive(Serialize, Deserialize, Clone, Debug)]
+pub struct AppConfig {
+    pub mode: String,               // "server" | "client"
+    pub server_url: Option<String>,
+    pub configured: bool,
+}
+
+impl Default for AppConfig {
+    fn default() -> Self {
+        AppConfig { mode: "server".to_string(), server_url: None, configured: false }
+    }
+}
+
+struct SetupState {
+    config: Mutex<Option<AppConfig>>,
+    condvar: Condvar,
+}
+
+// ─── Environnement Docker (découverte au démarrage) ───────────────────────────
+
+#[derive(Clone)]
+struct DockerEnv {
+    docker: std::path::PathBuf,
+    compose: ComposeCmd,
+}
+
+#[derive(Clone)]
+struct ComposeCmd {
+    program: std::path::PathBuf,
+    subcommand: Option<String>, // Some("compose") v2, None = binaire docker-compose v1
+}
+
+impl ComposeCmd {
+    fn build(&self) -> Command {
+        let mut c = Command::new(&self.program);
+        if let Some(sub) = &self.subcommand {
+            c.arg(sub);
+        }
+        c
+    }
+}
+
+impl DockerEnv {
+    fn discover() -> Self {
+        let docker = find_docker_binary();
+        let compose = detect_compose(&docker);
+        DockerEnv { docker, compose }
+    }
+}
+
+/// Cherche le binaire docker dans PATH puis dans les chemins d'installation connus.
+fn find_docker_binary() -> std::path::PathBuf {
+    if cmd_ok("docker", &["--version"]) {
+        return "docker".into();
+    }
+    #[cfg(target_os = "windows")]
+    {
+        let mut candidates = vec![
+            r"C:\Program Files\Docker\Docker\resources\bin\docker.exe".to_string(),
+        ];
+        if let Ok(local) = std::env::var("LOCALAPPDATA") {
+            candidates.push(format!(r"{local}\Docker\Docker\resources\bin\docker.exe"));
+        }
+        if let Ok(prog) = std::env::var("PROGRAMFILES") {
+            candidates.push(format!(r"{prog}\Docker\Docker\resources\bin\docker.exe"));
+        }
+        for path in &candidates {
+            if std::path::Path::new(path).exists() && cmd_ok(path, &["--version"]) {
+                return path.into();
+            }
+        }
+    }
+    #[cfg(target_os = "linux")]
+    {
+        for path in &["/usr/bin/docker", "/usr/local/bin/docker", "/snap/bin/docker"] {
+            if cmd_ok(*path, &["--version"]) {
+                return (*path).into();
+            }
+        }
+    }
+    "docker".into()
+}
+
+/// Détecte Docker Compose v2 (plugin) ou v1 (binaire séparé).
+fn detect_compose(docker: &std::path::Path) -> ComposeCmd {
+    if cmd_ok(docker, &["compose", "version"]) {
+        return ComposeCmd { program: docker.to_path_buf(), subcommand: Some("compose".into()) };
+    }
+    for v1 in &["docker-compose", "/usr/local/bin/docker-compose", "/usr/bin/docker-compose"] {
+        if cmd_ok(*v1, &["version"]) {
+            return ComposeCmd { program: (*v1).into(), subcommand: None };
+        }
+    }
+    // Fallback v2 (échouera avec un message clair si absent)
+    ComposeCmd { program: docker.to_path_buf(), subcommand: Some("compose".into()) }
+}
+
+/// Lance une commande, retourne true si exit code 0 (stdout/stderr supprimés).
+fn cmd_ok(program: impl AsRef<std::ffi::OsStr>, args: &[&str]) -> bool {
+    Command::new(program)
+        .args(args)
+        .stdout(std::process::Stdio::null())
+        .stderr(std::process::Stdio::null())
+        .status()
+        .map(|s| s.success())
+        .unwrap_or(false)
+}
+
+/// Lance `docker info` avec un timeout de 5 s pour éviter tout blocage.
+fn docker_is_running(docker: &std::path::Path) -> bool {
+    let mut child = match Command::new(docker)
+        .arg("info")
+        .stdout(std::process::Stdio::null())
+        .stderr(std::process::Stdio::null())
+        .spawn()
+    {
+        Ok(c) => c,
+        Err(_) => return false,
+    };
+    let deadline = Instant::now() + Duration::from_secs(5);
+    loop {
+        match child.try_wait() {
+            Ok(Some(s)) => return s.success(),
+            Ok(None) if Instant::now() < deadline => {
+                std::thread::sleep(Duration::from_millis(100));
+            }
+            _ => {
+                child.kill().ok();
+                return false;
+            }
+        }
+    }
+}
+
+// ─── États Docker ─────────────────────────────────────────────────────────────
+
+#[derive(Debug, PartialEq)]
+enum DockerStatus {
+    Running,
+    InstalledNotRunning,
+    NotInstalled,
+}
+
+fn check_docker(docker: &std::path::Path) -> DockerStatus {
+    let installed = cmd_ok(docker, &["--version"]);
+    if !installed {
+        return DockerStatus::NotInstalled;
+    }
+    if docker_is_running(docker) {
+        DockerStatus::Running
+    } else {
+        DockerStatus::InstalledNotRunning
+    }
+}
+
+fn ensure_docker_running(app: &tauri::AppHandle, env: &DockerEnv) -> bool {
+    match check_docker(&env.docker) {
+        DockerStatus::Running => {
+            emit_splash_status(app, "Docker est prêt");
+            true
+        }
+        DockerStatus::InstalledNotRunning => {
+            emit_splash_status(app, "Démarrage de Docker...");
+            start_docker_service(app, &env.docker);
+            if wait_for_docker(app, &env.docker, 90) {
+                emit_splash_status(app, "Docker démarré");
+                true
+            } else {
+                emit_splash_status(app, "Docker ne répond pas — lancez Docker Desktop manuellement puis relancez l'app");
+                std::thread::sleep(Duration::from_secs(5));
+                false
+            }
+        }
+        DockerStatus::NotInstalled => {
+            emit_splash_status(app, "Docker n'est pas installé — installation en cours...");
+            if !install_docker(app) {
+                emit_splash_status(app, "Échec de l'installation — téléchargez Docker sur https://docs.docker.com/get-docker/");
+                std::thread::sleep(Duration::from_secs(8));
+                return false;
+            }
+            emit_splash_status(app, "Docker installé — démarrage...");
+            // Re-découvrir le binaire après installation
+            let new_docker = find_docker_binary();
+            start_docker_service(app, &new_docker);
+            if wait_for_docker(app, &new_docker, 120) {
+                emit_splash_status(app, "Docker prêt");
+                true
+            } else {
+                emit_splash_status(app, "Redémarrez votre ordinateur puis relancez GLOBE Manager");
+                std::thread::sleep(Duration::from_secs(8));
+                false
+            }
+        }
+    }
+}
+
+fn wait_for_docker(app: &tauri::AppHandle, docker: &std::path::Path, timeout_secs: u64) -> bool {
+    let deadline = Instant::now() + Duration::from_secs(timeout_secs);
+    let mut elapsed = 0u64;
+    while Instant::now() < deadline {
+        if docker_is_running(docker) {
+            return true;
+        }
+        std::thread::sleep(Duration::from_secs(3));
+        elapsed += 3;
+        if elapsed % 15 == 0 {
+            emit_splash_status(app, &format!("Attente de Docker... ({}s)", elapsed));
+        }
+    }
+    false
+}
+
+// ── Démarrage du service ──────────────────────────────────────────────────────
+
+#[cfg(target_os = "windows")]
+fn start_docker_service(_app: &tauri::AppHandle, _docker: &std::path::Path) {
+    let candidates = [
+        r"C:\Program Files\Docker\Docker\Docker Desktop.exe".to_string(),
+        std::env::var("LOCALAPPDATA")
+            .map(|a| format!(r"{a}\Docker\Docker\Docker Desktop.exe"))
+            .unwrap_or_default(),
+    ];
+    for path in candidates.iter().filter(|p| !p.is_empty()) {
+        if std::path::Path::new(path).exists() {
+            Command::new(path).spawn().ok();
+            return;
+        }
+    }
+    // Fallback via PowerShell (plus fiable que cmd /C start)
+    Command::new("powershell")
+        .args(["-NoProfile", "-Command", "Start-Process 'Docker Desktop'"])
+        .spawn()
+        .ok();
+}
+
+#[cfg(target_os = "linux")]
+fn start_docker_service(_app: &tauri::AppHandle, _docker: &std::path::Path) {
+    // Docker Desktop (systemd --user)
+    Command::new("systemctl").args(["--user", "start", "docker-desktop"]).output().ok();
+    // Docker Engine (systemd système, init.d, service)
+    for args in &[
+        vec!["systemctl", "start", "docker"],
+        vec!["service", "docker", "start"],
+        vec!["rc-service", "docker", "start"], // OpenRC
+    ] {
+        if Command::new(args[0]).args(&args[1..]).status()
+            .map(|s| s.success()).unwrap_or(false) {
+            return;
+        }
+    }
+}
+
+#[cfg(not(any(target_os = "windows", target_os = "linux")))]
+fn start_docker_service(_app: &tauri::AppHandle, _docker: &std::path::Path) {}
+
+// ── Installation de Docker ────────────────────────────────────────────────────
+
+#[cfg(target_os = "windows")]
+fn install_docker(app: &tauri::AppHandle) -> bool {
+    let arch = if std::env::consts::ARCH == "aarch64" { "arm64" } else { "amd64" };
+    let url = format!(
+        "https://desktop.docker.com/win/main/{arch}/Docker%20Desktop%20Installer.exe"
+    );
+    let installer = std::env::temp_dir().join("DockerDesktopInstaller.exe");
+
+    emit_splash_status(app, "Téléchargement de Docker Desktop (~500 Mo)...");
+    if let Err(e) = download_file(&url, &installer) {
+        emit_log(app, &format!("Échec du téléchargement: {e}"));
+        return false;
+    }
+
+    emit_splash_status(app, "Installation de Docker Desktop (une autorisation Windows va s'afficher)...");
+    // Utiliser PowerShell Start-Process -Verb RunAs pour déclencher l'UAC correctement
+    Command::new("powershell")
+        .args([
+            "-NoProfile", "-Command",
+            &format!(
+                "Start-Process -FilePath '{}' -ArgumentList 'install --quiet --accept-license' -Verb RunAs -Wait",
+                installer.display()
+            ),
+        ])
+        .status()
+        .map(|s| s.success())
+        .unwrap_or(false)
+}
+
+#[cfg(target_os = "linux")]
+fn install_docker(app: &tauri::AppHandle) -> bool {
+    let script = std::path::PathBuf::from("/tmp/get-docker.sh");
+
+    emit_splash_status(app, "Téléchargement du script d'installation Docker...");
+    if download_file("https://get.docker.com", &script).is_err() {
+        emit_splash_status(app, "Impossible de télécharger le script d'installation Docker");
+        return false;
+    }
+
+    emit_splash_status(app, "Installation de Docker Engine (une autorisation va s'afficher)...");
+
+    // Récupérer l'utilisateur réel (SUDO_USER si lancé via sudo, sinon USER)
+    let real_user = std::env::var("SUDO_USER")
+        .or_else(|_| std::env::var("USER"))
+        .unwrap_or_default();
+
+    // Essayer pkexec puis sudo -n (sans mot de passe si configuré en NOPASSWD)
+    for cmd in &[
+        vec!["pkexec", "sh", "/tmp/get-docker.sh"],
+        vec!["sudo", "-n", "sh", "/tmp/get-docker.sh"],
+    ] {
+        if Command::new(cmd[0]).args(&cmd[1..]).status()
+            .map(|s| s.success()).unwrap_or(false)
+        {
+            // Ajouter l'utilisateur réel au groupe docker
+            if !real_user.is_empty() {
+                Command::new("pkexec")
+                    .args(["usermod", "-aG", "docker", &real_user])
+                    .status()
+                    .ok();
+            }
+            emit_splash_status(
+                app,
+                "Docker installé — si la connexion échoue, déconnectez-vous et reconnectez-vous (groupe docker)",
+            );
+            return true;
+        }
+    }
+    false
+}
+
+#[cfg(not(any(target_os = "windows", target_os = "linux")))]
+fn install_docker(_app: &tauri::AppHandle) -> bool {
+    false
+}
+
+// ── Téléchargement ────────────────────────────────────────────────────────────
+
+fn download_file(url: &str, path: &std::path::Path) -> Result<(), String> {
+    let response = ureq::AgentBuilder::new()
+        .timeout_connect(Duration::from_secs(30))
+        .timeout(Duration::from_secs(3600))
+        .build()
+        .get(url)
+        .call()
+        .map_err(|e| e.to_string())?;
+
+    let mut file = std::fs::File::create(path).map_err(|e| e.to_string())?;
+    io::copy(&mut response.into_reader(), &mut file).map_err(|e| e.to_string())?;
+    Ok(())
+}
+
+// ─── Docker Compose ───────────────────────────────────────────────────────────
+
+const COMPOSE_CONTENT: &str = include_str!("../../../docker-compose.yml");
+
+fn get_compose_dir() -> Result<std::path::PathBuf, String> {
+    let dir = if let Ok(appdata) = std::env::var("APPDATA") {
+        std::path::PathBuf::from(appdata).join("GlobeManager")
+    } else if let Ok(home) = std::env::var("HOME") {
+        std::path::PathBuf::from(home).join(".config").join("GlobeManager")
+    } else {
+        std::env::current_dir().unwrap_or_else(|_| std::path::PathBuf::from("."))
+    };
+
+    std::fs::create_dir_all(&dir)
+        .map_err(|e| format!("Impossible de créer le dossier de configuration: {e}"))?;
+    std::fs::write(dir.join("docker-compose.yml"), COMPOSE_CONTENT)
+        .map_err(|e| format!("Impossible d'écrire docker-compose.yml: {e}"))?;
+    Ok(dir)
+}
+
+/// Vérifie si un port est disponible. Retourne false si le port est déjà occupé
+/// par un processus autre que nos propres conteneurs Docker.
+fn check_port(port: u16) -> bool {
+    std::net::TcpListener::bind(std::net::SocketAddr::from(([0, 0, 0, 0], port))).is_ok()
+}
+
+fn docker_compose_up_with_log(
+    app: &tauri::AppHandle,
+    env: &DockerEnv,
+    compose_dir: &std::path::Path,
+) -> bool {
+    // Vérification préventive des ports clés (avertissement uniquement)
+    for (port, name) in &[(3001u16, "Backend"), (3307u16, "MySQL")] {
+        if !check_port(*port) {
+            emit_log(app, &format!(
+                "Attention: port {} ({}) déjà utilisé — si ce sont des conteneurs existants, c'est normal",
+                port, name
+            ));
+        }
+    }
+
+    match env.compose.build()
+        .args(["up", "-d", "--remove-orphans"])
+        .current_dir(compose_dir)
+        .output()
+    {
+        Ok(o) => {
+            let stdout = String::from_utf8_lossy(&o.stdout);
+            let stderr = String::from_utf8_lossy(&o.stderr);
+            for line in stdout.lines().chain(stderr.lines()) {
+                let line = line.trim();
+                if !line.is_empty() {
+                    emit_log(app, line);
+                }
+            }
+            o.status.success()
+        }
+        Err(e) => {
+            emit_log(app, &format!("Erreur docker compose: {e}"));
+            false
+        }
+    }
+}
+
+fn wait_for_backend(app: &tauri::AppHandle, url: &str, timeout_secs: u64) -> bool {
+    let deadline = Instant::now() + Duration::from_secs(timeout_secs);
+    let mut attempt = 0u64;
+    while Instant::now() < deadline {
+        attempt += 1;
+        match ureq::get(url).call() {
+            // Uniquement HTTP 200 indique que le backend est prêt
+            Ok(resp) if resp.status() == 200 => return true,
+            Ok(resp) => {
+                if attempt % 5 == 1 {
+                    emit_log(app, &format!("backend HTTP {} (tentative {attempt})", resp.status()));
+                }
+            }
+            Err(e) => {
+                if attempt % 5 == 1 {
+                    emit_log(app, &format!("backend non joignable (tentative {attempt}): {e}"));
+                }
+            }
+        }
+        std::thread::sleep(Duration::from_secs(2));
+    }
+    false
+}
+
+// ─── Helpers config ───────────────────────────────────────────────────────────
+
+fn config_file_path() -> std::path::PathBuf {
+    if let Ok(appdata) = std::env::var("APPDATA") {
+        let dir = std::path::PathBuf::from(appdata).join("GlobeManager");
+        std::fs::create_dir_all(&dir).ok();
+        return dir.join("config.json");
+    }
+    if let Ok(home) = std::env::var("HOME") {
+        let dir = std::path::PathBuf::from(home).join(".config").join("GlobeManager");
+        std::fs::create_dir_all(&dir).ok();
+        return dir.join("config.json");
+    }
+    std::path::PathBuf::from("config.json")
+}
+
+fn load_config() -> AppConfig {
+    let path = config_file_path();
+    if let Ok(content) = std::fs::read_to_string(&path) {
+        if let Ok(cfg) = serde_json::from_str::<AppConfig>(&content) {
+            return cfg;
+        }
+    }
+    AppConfig::default()
+}
+
+fn write_config(config: &AppConfig) -> bool {
+    let path = config_file_path();
+    match serde_json::to_string_pretty(config) {
+        Ok(json) => std::fs::write(path, json).is_ok(),
+        Err(_) => false,
+    }
+}
+
+// ─── Commandes Tauri ──────────────────────────────────────────────────────────
+
+#[tauri::command]
+fn get_config() -> AppConfig { load_config() }
+
+#[tauri::command]
+fn get_server_url() -> Option<String> {
+    let c = load_config();
+    if c.mode == "client" { c.server_url } else { None }
+}
+
+#[tauri::command]
+fn save_config(config: AppConfig, state: tauri::State<Arc<SetupState>>) -> bool {
+    if write_config(&config) {
+        let mut lock = state.config.lock().unwrap();
+        *lock = Some(config);
+        state.condvar.notify_all();
+        true
+    } else {
+        false
+    }
+}
+
+#[tauri::command]
+fn reset_config() -> bool {
+    std::fs::remove_file(config_file_path()).is_ok()
+}
+
+#[tauri::command]
+fn autostart_enable(app: tauri::AppHandle) -> bool {
+    use tauri_plugin_autostart::ManagerExt;
+    app.autolaunch().enable().is_ok()
+}
+
+#[tauri::command]
+fn autostart_disable(app: tauri::AppHandle) -> bool {
+    use tauri_plugin_autostart::ManagerExt;
+    app.autolaunch().disable().is_ok()
+}
+
+#[tauri::command]
+fn autostart_is_enabled(app: tauri::AppHandle) -> bool {
+    use tauri_plugin_autostart::ManagerExt;
+    app.autolaunch().is_enabled().unwrap_or(false)
+}
+
+// ─── Point d'entrée ───────────────────────────────────────────────────────────
+
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
+    let setup_state = Arc::new(SetupState {
+        config: Mutex::new(None),
+        condvar: Condvar::new(),
+    });
+
     tauri::Builder::default()
+        .manage(setup_state)
         .plugin(tauri_plugin_single_instance::init(|app, _args, _cwd| {
-            if let Some(window) = app.get_webview_window("main") {
-                let _ = window.show();
-                let _ = window.set_focus();
+            if let Some(w) = app.get_webview_window("main") {
+                let _ = w.show();
+                let _ = w.set_focus();
             }
         }))
         .plugin(tauri_plugin_shell::init())
@@ -17,58 +547,95 @@ pub fn run() {
             tauri_plugin_autostart::MacosLauncher::LaunchAgent,
             Some(vec![]),
         ))
+        .invoke_handler(tauri::generate_handler![
+            get_config,
+            get_server_url,
+            save_config,
+            reset_config,
+            autostart_enable,
+            autostart_disable,
+            autostart_is_enabled,
+        ])
         .setup(|app| {
             let app_handle = app.handle().clone();
 
-            // Lancer Docker et attendre le backend dans un thread séparé
             std::thread::spawn(move || {
-                // Laisser le temps à Tauri d'initialiser les fenêtres
                 std::thread::sleep(Duration::from_millis(200));
 
-                // Afficher la splash window
-                if let Some(splash) = app_handle.get_webview_window("splash") {
-                    let _ = splash.show();
-                    let _ = splash.set_focus();
-                }
-                if let Some(main) = app_handle.get_webview_window("main") {
-                    let _ = main.hide();
-                }
+                if let Some(s) = app_handle.get_webview_window("splash") { let _ = s.show(); let _ = s.set_focus(); }
+                if let Some(m) = app_handle.get_webview_window("main")   { let _ = m.hide(); }
 
-                // Trouver le dossier de l'app pour docker-compose.yml
-                let compose_dir = get_compose_dir();
+                // Découvrir l'environnement Docker une seule fois
+                let docker_env = DockerEnv::discover();
 
-                // Démarrer les conteneurs Docker
-                emit_splash_status(&app_handle, "Démarrage des services...");
-                let started = docker_compose_up_with_log(&app_handle, &compose_dir);
+                // Attendre la configuration initiale si nécessaire
+                let config = {
+                    let loaded = load_config();
+                    if !loaded.configured {
+                        emit_splash_status(&app_handle, "Configuration initiale...");
+                        let _ = app_handle.emit("show-setup", ());
+                        let state = app_handle.state::<Arc<SetupState>>();
+                        let mut lock = state.config.lock().unwrap();
+                        while lock.is_none() {
+                            lock = state.condvar.wait(lock).unwrap();
+                        }
+                        lock.clone().unwrap()
+                    } else {
+                        loaded
+                    }
+                };
 
-                if !started {
-                    emit_splash_status(&app_handle, "Erreur Docker — vérifiez que Docker Desktop est lancé");
-                    std::thread::sleep(Duration::from_secs(5));
-                }
+                let health_url = if config.mode == "server" {
+                    // Préparer le dossier compose
+                    let compose_dir = match get_compose_dir() {
+                        Ok(d) => d,
+                        Err(e) => {
+                            emit_splash_status(&app_handle, &format!("Erreur configuration: {e}"));
+                            std::thread::sleep(Duration::from_secs(5));
+                            show_main(&app_handle);
+                            return;
+                        }
+                    };
 
-                // Attendre que le backend soit prêt (max 180s — MySQL start_period 30s + retries)
+                    // Vérifier / installer / démarrer Docker
+                    emit_splash_status(&app_handle, "Vérification de Docker...");
+                    if !ensure_docker_running(&app_handle, &docker_env) {
+                        show_main(&app_handle);
+                        return;
+                    }
+
+                    // Lancer les conteneurs
+                    emit_splash_status(&app_handle, "Démarrage des services...");
+                    let started = docker_compose_up_with_log(&app_handle, &docker_env, &compose_dir);
+                    if !started {
+                        emit_splash_status(&app_handle, "Erreur au démarrage des conteneurs — consultez les logs");
+                        std::thread::sleep(Duration::from_secs(3));
+                    }
+
+                    "http://localhost:3001/api/health".to_string()
+                } else {
+                    let base = config.server_url.as_deref()
+                        .unwrap_or("http://localhost:3001")
+                        .trim_end_matches('/')
+                        .to_string();
+                    emit_splash_status(&app_handle, &format!("Connexion au serveur {}...", base));
+                    format!("{}/api/health", base)
+                };
+
+                // Attendre le backend — 180 s pour laisser le temps au premier pull d'images
                 emit_splash_status(&app_handle, "Chargement de GLOBE Manager...");
-                let ready = wait_for_backend(&app_handle, "http://localhost:3001/api/health", 180);
-
-                if !ready {
-                    emit_splash_status(&app_handle, "Impossible de joindre le serveur après 3 min");
+                if !wait_for_backend(&app_handle, &health_url, 180) {
+                    emit_splash_status(&app_handle, "Impossible de joindre le serveur — vérifiez les logs");
                     std::thread::sleep(Duration::from_secs(4));
                 }
 
-                // Afficher la fenêtre principale, cacher le splash
-                if let Some(main) = app_handle.get_webview_window("main") {
-                    let _ = main.show();
-                    let _ = main.set_focus();
-                }
-                if let Some(splash) = app_handle.get_webview_window("splash") {
-                    let _ = splash.close();
-                }
+                show_main(&app_handle);
             });
 
             #[cfg(desktop)]
             {
-                use tauri::tray::{MouseButton, MouseButtonState, TrayIconBuilder, TrayIconEvent};
                 use tauri::menu::{Menu, MenuItem};
+                use tauri::tray::{MouseButton, MouseButtonState, TrayIconBuilder, TrayIconEvent};
 
                 let quit = MenuItem::with_id(app, "quit", "Quitter", true, None::<&str>)?;
                 let show = MenuItem::with_id(app, "show", "Afficher", true, None::<&str>)?;
@@ -80,18 +647,20 @@ pub fn run() {
                     .tooltip("GLOBE Manager")
                     .on_menu_event(|app, event| match event.id.as_ref() {
                         "quit" => {
-                            // Arrêter les conteneurs proprement
-                            let compose_dir = get_compose_dir();
-                            let _ = Command::new("docker")
-                                .args(["compose", "stop"])
-                                .current_dir(&compose_dir)
-                                .output();
+                            let config = load_config();
+                            if config.mode == "server" {
+                                if let Ok(dir) = get_compose_dir() {
+                                    let docker = find_docker_binary();
+                                    let mut compose = detect_compose(&docker).build();
+                                    compose.args(["stop"]).current_dir(&dir).output().ok();
+                                }
+                            }
                             app.exit(0);
                         }
                         "show" => {
-                            if let Some(window) = app.get_webview_window("main") {
-                                let _ = window.show();
-                                let _ = window.set_focus();
+                            if let Some(w) = app.get_webview_window("main") {
+                                let _ = w.show();
+                                let _ = w.set_focus();
                             }
                         }
                         _ => {}
@@ -101,12 +670,10 @@ pub fn run() {
                             button: MouseButton::Left,
                             button_state: MouseButtonState::Up,
                             ..
-                        } = event
-                        {
-                            let app = tray.app_handle();
-                            if let Some(window) = app.get_webview_window("main") {
-                                let _ = window.show();
-                                let _ = window.set_focus();
+                        } = event {
+                            if let Some(w) = tray.app_handle().get_webview_window("main") {
+                                let _ = w.show();
+                                let _ = w.set_focus();
                             }
                         }
                     })
@@ -126,65 +693,9 @@ pub fn run() {
         .expect("Erreur lors du démarrage de GLOBE Manager");
 }
 
-// Contenu du docker-compose.yml embarqué dans le binaire
-const COMPOSE_CONTENT: &str = include_str!("../../../docker-compose.yml");
-
-fn get_compose_dir() -> std::path::PathBuf {
-    // En production : %APPDATA%\GlobeManager (créé + docker-compose.yml écrit au démarrage)
-    if let Ok(appdata) = std::env::var("APPDATA") {
-        let path = std::path::PathBuf::from(appdata).join("GlobeManager");
-        std::fs::create_dir_all(&path).ok();
-        let compose_path = path.join("docker-compose.yml");
-        // Toujours écrire pour avoir la version à jour
-        std::fs::write(&compose_path, COMPOSE_CONTENT).ok();
-        return path;
-    }
-    // Fallback dev : répertoire courant
-    std::env::current_dir().unwrap_or_else(|_| std::path::PathBuf::from("."))
-}
-
-fn docker_compose_up_with_log(app: &tauri::AppHandle, compose_dir: &std::path::Path) -> bool {
-    match Command::new("docker")
-        .args(["compose", "up", "-d", "--remove-orphans"])
-        .current_dir(compose_dir)
-        .output()
-    {
-        Ok(o) => {
-            let stdout = String::from_utf8_lossy(&o.stdout);
-            let stderr = String::from_utf8_lossy(&o.stderr);
-            for line in stdout.lines().chain(stderr.lines()) {
-                if !line.trim().is_empty() {
-                    emit_log(app, line);
-                }
-            }
-            o.status.success()
-        }
-        Err(e) => {
-            emit_log(app, &format!("Erreur docker: {e}"));
-            false
-        }
-    }
-}
-
-fn wait_for_backend(app: &tauri::AppHandle, url: &str, timeout_secs: u64) -> bool {
-    let deadline = Instant::now() + Duration::from_secs(timeout_secs);
-    let mut attempt = 0u64;
-    while Instant::now() < deadline {
-        attempt += 1;
-        match ureq::get(url).call() {
-            Ok(resp) if resp.status() < 500 => return true,
-            Ok(resp) => {
-                emit_log(app, &format!("backend HTTP {} (tentative {attempt})", resp.status()));
-            }
-            Err(e) => {
-                if attempt % 5 == 1 {
-                    emit_log(app, &format!("backend non joignable (tentative {attempt}): {e}"));
-                }
-            }
-        }
-        std::thread::sleep(Duration::from_secs(2));
-    }
-    false
+fn show_main(app: &tauri::AppHandle) {
+    if let Some(m) = app.get_webview_window("main")   { let _ = m.show(); let _ = m.set_focus(); }
+    if let Some(s) = app.get_webview_window("splash") { let _ = s.close(); }
 }
 
 fn emit_splash_status(app: &tauri::AppHandle, msg: &str) {
