@@ -17,8 +17,20 @@ export interface LoginResponse {
   refreshToken: string;
 }
 
+export interface Profile {
+  id: string;
+  email: string;
+  nom: string;
+  prenom: string;
+  telephone?: string | null;
+  role: string;
+  permissions: Array<{ module: string; action: string }>;
+}
+
 export const authApi = {
   login: (data: LoginDto) => api.post<LoginResponse>('/auth/login', data),
-  profile: () => api.get('/auth/profile'),
+  profile: () => api.get<Profile>('/auth/profile'),
   logout: () => api.post('/auth/logout'),
+  changePassword: (data: { ancienMotDePasse: string; nouveauMotDePasse: string }) =>
+    api.post<{ message: string }>('/auth/change-password', data),
 };

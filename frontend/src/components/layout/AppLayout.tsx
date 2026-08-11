@@ -18,6 +18,7 @@ import {
   AccountBookOutlined,
   BarChartOutlined,
   CloudOutlined,
+  SettingOutlined,
   HomeOutlined,
   CoffeeOutlined,
   SafetyCertificateOutlined,
@@ -111,6 +112,12 @@ const allMenuItems = [
         key: "/sauvegarde",
         icon: <CloudOutlined />,
         label: "Sauvegarde",
+        roles: ["admin", "manager"],
+      },
+      {
+        key: "/parametres",
+        icon: <SettingOutlined />,
+        label: "Paramètres",
         roles: ["admin", "manager"],
       },
     ],
@@ -221,45 +228,36 @@ export default function AppLayout() {
           height: "100vh",
           position: "sticky",
           top: 0,
-          overflow: "hidden",
-          display: "flex",
-          flexDirection: "column",
           borderRight: "1px solid rgba(201,168,76,0.18)",
         }}
       >
-        <div
-          className={`flex h-20 shrink-0 items-center justify-center px-4 transition-all duration-300 ease-in-out ${!collapsed ? "mb-25" : ""}`}
-          style={{ borderBottom: "1px solid rgba(201,168,76,0.18)" }}
-        >
-          {collapsed ? (
-            <div className="flex h-10 w-10 items-center justify-center overflow-hidden transition-all duration-300 ease-in-out">
-              <img
-                src="/logo-globe.jpeg"
-                alt="Globe"
-                className="w-full h-full object-cover"
-              />
-            </div>
-          ) : (
-            <div className="flex items-center gap-3 transition-all duration-300 ease-in-out">
-              <div className="flex h-50 w-50 mt-25 shrink-0 items-center justify-center overflow-hidden transition-all duration-300 ease-in-out">
-                <img
-                  src="/logo-globe.jpeg"
-                  alt="Globe"
-                  className="w-full h-full object-cover"
-                />
+        <div style={{ display: "flex", flexDirection: "column", height: "100vh", overflow: "hidden" }}>
+          <div
+            className="flex shrink-0 items-center justify-center px-4 py-3 transition-all duration-300 ease-in-out"
+            style={{ borderBottom: "1px solid rgba(201,168,76,0.18)", flexShrink: 0 }}
+          >
+            {collapsed ? (
+              <div className="flex h-10 w-10 items-center justify-center overflow-hidden rounded-full">
+                <img src="/logo-globe.jpeg" alt="Globe" className="w-full h-full object-cover" />
               </div>
-            </div>
-          )}
-        </div>
-        <div style={{ flex: 1, overflowY: "auto", overflowX: "hidden" }}>
-          <Menu
-            mode="inline"
-            selectedKeys={[location.pathname]}
-            items={menuItems}
-            onClick={({ key }) => navigate(key)}
-            className="mt-3 border-none bg-transparent"
-            style={{ background: "transparent" }}
-          />
+            ) : (
+              <div className="flex items-center justify-center transition-all duration-300 ease-in-out">
+                <div className="flex h-36 w-36 shrink-0 items-center justify-center overflow-hidden rounded-full">
+                  <img src="/logo-globe.jpeg" alt="Globe" className="w-full h-full object-cover" />
+                </div>
+              </div>
+            )}
+          </div>
+          <div style={{ flex: 1, overflowY: "auto", overflowX: "hidden", minHeight: 0 }}>
+            <Menu
+              mode="inline"
+              selectedKeys={[location.pathname]}
+              items={menuItems}
+              onClick={({ key }) => navigate(key)}
+              className="mt-1 border-none bg-transparent"
+              style={{ background: "transparent" }}
+            />
+          </div>
         </div>
       </Sider>
       <Layout className="bg-transparent">

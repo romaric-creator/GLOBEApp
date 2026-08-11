@@ -11,7 +11,7 @@ RUN npm run build
 
 FROM node:20-alpine
 
-RUN apk add --no-cache openssl
+RUN apk add --no-cache openssl mysql-client
 
 WORKDIR /app
 
@@ -23,4 +23,4 @@ COPY --from=builder /app/prisma ./prisma
 EXPOSE 3001
 
 # Appliquer les migrations puis démarrer
-CMD ["sh", "-c", "npx prisma db push --skip-generate && node dist/src/main.js"]
+CMD ["sh", "-c", "npx prisma db push --skip-generate && npx prisma db seed && node dist/src/main.js"]

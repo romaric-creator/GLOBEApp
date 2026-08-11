@@ -1,10 +1,16 @@
 import axios, { type AxiosError, type InternalAxiosRequestConfig } from 'axios';
 
+function getBaseURL(): string {
+  return (window as any).__GLOBE_API_URL__ ?? import.meta.env.VITE_API_BASE_URL ?? '/api';
+}
+
 const api = axios.create({
   baseURL: import.meta.env.VITE_API_BASE_URL ?? '/api',
 });
 
 api.interceptors.request.use((config) => {
+  // Lire l'URL à l'exécution pour le mode client Tauri (serveur distant)
+  config.baseURL = getBaseURL();
   const token = localStorage.getItem('accessToken');
   if (token) {
     config.headers.Authorization = `Bearer ${token}`;
@@ -65,8 +71,7 @@ api.interceptors.response.use(
     isRefreshing = true;
 
     try {
-      const base = import.meta.env.VITE_API_BASE_URL ?? '/api';
-      const { data } = await axios.post(`${base}/auth/refresh`, { refreshToken });
+      const { data } = await axios.post(`${getBaseURL()}/auth/refresh`, { refreshToken });
       localStorage.setItem('accessToken', data.accessToken);
       localStorage.setItem('refreshToken', data.refreshToken);
       processQueue(null, data.accessToken);

@@ -56,6 +56,7 @@ export class SauvegardeService {
         `-P${port}`,
         `-u${user}`,
         `-p${password}`,
+        '--skip-ssl',
         '--single-transaction',
         '--routines',
         '--result-file', chemin,
@@ -64,21 +65,23 @@ export class SauvegardeService {
 
       const fileStats = await stat(chemin);
 
-      return this.prisma.sauvegarde.update({
+      const updated = await this.prisma.sauvegarde.update({
         where: { id: sauvegarde.id },
         data: {
           statut: 'REUSSIE',
           taille: fileStats.size,
         },
       });
+      return { ...updated, taille: updated.taille ? Number(updated.taille) : null };
     } catch (error) {
       const msg = error instanceof Error ? error.message : String(error);
       this.logger.error(`Echec de la sauvegarde: ${msg}`);
 
-      return this.prisma.sauvegarde.update({
+      const updated = await this.prisma.sauvegarde.update({
         where: { id: sauvegarde.id },
         data: { statut: 'ECHOUEE' },
       });
+      return { ...updated, taille: null };
     }
   }
 

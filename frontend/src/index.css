@@ -43,3 +43,22 @@ body::before {
 .auth-panel {
   background: linear-gradient(135deg, rgba(255, 255, 255, 0.98), rgba(250, 247, 238, 0.92));
 }
+
+/* Fix sidebar scroll — ant-layout-sider-children breaks flex propagation */
+.ant-layout-sider .ant-layout-sider-children {
+  display: flex !important;
+  flex-direction: column !important;
+  height: 100% !important;
+  overflow: hidden !important;
+}
+
+/* Compact sidebar menu items */
+.ant-menu-inline .ant-menu-item {
+  height: 36px !important;
+  line-height: 36px !important;
+  margin-block: 1px !important;
+}
+.ant-menu-item-group-title {
+  padding-block: 4px !important;
+  font-size: 11px !important;
+}
