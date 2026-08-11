@@ -22,12 +22,20 @@ export class SyncService {
     await this.sync();
   }
 
-  async sync(): Promise<{ success: boolean; nbEnvois: number; erreur?: string }> {
+  async sync(): Promise<{
+    success: boolean;
+    nbEnvois: number;
+    erreur?: string;
+  }> {
     const remoteUrl = this.config.get<string>('SYNC_REMOTE_URL');
     const apiKey = this.config.get<string>('SYNC_API_KEY');
 
     if (!remoteUrl) {
-      return { success: false, nbEnvois: 0, erreur: 'SYNC_REMOTE_URL non configurée' };
+      return {
+        success: false,
+        nbEnvois: 0,
+        erreur: 'SYNC_REMOTE_URL non configurée',
+      };
     }
 
     const log = await this.prisma.syncLog.create({
@@ -46,7 +54,12 @@ export class SyncService {
       if (nbEnvois === 0) {
         await this.prisma.syncLog.update({
           where: { id: log.id },
-          data: { statut: 'REUSSIE', nbEnvois: 0, details: 'Aucune donnée à synchroniser', completedAt: new Date() },
+          data: {
+            statut: 'REUSSIE',
+            nbEnvois: 0,
+            details: 'Aucune donnée à synchroniser',
+            completedAt: new Date(),
+          },
         });
         return { success: true, nbEnvois: 0 };
       }
@@ -79,31 +92,34 @@ export class SyncService {
   }
 
   private async collectPending() {
-    const [reservations, facturesSejour, commandes, paiements, depenses] = await Promise.all([
-      this.prisma.reservation.findMany({
-        where: { syncStatus: SyncStatus.PENDING },
-        include: { chambre: true, client: true },
-      }),
-      this.prisma.factureSejour.findMany({
-        where: { syncStatus: SyncStatus.PENDING },
-        include: { reservation: true, paiement: true },
-      }),
-      this.prisma.commandeTable.findMany({
-        where: { syncStatus: SyncStatus.PENDING },
-        include: { lignes: { include: { produit: true } } },
-      }),
-      this.prisma.paiement.findMany({
-        where: { syncStatus: SyncStatus.PENDING },
-      }),
-      this.prisma.depense.findMany({
-        where: { syncStatus: SyncStatus.PENDING },
-      }),
-    ]);
+    const [reservations, facturesSejour, commandes, paiements, depenses] =
+      await Promise.all([
+        this.prisma.reservation.findMany({
+          where: { syncStatus: SyncStatus.PENDING },
+          include: { chambre: true, client: true },
+        }),
+        this.prisma.factureSejour.findMany({
+          where: { syncStatus: SyncStatus.PENDING },
+          include: { reservation: true, paiement: true },
+        }),
+        this.prisma.commandeTable.findMany({
+          where: { syncStatus: SyncStatus.PENDING },
+          include: { lignes: { include: { produit: true } } },
+        }),
+        this.prisma.paiement.findMany({
+          where: { syncStatus: SyncStatus.PENDING },
+        }),
+        this.prisma.depense.findMany({
+          where: { syncStatus: SyncStatus.PENDING },
+        }),
+      ]);
 
     return { reservations, facturesSejour, commandes, paiements, depenses };
   }
 
-  private async markSynced(payload: Awaited<ReturnType<typeof this.collectPending>>) {
+  private async markSynced(
+    payload: Awaited<ReturnType<typeof this.collectPending>>,
+  ) {
     const now = new Date();
 
     const ids = {
@@ -149,9 +165,15 @@ export class SyncService {
     });
 
     const pending = await Promise.all([
-      this.prisma.reservation.count({ where: { syncStatus: SyncStatus.PENDING } }),
-      this.prisma.factureSejour.count({ where: { syncStatus: SyncStatus.PENDING } }),
-      this.prisma.commandeTable.count({ where: { syncStatus: SyncStatus.PENDING } }),
+      this.prisma.reservation.count({
+        where: { syncStatus: SyncStatus.PENDING },
+      }),
+      this.prisma.factureSejour.count({
+        where: { syncStatus: SyncStatus.PENDING },
+      }),
+      this.prisma.commandeTable.count({
+        where: { syncStatus: SyncStatus.PENDING },
+      }),
       this.prisma.paiement.count({ where: { syncStatus: SyncStatus.PENDING } }),
       this.prisma.depense.count({ where: { syncStatus: SyncStatus.PENDING } }),
     ]);
