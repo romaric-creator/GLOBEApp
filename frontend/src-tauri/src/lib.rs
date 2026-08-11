@@ -373,64 +373,103 @@ fn check_port(port: u16) -> bool {
     std::net::TcpListener::bind(std::net::SocketAddr::from(([0, 0, 0, 0], port))).is_ok()
 }
 
+fn images_already_pulled(env: &DockerEnv) -> bool {
+    // Vérifie si au moins une image de l'app est déjà présente localement
+    Command::new(&env.docker)
+        .args(["images", "-q", "--filter", "reference=*globe*"])
+        .output()
+        .map(|o| !o.stdout.is_empty())
+        .unwrap_or(true) // en cas d'erreur, on suppose que c'est ok
+}
+
 fn docker_compose_up_with_log(
     app: &tauri::AppHandle,
     env: &DockerEnv,
     compose_dir: &std::path::Path,
 ) -> bool {
-    // Vérification préventive des ports clés (avertissement uniquement)
-    for (port, name) in &[(3001u16, "Backend"), (3307u16, "MySQL")] {
-        if !check_port(*port) {
-            emit_log(app, &format!(
-                "Attention: port {} ({}) déjà utilisé — si ce sont des conteneurs existants, c'est normal",
-                port, name
-            ));
-        }
+    let first_pull = !images_already_pulled(env);
+    if first_pull {
+        emit_splash_status(app, "Téléchargement des services (première installation, peut prendre 5 à 15 min)...");
+    } else {
+        emit_splash_status(app, "Démarrage des services...");
     }
 
-    match env.compose.build()
+    let mut child = match env.compose.build()
         .args(["up", "-d", "--remove-orphans"])
         .current_dir(compose_dir)
-        .output()
+        .stdout(std::process::Stdio::null())
+        .stderr(std::process::Stdio::null())
+        .spawn()
     {
-        Ok(o) => {
-            let stdout = String::from_utf8_lossy(&o.stdout);
-            let stderr = String::from_utf8_lossy(&o.stderr);
-            for line in stdout.lines().chain(stderr.lines()) {
-                let line = line.trim();
-                if !line.is_empty() {
-                    emit_log(app, line);
+        Ok(c) => c,
+        Err(e) => {
+            emit_splash_status(app, &format!("Impossible de démarrer les services: {e}"));
+            return false;
+        }
+    };
+
+    let start = Instant::now();
+    let mut last_update = Instant::now();
+
+    loop {
+        match child.try_wait() {
+            Ok(Some(status)) => return status.success(),
+            Ok(None) => {
+                std::thread::sleep(Duration::from_secs(2));
+                let elapsed = start.elapsed().as_secs();
+
+                // Mise à jour du message toutes les 20 secondes
+                if last_update.elapsed() >= Duration::from_secs(20) {
+                    last_update = Instant::now();
+                    let msg = if first_pull {
+                        match elapsed {
+                            0..=60   => "Téléchargement des services en cours...",
+                            61..=180 => "Téléchargement en cours (peut prendre quelques minutes)...",
+                            181..=360 => "Téléchargement en cours (merci de patienter)...",
+                            _        => "Finalisation de l'installation...",
+                        }
+                    } else {
+                        "Démarrage des services..."
+                    };
+                    emit_splash_status(app, msg);
+                }
+
+                // Timeout 20 min (premier pull d'images sur connexion lente)
+                if elapsed > 1200 {
+                    child.kill().ok();
+                    return false;
                 }
             }
-            o.status.success()
-        }
-        Err(e) => {
-            emit_log(app, &format!("Erreur docker compose: {e}"));
-            false
+            Err(_) => {
+                child.kill().ok();
+                return false;
+            }
         }
     }
 }
 
 fn wait_for_backend(app: &tauri::AppHandle, url: &str, timeout_secs: u64) -> bool {
     let deadline = Instant::now() + Duration::from_secs(timeout_secs);
-    let mut attempt = 0u64;
+    let start = Instant::now();
+    let mut last_update = Instant::now();
+
     while Instant::now() < deadline {
-        attempt += 1;
         match ureq::get(url).call() {
-            // Uniquement HTTP 200 indique que le backend est prêt
             Ok(resp) if resp.status() == 200 => return true,
-            Ok(resp) => {
-                if attempt % 5 == 1 {
-                    emit_log(app, &format!("backend HTTP {} (tentative {attempt})", resp.status()));
-                }
-            }
-            Err(e) => {
-                if attempt % 5 == 1 {
-                    emit_log(app, &format!("backend non joignable (tentative {attempt}): {e}"));
-                }
-            }
+            _ => {}
         }
         std::thread::sleep(Duration::from_secs(2));
+
+        if last_update.elapsed() >= Duration::from_secs(15) {
+            last_update = Instant::now();
+            let elapsed = start.elapsed().as_secs();
+            let msg = match elapsed {
+                0..=30  => "Chargement des données...",
+                31..=90 => "Finalisation du démarrage...",
+                _       => "Presque prêt, encore quelques instants...",
+            };
+            emit_splash_status(app, msg);
+        }
     }
     false
 }
