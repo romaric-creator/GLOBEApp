@@ -7,7 +7,7 @@ import {
   Query,
   UseGuards,
 } from '@nestjs/common';
-import { IsEnum, IsNumber, IsString, IsUUID, Min } from 'class-validator';
+import { IsEnum, IsNumber, IsUUID, Min } from 'class-validator';
 import { MoyenPaiement } from '@prisma/client';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { CaisseService } from './caisse.service';
