@@ -41,7 +41,7 @@
       flex-direction: column;
       align-items: center;
       justify-content: center;
-      padding: 0 40px 32px;
+      padding: 0 40px 28px;
       transition: opacity 0.2s;
     }
 
@@ -86,7 +86,7 @@
       color: rgba(28,28,28,0.4);
       letter-spacing: 0.6px;
       text-transform: uppercase;
-      margin-bottom: 28px;
+      margin-bottom: 24px;
     }
 
     .progress-block {
@@ -100,7 +100,7 @@
       background: rgba(201,168,76,0.18);
       border-radius: 2px;
       overflow: hidden;
-      margin-bottom: 11px;
+      margin-bottom: 10px;
     }
 
     .bar-fill {
@@ -117,18 +117,71 @@
       100% { width: 0%;   margin-left: 100%; background-position: 100% 0; }
     }
 
+    .status-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: baseline;
+      min-height: 15px;
+      margin-bottom: 6px;
+    }
+
     #status {
       font-size: 11px;
       color: rgba(28,28,28,0.45);
-      min-height: 15px;
+      flex: 1;
+    }
+
+    #elapsed {
+      font-size: 10px;
+      color: rgba(28,28,28,0.28);
+      white-space: nowrap;
+      margin-left: 8px;
+    }
+
+    /* ── Panneau détails (masqué par défaut) ──────────────── */
+    .details-toggle {
+      font-size: 10px;
+      color: rgba(28,28,28,0.3);
+      cursor: pointer;
       text-align: center;
+      margin-top: 2px;
+      letter-spacing: 0.2px;
+      transition: color 0.15s;
+    }
+    .details-toggle:hover { color: rgba(28,28,28,0.55); }
+
+    .log-panel {
+      display: none;
+      width: 100%;
+      max-width: 300px;
+      margin-top: 6px;
+      background: rgba(28,28,28,0.04);
+      border: 1px solid rgba(201,168,76,0.18);
+      border-radius: 5px;
+      padding: 6px 8px;
+      max-height: 62px;
+      overflow-y: auto;
+    }
+
+    .log-panel.visible { display: block; }
+
+    .log-line {
+      font-size: 9.5px;
+      color: rgba(28,28,28,0.5);
+      line-height: 1.5;
+      font-family: 'Cascadia Code', 'Consolas', monospace;
+    }
+
+    .log-line .ts {
+      color: rgba(28,28,28,0.25);
+      margin-right: 4px;
     }
 
     .divider {
       width: 40px;
       height: 1px;
       background: linear-gradient(90deg, transparent, #C9A84C, transparent);
-      margin: 14px auto 0;
+      margin: 10px auto 0;
       opacity: 0.5;
     }
 
@@ -163,9 +216,7 @@
       animation: fadein 0.25s ease;
     }
 
-    #setup-overlay.visible {
-      display: flex;
-    }
+    #setup-overlay.visible { display: flex; }
 
     .setup-title {
       font-size: 13px;
@@ -200,46 +251,20 @@
       transition: all 0.15s;
     }
 
-    .mode-btn:hover {
-      border-color: #C9A84C;
-      background: rgba(201,168,76,0.12);
-    }
+    .mode-btn:hover { border-color: #C9A84C; background: rgba(201,168,76,0.12); }
+    .mode-btn.selected { border-color: #C9A84C; background: rgba(201,168,76,0.15); }
 
-    .mode-btn.selected {
-      border-color: #C9A84C;
-      background: rgba(201,168,76,0.15);
-    }
+    .mode-btn .mode-icon  { font-size: 20px; margin-bottom: 4px; }
+    .mode-btn .mode-label { font-size: 10px; font-weight: 600; color: #1c1c1c; display: block; }
+    .mode-btn .mode-desc  { font-size: 9px; color: rgba(28,28,28,0.45); display: block; margin-top: 2px; }
 
-    .mode-btn .mode-icon {
-      font-size: 20px;
-      margin-bottom: 4px;
-    }
-
-    .mode-btn .mode-label {
-      font-size: 10px;
-      font-weight: 600;
-      color: #1c1c1c;
-      display: block;
-    }
-
-    .mode-btn .mode-desc {
-      font-size: 9px;
-      color: rgba(28,28,28,0.45);
-      display: block;
-      margin-top: 2px;
-    }
-
-    /* Zone saisie URL serveur */
     #client-config {
       display: none;
       width: 100%;
       margin-bottom: 10px;
       animation: fadein 0.2s ease;
     }
-
-    #client-config.visible {
-      display: block;
-    }
+    #client-config.visible { display: block; }
 
     .url-label {
       font-size: 10px;
@@ -248,11 +273,7 @@
       display: block;
     }
 
-    .url-row {
-      display: flex;
-      gap: 6px;
-      align-items: center;
-    }
+    .url-row { display: flex; gap: 6px; align-items: center; }
 
     #server-input {
       flex: 1;
@@ -266,21 +287,10 @@
       outline: none;
       transition: border-color 0.15s;
     }
+    #server-input:focus { border-color: #C9A84C; }
+    #server-input.error { border-color: rgba(180,40,30,0.5); }
 
-    #server-input:focus {
-      border-color: #C9A84C;
-    }
-
-    #server-input.error {
-      border-color: rgba(180,40,30,0.5);
-    }
-
-    #input-error {
-      font-size: 9px;
-      color: rgba(180,40,30,0.7);
-      margin-top: 4px;
-      min-height: 12px;
-    }
+    #input-error { font-size: 9px; color: rgba(180,40,30,0.7); margin-top: 4px; min-height: 12px; }
 
     .confirm-btn {
       width: 100%;
@@ -295,7 +305,6 @@
       transition: opacity 0.15s;
       letter-spacing: 0.3px;
     }
-
     .confirm-btn:hover { opacity: 0.9; }
     .confirm-btn:disabled { opacity: 0.5; cursor: not-allowed; }
 
@@ -320,7 +329,14 @@
 
     <div class="progress-block">
       <div class="bar-track"><div class="bar-fill"></div></div>
-      <p id="status">Chargement des données...</p>
+
+      <div class="status-row">
+        <p id="status">Chargement des données...</p>
+        <span id="elapsed"></span>
+      </div>
+
+      <div class="details-toggle" id="details-toggle" onclick="toggleDetails()">Détails ▾</div>
+      <div class="log-panel" id="log-panel"></div>
     </div>
 
     <div class="divider"></div>
@@ -366,6 +382,45 @@
   </div>
 
   <script>
+    // ── Chronomètre ──────────────────────────────────────────
+    const startTime = Date.now();
+    const elapsedEl = document.getElementById('elapsed');
+
+    function updateElapsed() {
+      const secs = Math.floor((Date.now() - startTime) / 1000);
+      if (secs < 5) { elapsedEl.textContent = ''; return; }
+      const m = Math.floor(secs / 60);
+      const s = secs % 60;
+      elapsedEl.textContent = m > 0
+        ? `${m} min ${String(s).padStart(2, '0')} s`
+        : `${s} s`;
+    }
+    setInterval(updateElapsed, 1000);
+
+    // ── Panneau détails ──────────────────────────────────────
+    let detailsOpen = false;
+    const logLines = [];
+
+    function toggleDetails() {
+      detailsOpen = !detailsOpen;
+      document.getElementById('log-panel').classList.toggle('visible', detailsOpen);
+      document.getElementById('details-toggle').textContent = detailsOpen ? 'Détails ▴' : 'Détails ▾';
+    }
+
+    function addLog(msg) {
+      const secs = Math.floor((Date.now() - startTime) / 1000);
+      const ts = secs < 60 ? `${secs}s` : `${Math.floor(secs/60)}m${secs%60}s`;
+      logLines.push({ ts, msg });
+
+      const panel = document.getElementById('log-panel');
+      const line = document.createElement('div');
+      line.className = 'log-line';
+      line.innerHTML = `<span class="ts">[${ts}]</span>${msg}`;
+      panel.appendChild(line);
+      panel.scrollTop = panel.scrollHeight;
+    }
+
+    // ── Sélection mode ────────────────────────────────────────
     let selectedMode = null;
 
     function selectMode(mode) {
@@ -380,7 +435,6 @@
       } else {
         clientConfig.classList.remove('visible');
       }
-
       updateConfirmState();
     }
 
@@ -388,8 +442,7 @@
       const btn = document.getElementById('confirm-btn');
       if (!selectedMode) { btn.disabled = true; return; }
       if (selectedMode === 'server') { btn.disabled = false; return; }
-      const url = document.getElementById('server-input').value.trim();
-      btn.disabled = url.length === 0;
+      btn.disabled = document.getElementById('server-input').value.trim().length === 0;
     }
 
     document.getElementById('server-input').addEventListener('input', () => {
@@ -406,10 +459,7 @@
       let serverUrl = null;
       if (selectedMode === 'client') {
         let raw = document.getElementById('server-input').value.trim();
-        // Normaliser : ajouter http:// si absent, ajouter :3001 si pas de port
-        if (!raw.startsWith('http://') && !raw.startsWith('https://')) {
-          raw = 'http://' + raw;
-        }
+        if (!raw.startsWith('http://') && !raw.startsWith('https://')) raw = 'http://' + raw;
         try {
           const parsed = new URL(raw);
           if (!parsed.port) parsed.port = '3001';
@@ -426,16 +476,12 @@
       try {
         const { invoke } = await import('@tauri-apps/api/core');
         const ok = await invoke('save_config', {
-          config: {
-            mode: selectedMode,
-            server_url: serverUrl,
-            configured: true,
-          },
+          config: { mode: selectedMode, server_url: serverUrl, configured: true },
         });
         if (ok) {
-          // Masquer l'overlay, laisser Rust continuer
           document.getElementById('setup-overlay').classList.remove('visible');
           document.getElementById('status').textContent = 'Configuration enregistrée...';
+          addLog('Configuration enregistrée');
         } else {
           throw new Error('Échec de la sauvegarde');
         }
@@ -455,6 +501,7 @@
 
       await listen('splash-status', (event) => {
         statusEl.textContent = event.payload;
+        addLog(event.payload);
       });
 
       await listen('show-setup', () => {
