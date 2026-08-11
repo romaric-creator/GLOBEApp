@@ -88,8 +88,8 @@ export class SyncController {
         );
         await this.prisma.reservation.upsert({
           where: { id: data['id'] as string },
-          update: data,
-          create: data,
+          update: data as any,
+          create: data as any,
         });
         results.reservations++;
       }
@@ -106,8 +106,8 @@ export class SyncController {
         );
         await this.prisma.factureSejour.upsert({
           where: { id: data['id'] as string },
-          update: data,
-          create: data,
+          update: data as any,
+          create: data as any,
         });
         results.facturesSejour++;
       }
@@ -118,8 +118,8 @@ export class SyncController {
         const data = omit(c, 'lignes', 'syncStatus', 'syncedAt');
         await this.prisma.commandeTable.upsert({
           where: { id: data['id'] as string },
-          update: data,
-          create: data,
+          update: data as any,
+          create: data as any,
         });
         results.commandes++;
       }
@@ -130,8 +130,8 @@ export class SyncController {
         const data = omit(p, 'syncStatus', 'syncedAt');
         await this.prisma.paiement.upsert({
           where: { id: data['id'] as string },
-          update: data,
-          create: data,
+          update: data as any,
+          create: data as any,
         });
         results.paiements++;
       }
@@ -142,8 +142,8 @@ export class SyncController {
         const data = omit(d, 'syncStatus', 'syncedAt');
         await this.prisma.depense.upsert({
           where: { id: data['id'] as string },
-          update: data,
-          create: data,
+          update: data as any,
+          create: data as any,
         });
         results.depenses++;
       }
