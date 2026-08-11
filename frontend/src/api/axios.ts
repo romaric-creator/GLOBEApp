@@ -5,7 +5,7 @@ function getBaseURL(): string {
 }
 
 const api = axios.create({
-  baseURL: import.meta.env.VITE_API_BASE_URL ?? '/api',
+  baseURL: getBaseURL(),
 });
 
 api.interceptors.request.use((config) => {
