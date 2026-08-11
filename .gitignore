@@ -15,6 +15,14 @@ backup.sql
 .env
 *.env.local
 
+# Fichiers de diagnostic / test locaux
+bedrock_diag.txt
+payload.json
+
+# Documents privés
+*.docx
+*.doc
+
 # Tauri build artifacts
 frontend/src-tauri/target/
 frontend/src-tauri/WixTools/

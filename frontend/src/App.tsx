@@ -18,6 +18,7 @@ import SalleFetePage from "./pages/salle-fete/SalleFetePage";
 import ComptabilitePage from "./pages/comptabilite/ComptabilitePage";
 import RapportsPage from "./pages/rapports/RapportsPage";
 import SauvegardePage from "./pages/sauvegarde/SauvegardePage";
+import ParametresPage from "./pages/parametres/ParametresPage";
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -82,6 +83,7 @@ export default function App() {
                 <Route path="/comptabilite" element={<ProtectedRoute roles={['admin', 'manager']}><ComptabilitePage /></ProtectedRoute>} />
                 <Route path="/rapports" element={<ProtectedRoute roles={['admin', 'manager']}><RapportsPage /></ProtectedRoute>} />
                 <Route path="/sauvegarde" element={<ProtectedRoute roles={['admin', 'manager']}><SauvegardePage /></ProtectedRoute>} />
+                <Route path="/parametres" element={<ProtectedRoute roles={['admin', 'manager']}><ParametresPage /></ProtectedRoute>} />
               </Route>
               <Route path="*" element={<Navigate to="/dashboard" replace />} />
             </Routes>

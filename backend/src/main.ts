@@ -19,13 +19,22 @@ async function bootstrap() {
   const app = await NestFactory.create(AppModule);
 
   app.setGlobalPrefix('api');
+
+  const extraOrigins = (process.env.ALLOWED_ORIGINS ?? '')
+    .split(',')
+    .map((s) => s.trim())
+    .filter(Boolean);
+
+  const allowedOrigins = [
+    'http://localhost:3000',
+    'http://localhost:1420',
+    'tauri://localhost',
+    'https://tauri.localhost',
+    ...extraOrigins,
+  ];
+
   app.enableCors({
-    origin: [
-      'http://localhost:3000',
-      'http://localhost:1420',
-      'tauri://localhost',         // Tauri v2 Linux/macOS
-      'https://tauri.localhost',   // Tauri v2 Windows (WebView2)
-    ],
+    origin: allowedOrigins,
     methods: ['GET', 'POST', 'PATCH', 'PUT', 'DELETE', 'OPTIONS'],
     credentials: true,
   });

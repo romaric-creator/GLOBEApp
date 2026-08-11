@@ -99,6 +99,10 @@ export default function LoginPage() {
                 </Button>
               </Form.Item>
             </Form>
+            <p className="mt-6 text-center text-xs text-slate-400">
+              Développé par{" "}
+              <span style={{ color: "#C9A84C", fontWeight: 500 }}>SparkNest</span>
+            </p>
           </div>
         </div>
       </div>

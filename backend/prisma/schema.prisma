@@ -76,8 +76,8 @@ model RolePermission {
 
 model Session {
   id           String   @id @default(uuid()) @db.VarChar(36)
-  accessToken  String
-  refreshToken String
+  accessToken  String   @db.Text
+  refreshToken String   @db.Text
   ip           String?
   device       String?
   userAgent    String?

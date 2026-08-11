@@ -20,7 +20,6 @@
       position: relative;
     }
 
-    /* Grille dorée — identique à index.css */
     body::before {
       content: '';
       position: absolute;
@@ -34,6 +33,7 @@
       opacity: 0.5;
     }
 
+    /* ── Splash chargement ────────────────────────────────── */
     .container {
       position: relative;
       height: 100%;
@@ -42,9 +42,9 @@
       align-items: center;
       justify-content: center;
       padding: 0 40px 32px;
+      transition: opacity 0.2s;
     }
 
-    /* Logo image avec halo */
     .logo-wrap {
       position: relative;
       margin-bottom: 18px;
@@ -73,7 +73,6 @@
       mix-blend-mode: multiply;
     }
 
-    /* Texte */
     h1 {
       font-size: 19px;
       font-weight: 700;
@@ -90,7 +89,6 @@
       margin-bottom: 28px;
     }
 
-    /* Barre de progression */
     .progress-block {
       width: 100%;
       max-width: 300px;
@@ -126,7 +124,6 @@
       text-align: center;
     }
 
-    /* Séparateur or */
     .divider {
       width: 40px;
       height: 1px;
@@ -135,7 +132,6 @@
       opacity: 0.5;
     }
 
-    /* Panneau logs en bas */
     .log-panel {
       position: absolute;
       bottom: 0;
@@ -171,7 +167,6 @@
       to   { opacity: 1; transform: translateY(0); }
     }
 
-    /* Badge version */
     .version {
       position: absolute;
       top: 13px;
@@ -179,14 +174,174 @@
       font-size: 9px;
       color: rgba(28,28,28,0.22);
       letter-spacing: 0.4px;
-      z-index: 2;
+      z-index: 10;
+    }
+
+    /* ── Overlay configuration premier lancement ──────────── */
+    #setup-overlay {
+      display: none;
+      position: absolute;
+      inset: 0;
+      z-index: 20;
+      background:
+        radial-gradient(circle at top left,  rgba(201,168,76,0.13), transparent 40%),
+        linear-gradient(135deg, #faf9f5 0%, #f5f2e8 50%, #fdfcf8 100%);
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      padding: 24px 32px 20px;
+      animation: fadein 0.25s ease;
+    }
+
+    #setup-overlay.visible {
+      display: flex;
+    }
+
+    .setup-title {
+      font-size: 13px;
+      font-weight: 700;
+      color: #1c1c1c;
+      margin-bottom: 4px;
+      letter-spacing: -0.1px;
+    }
+
+    .setup-sub {
+      font-size: 10px;
+      color: rgba(28,28,28,0.4);
+      margin-bottom: 20px;
+      text-align: center;
+    }
+
+    .mode-buttons {
+      display: flex;
+      gap: 10px;
+      width: 100%;
+      margin-bottom: 14px;
+    }
+
+    .mode-btn {
+      flex: 1;
+      padding: 10px 8px;
+      border: 1.5px solid rgba(201,168,76,0.35);
+      border-radius: 8px;
+      background: rgba(201,168,76,0.06);
+      cursor: pointer;
+      text-align: center;
+      transition: all 0.15s;
+    }
+
+    .mode-btn:hover {
+      border-color: #C9A84C;
+      background: rgba(201,168,76,0.12);
+    }
+
+    .mode-btn.selected {
+      border-color: #C9A84C;
+      background: rgba(201,168,76,0.15);
+    }
+
+    .mode-btn .mode-icon {
+      font-size: 20px;
+      margin-bottom: 4px;
+    }
+
+    .mode-btn .mode-label {
+      font-size: 10px;
+      font-weight: 600;
+      color: #1c1c1c;
+      display: block;
+    }
+
+    .mode-btn .mode-desc {
+      font-size: 9px;
+      color: rgba(28,28,28,0.45);
+      display: block;
+      margin-top: 2px;
+    }
+
+    /* Zone saisie URL serveur */
+    #client-config {
+      display: none;
+      width: 100%;
+      margin-bottom: 10px;
+      animation: fadein 0.2s ease;
+    }
+
+    #client-config.visible {
+      display: block;
+    }
+
+    .url-label {
+      font-size: 10px;
+      color: rgba(28,28,28,0.5);
+      margin-bottom: 5px;
+      display: block;
+    }
+
+    .url-row {
+      display: flex;
+      gap: 6px;
+      align-items: center;
+    }
+
+    #server-input {
+      flex: 1;
+      padding: 7px 10px;
+      border: 1.5px solid rgba(201,168,76,0.3);
+      border-radius: 6px;
+      background: rgba(255,255,255,0.7);
+      font-size: 11px;
+      font-family: 'Cascadia Code', 'Consolas', monospace;
+      color: #1c1c1c;
+      outline: none;
+      transition: border-color 0.15s;
+    }
+
+    #server-input:focus {
+      border-color: #C9A84C;
+    }
+
+    #server-input.error {
+      border-color: rgba(180,40,30,0.5);
+    }
+
+    #input-error {
+      font-size: 9px;
+      color: rgba(180,40,30,0.7);
+      margin-top: 4px;
+      min-height: 12px;
+    }
+
+    .confirm-btn {
+      width: 100%;
+      padding: 8px;
+      background: linear-gradient(135deg, #C9A84C, #b8932e);
+      color: white;
+      border: none;
+      border-radius: 7px;
+      font-size: 11px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: opacity 0.15s;
+      letter-spacing: 0.3px;
+    }
+
+    .confirm-btn:hover { opacity: 0.9; }
+    .confirm-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+
+    .setup-footer {
+      font-size: 9px;
+      color: rgba(28,28,28,0.25);
+      margin-top: 10px;
+      text-align: center;
     }
   </style>
 </head>
 <body>
   <span class="version">v1.0.0</span>
 
-  <div class="container">
+  <!-- Splash chargement normal -->
+  <div class="container" id="loading-view">
     <div class="logo-wrap">
       <img class="logo-img" src="logo.png" alt="GLOBE" />
     </div>
@@ -202,6 +357,127 @@
   </div>
 
   <div class="log-panel" id="log-panel"></div>
+
+  <!-- Overlay configuration premier lancement -->
+  <div id="setup-overlay">
+    <p class="setup-title">Configuration initiale</p>
+    <p class="setup-sub">Comment est utilisé ce poste ?</p>
+
+    <div class="mode-buttons">
+      <div class="mode-btn" id="btn-server" onclick="selectMode('server')">
+        <div class="mode-icon">🖥️</div>
+        <span class="mode-label">Serveur</span>
+        <span class="mode-desc">Ce PC héberge la base de données</span>
+      </div>
+      <div class="mode-btn" id="btn-client" onclick="selectMode('client')">
+        <div class="mode-icon">💻</div>
+        <span class="mode-label">Poste client</span>
+        <span class="mode-desc">Se connecter à un serveur existant</span>
+      </div>
+    </div>
+
+    <div id="client-config">
+      <label class="url-label" for="server-input">Adresse du serveur</label>
+      <div class="url-row">
+        <input
+          id="server-input"
+          type="text"
+          placeholder="http://192.168.1.100:3001"
+          autocomplete="off"
+          spellcheck="false"
+        />
+      </div>
+      <p id="input-error"></p>
+    </div>
+
+    <button class="confirm-btn" id="confirm-btn" onclick="confirmSetup()" disabled>
+      Valider et démarrer
+    </button>
+
+    <p class="setup-footer">Ce choix peut être réinitialisé depuis les paramètres</p>
+  </div>
+
+  <script>
+    let selectedMode = null;
+
+    function selectMode(mode) {
+      selectedMode = mode;
+      document.getElementById('btn-server').classList.toggle('selected', mode === 'server');
+      document.getElementById('btn-client').classList.toggle('selected', mode === 'client');
+
+      const clientConfig = document.getElementById('client-config');
+      if (mode === 'client') {
+        clientConfig.classList.add('visible');
+        document.getElementById('server-input').focus();
+      } else {
+        clientConfig.classList.remove('visible');
+      }
+
+      updateConfirmState();
+    }
+
+    function updateConfirmState() {
+      const btn = document.getElementById('confirm-btn');
+      if (!selectedMode) { btn.disabled = true; return; }
+      if (selectedMode === 'server') { btn.disabled = false; return; }
+      const url = document.getElementById('server-input').value.trim();
+      btn.disabled = url.length === 0;
+    }
+
+    document.getElementById('server-input').addEventListener('input', () => {
+      document.getElementById('input-error').textContent = '';
+      document.getElementById('server-input').classList.remove('error');
+      updateConfirmState();
+    });
+
+    async function confirmSetup() {
+      const btn = document.getElementById('confirm-btn');
+      btn.disabled = true;
+      btn.textContent = 'Enregistrement...';
+
+      let serverUrl = null;
+      if (selectedMode === 'client') {
+        let raw = document.getElementById('server-input').value.trim();
+        // Normaliser : ajouter http:// si absent, ajouter :3001 si pas de port
+        if (!raw.startsWith('http://') && !raw.startsWith('https://')) {
+          raw = 'http://' + raw;
+        }
+        try {
+          const parsed = new URL(raw);
+          if (!parsed.port) parsed.port = '3001';
+          serverUrl = parsed.origin;
+        } catch {
+          document.getElementById('input-error').textContent = 'Adresse invalide';
+          document.getElementById('server-input').classList.add('error');
+          btn.disabled = false;
+          btn.textContent = 'Valider et démarrer';
+          return;
+        }
+      }
+
+      try {
+        const { invoke } = await import('@tauri-apps/api/core');
+        const ok = await invoke('save_config', {
+          config: {
+            mode: selectedMode,
+            server_url: serverUrl,
+            configured: true,
+          },
+        });
+        if (ok) {
+          // Masquer l'overlay, laisser Rust continuer
+          document.getElementById('setup-overlay').classList.remove('visible');
+          document.getElementById('status').textContent = 'Configuration enregistrée...';
+        } else {
+          throw new Error('Échec de la sauvegarde');
+        }
+      } catch (e) {
+        document.getElementById('input-error').textContent = 'Erreur : ' + e.message;
+        btn.disabled = false;
+        btn.textContent = 'Valider et démarrer';
+      }
+    }
+  </script>
 
   <script type="module">
     const MAX_LINES = 4;
@@ -229,6 +505,10 @@
         const msg = event.payload;
         const isError = /error|erreur|fail|impossible/i.test(msg);
         addLog(msg, isError);
+      });
+
+      await listen('show-setup', () => {
+        document.getElementById('setup-overlay').classList.add('visible');
       });
     } catch (e) {
       statusEl.textContent = 'En attente de Tauri...';

@@ -3,34 +3,41 @@ services:
     image: mysql:8.0
     container_name: globe_manager_db
     restart: unless-stopped
+    command: --default-authentication-plugin=mysql_native_password
     environment:
       MYSQL_DATABASE: gestion_residence
       MYSQL_USER: globe
-      MYSQL_PASSWORD: globe_secret
-      MYSQL_ROOT_PASSWORD: root_secret
+      MYSQL_PASSWORD: ${MYSQL_PASSWORD:-globe_secret}
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD:-root_secret}
     ports:
-      - "3306:3306"
+      - "3307:3306"
     volumes:
       - mysql_data:/var/lib/mysql
     healthcheck:
-      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-u", "globe", "-pglobe_secret"]
+      test: ["CMD-SHELL", "mysqladmin ping -h localhost -u globe -p$$MYSQL_PASSWORD"]
       interval: 10s
       timeout: 5s
       retries: 10
       start_period: 30s
 
   backend:
-    image: ghcr.io/romaric-creator/globeapp/backend:latest
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
     container_name: globe_manager_backend
     restart: unless-stopped
     ports:
       - "3001:3001"
+    volumes:
+      - backups_data:/backups
     environment:
-      DATABASE_URL: mysql://globe:globe_secret@mysql:3306/gestion_residence
-      JWT_SECRET: ${JWT_SECRET:-globe-super-secret-key-change-in-production}
+      NODE_ENV: production
+      DATABASE_URL: mysql://globe:${MYSQL_PASSWORD:-globe_secret}@mysql:3306/gestion_residence
+      JWT_SECRET: ${JWT_SECRET:-globe-jwt-secret-change-in-production}
       JWT_EXPIRES_IN: 1h
       JWT_REFRESH_EXPIRES_IN: 7d
       PORT: 3001
+      ALLOWED_ORIGINS: ${ALLOWED_ORIGINS:-}
       SYNC_REMOTE_URL: ${SYNC_REMOTE_URL:-}
       SYNC_API_KEY: ${SYNC_API_KEY:-}
     depends_on:
@@ -43,5 +50,18 @@ services:
       retries: 12
       start_period: 30s
 
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    container_name: globe_manager_frontend
+    restart: unless-stopped
+    ports:
+      - "3000:80"
+    depends_on:
+      backend:
+        condition: service_healthy
+
 volumes:
   mysql_data:
+  backups_data:
