@@ -1,5 +1,4 @@
 use serde::{Deserialize, Serialize};
-use std::io;
 use std::process::Command;
 use std::sync::{Arc, Condvar, Mutex};
 use std::time::{Duration, Instant};
@@ -179,22 +178,24 @@ fn ensure_docker_running(app: &tauri::AppHandle, env: &DockerEnv) -> bool {
             }
         }
         DockerStatus::NotInstalled => {
-            emit_splash_status(app, "Installation des composants requis...");
-            if !install_docker(app) {
-                emit_splash_status(app, "L'installation a échoué. Relancez l'application.");
-                std::thread::sleep(Duration::from_secs(8));
-                return false;
+            emit_splash_status(app, "Docker n'est pas installé. Installez-le puis relancez GLOBE Manager.");
+            // Ouvrir la page de téléchargement dans le navigateur
+            #[cfg(target_os = "linux")]
+            {
+                Command::new("xdg-open")
+                    .arg("https://docs.docker.com/engine/install/")
+                    .spawn()
+                    .ok();
             }
-            emit_splash_status(app, "Démarrage de l'environnement...");
-            let new_docker = find_docker_binary();
-            start_docker_service(app, &new_docker);
-            if wait_for_docker(app, &new_docker, 120) {
-                true
-            } else {
-                emit_splash_status(app, "Redémarrez votre ordinateur puis relancez GLOBE Manager.");
-                std::thread::sleep(Duration::from_secs(8));
-                false
+            #[cfg(target_os = "windows")]
+            {
+                Command::new("explorer")
+                    .arg("https://docs.docker.com/desktop/install/windows-install/")
+                    .spawn()
+                    .ok();
             }
+            std::thread::sleep(Duration::from_secs(10));
+            false
         }
     }
 }
@@ -257,95 +258,6 @@ fn start_docker_service(_app: &tauri::AppHandle, _docker: &std::path::Path) {
 
 #[cfg(not(any(target_os = "windows", target_os = "linux")))]
 fn start_docker_service(_app: &tauri::AppHandle, _docker: &std::path::Path) {}
-
-// ── Installation de Docker ────────────────────────────────────────────────────
-
-#[cfg(target_os = "windows")]
-fn install_docker(app: &tauri::AppHandle) -> bool {
-    let arch = if std::env::consts::ARCH == "aarch64" { "arm64" } else { "amd64" };
-    let url = format!(
-        "https://desktop.docker.com/win/main/{arch}/Docker%20Desktop%20Installer.exe"
-    );
-    let installer = std::env::temp_dir().join("DockerDesktopInstaller.exe");
-
-    emit_splash_status(app, "Téléchargement des composants requis...");
-    if let Err(_) = download_file(&url, &installer) {
-        return false;
-    }
-
-    emit_splash_status(app, "Installation en cours — une autorisation va s'afficher...");
-    // Utiliser PowerShell Start-Process -Verb RunAs pour déclencher l'UAC correctement
-    Command::new("powershell")
-        .args([
-            "-NoProfile", "-Command",
-            &format!(
-                "Start-Process -FilePath '{}' -ArgumentList 'install --quiet --accept-license' -Verb RunAs -Wait",
-                installer.display()
-            ),
-        ])
-        .status()
-        .map(|s| s.success())
-        .unwrap_or(false)
-}
-
-#[cfg(target_os = "linux")]
-fn install_docker(app: &tauri::AppHandle) -> bool {
-    let script = std::path::PathBuf::from("/tmp/get-docker.sh");
-
-    emit_splash_status(app, "Téléchargement des composants requis...");
-    if download_file("https://get.docker.com", &script).is_err() {
-        return false;
-    }
-
-    emit_splash_status(app, "Installation en cours — une autorisation va s'afficher...");
-
-    // Récupérer l'utilisateur réel (SUDO_USER si lancé via sudo, sinon USER)
-    let real_user = std::env::var("SUDO_USER")
-        .or_else(|_| std::env::var("USER"))
-        .unwrap_or_default();
-
-    // Essayer pkexec puis sudo -n (sans mot de passe si configuré en NOPASSWD)
-    for cmd in &[
-        vec!["pkexec", "sh", "/tmp/get-docker.sh"],
-        vec!["sudo", "-n", "sh", "/tmp/get-docker.sh"],
-    ] {
-        if Command::new(cmd[0]).args(&cmd[1..]).status()
-            .map(|s| s.success()).unwrap_or(false)
-        {
-            // Ajouter l'utilisateur réel au groupe docker
-            if !real_user.is_empty() {
-                Command::new("pkexec")
-                    .args(["usermod", "-aG", "docker", &real_user])
-                    .status()
-                    .ok();
-            }
-            emit_splash_status(app, "Installation terminée.");
-            return true;
-        }
-    }
-    false
-}
-
-#[cfg(not(any(target_os = "windows", target_os = "linux")))]
-fn install_docker(_app: &tauri::AppHandle) -> bool {
-    false
-}
-
-// ── Téléchargement ────────────────────────────────────────────────────────────
-
-fn download_file(url: &str, path: &std::path::Path) -> Result<(), String> {
-    let response = ureq::AgentBuilder::new()
-        .timeout_connect(Duration::from_secs(30))
-        .timeout(Duration::from_secs(3600))
-        .build()
-        .get(url)
-        .call()
-        .map_err(|e| e.to_string())?;
-
-    let mut file = std::fs::File::create(path).map_err(|e| e.to_string())?;
-    io::copy(&mut response.into_reader(), &mut file).map_err(|e| e.to_string())?;
-    Ok(())
-}
 
 // ─── Docker Compose ───────────────────────────────────────────────────────────
 
