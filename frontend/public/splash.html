@@ -132,36 +132,6 @@
       opacity: 0.5;
     }
 
-    .log-panel {
-      position: absolute;
-      bottom: 0;
-      left: 0;
-      right: 0;
-      height: 52px;
-      padding: 6px 16px;
-      overflow: hidden;
-      display: flex;
-      flex-direction: column;
-      justify-content: flex-end;
-      gap: 2px;
-      border-top: 1px solid rgba(201,168,76,0.12);
-      background: rgba(245,242,232,0.6);
-      backdrop-filter: blur(4px);
-      z-index: 2;
-    }
-
-    .log-line {
-      font-size: 9px;
-      color: rgba(28,28,28,0.3);
-      font-family: 'Cascadia Code', 'Consolas', monospace;
-      white-space: nowrap;
-      overflow: hidden;
-      text-overflow: ellipsis;
-      animation: fadein 0.2s ease;
-    }
-
-    .log-line.error { color: rgba(180,40,30,0.55); }
-
     @keyframes fadein {
       from { opacity: 0; transform: translateY(3px); }
       to   { opacity: 1; transform: translateY(0); }
@@ -350,13 +320,11 @@
 
     <div class="progress-block">
       <div class="bar-track"><div class="bar-fill"></div></div>
-      <p id="status">Initialisation...</p>
+      <p id="status">Chargement des données...</p>
     </div>
 
     <div class="divider"></div>
   </div>
-
-  <div class="log-panel" id="log-panel"></div>
 
   <!-- Overlay configuration premier lancement -->
   <div id="setup-overlay">
@@ -480,19 +448,7 @@
   </script>
 
   <script type="module">
-    const MAX_LINES = 4;
-    const logPanel = document.getElementById('log-panel');
     const statusEl = document.getElementById('status');
-
-    function addLog(msg, isError = false) {
-      const line = document.createElement('div');
-      line.className = 'log-line' + (isError ? ' error' : '');
-      line.textContent = msg;
-      logPanel.appendChild(line);
-      while (logPanel.children.length > MAX_LINES) {
-        logPanel.removeChild(logPanel.firstChild);
-      }
-    }
 
     try {
       const { listen } = await import('@tauri-apps/api/event');
@@ -501,18 +457,11 @@
         statusEl.textContent = event.payload;
       });
 
-      await listen('app-log', (event) => {
-        const msg = event.payload;
-        const isError = /error|erreur|fail|impossible/i.test(msg);
-        addLog(msg, isError);
-      });
-
       await listen('show-setup', () => {
         document.getElementById('setup-overlay').classList.add('visible');
       });
-    } catch (e) {
-      statusEl.textContent = 'En attente de Tauri...';
-      addLog('Tauri API indisponible: ' + e.message, true);
+    } catch {
+      statusEl.textContent = 'Chargement des données de l\'application...';
     }
   </script>
 </body>
