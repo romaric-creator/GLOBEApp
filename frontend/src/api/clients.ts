@@ -2,7 +2,7 @@ import api from './axios';
 
 export interface Client {
   id: string;
-  type: 'PARTICULIER' | 'ENTREPRISE';
+  type: 'PARTICULIER' | 'PROFESSIONNEL';
   nom: string;
   prenom?: string;
   raisonSociale?: string;
@@ -20,7 +20,7 @@ export interface CreateClientDto {
   raisonSociale?: string;
   email?: string;
   telephone?: string;
-  type?: 'PARTICULIER' | 'ENTREPRISE';
+  type?: 'PARTICULIER' | 'PROFESSIONNEL';
 }
 
 export const clientsApi = {

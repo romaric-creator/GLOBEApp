@@ -300,7 +300,7 @@ export default function ReservationsTab() {
           <Form.Item name="type" label="Type" initialValue="PARTICULIER">
             <Select options={[
               { value: 'PARTICULIER', label: 'Particulier' },
-              { value: 'ENTREPRISE', label: 'Entreprise' },
+              { value: 'PROFESSIONNEL', label: 'Professionnel' },
             ]} />
           </Form.Item>
         </Form>
