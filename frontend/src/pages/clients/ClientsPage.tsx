@@ -82,8 +82,8 @@ export default function ClientsPage() {
       dataIndex: 'type',
       key: 'type',
       render: (type: string) => (
-        <Tag color={type === 'ENTREPRISE' ? 'gold' : 'green'}>
-          {type === 'ENTREPRISE' ? 'Entreprise' : 'Particulier'}
+        <Tag color={type === 'PROFESSIONNEL' ? 'gold' : 'green'}>
+          {type === 'PROFESSIONNEL' ? 'Professionnel' : 'Particulier'}
         </Tag>
       ),
     },
@@ -163,7 +163,7 @@ export default function ClientsPage() {
           <Form.Item name="type" label="Type de client">
             <Select>
               <Select.Option value="PARTICULIER">Particulier</Select.Option>
-              <Select.Option value="ENTREPRISE">Entreprise</Select.Option>
+              <Select.Option value="PROFESSIONNEL">Professionnel</Select.Option>
             </Select>
           </Form.Item>
           <Form.Item name="nom" label="Nom" rules={[{ required: true, message: 'Nom requis' }]}>
