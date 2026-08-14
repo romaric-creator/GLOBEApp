@@ -25,4 +25,4 @@ COPY --from=builder /app/prisma ./prisma
 EXPOSE 3001
 
 # Appliquer les migrations puis démarrer
-CMD ["sh", "-c", "npx prisma db push --skip-generate && npx prisma db seed && node dist/main.js"]
+CMD ["sh", "-c", "npx prisma db push --skip-generate && npx prisma db seed && node dist/src/main.js"]
