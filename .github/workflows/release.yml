@@ -49,6 +49,12 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      - name: Pin Docker image version in compose
+        shell: bash
+        run: |
+          VERSION="${GITHUB_REF_NAME#v}"
+          sed -i "s|ghcr.io/romaric-creator/globeapp/backend:.*|ghcr.io/romaric-creator/globeapp/backend:v${VERSION}|" docker-compose.yml
+
       - name: Installer Node.js
         uses: actions/setup-node@v4
         with:

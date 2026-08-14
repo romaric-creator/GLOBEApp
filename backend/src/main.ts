@@ -1,6 +1,7 @@
 import { NestFactory } from '@nestjs/core';
 import { ValidationPipe } from '@nestjs/common';
 import { AppModule } from './app.module';
+import { PrismaService } from './prisma/prisma.service';
 
 function stripEmpty(obj: Record<string, unknown>): Record<string, unknown> {
   const result: Record<string, unknown> = {};
@@ -60,12 +61,17 @@ async function bootstrap() {
     },
   );
 
-  // Health check pour Tauri desktop auto-start
+  const prisma = app.get(PrismaService);
   const httpAdapter = app.getHttpAdapter();
   httpAdapter.get(
     '/api/health',
-    (_req: unknown, res: { json: (v: unknown) => void }) => {
-      res.json({ status: 'ok' });
+    async (_req: unknown, res: { status: (code: number) => any; json: (v: unknown) => void }) => {
+      try {
+        await prisma.$queryRaw`SELECT 1`;
+        res.json({ status: 'ok', database: 'connected', version: '1.1.8' });
+      } catch {
+        res.status(503).json({ status: 'degraded', database: 'disconnected', version: '1.1.8' });
+      }
     },
   );
 

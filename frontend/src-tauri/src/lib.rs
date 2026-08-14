@@ -1,4 +1,6 @@
 use serde::{Deserialize, Serialize};
+use std::fs::OpenOptions;
+use std::io::Write;
 use std::process::Command;
 use std::sync::{Arc, Condvar, Mutex};
 use std::time::{Duration, Instant};
@@ -309,6 +311,36 @@ fn check_port(port: u16) -> bool {
     std::net::TcpListener::bind(std::net::SocketAddr::from(([127, 0, 0, 1], port))).is_ok()
 }
 
+fn get_log_dir() -> std::path::PathBuf {
+    let dir = if let Ok(appdata) = std::env::var("APPDATA") {
+        std::path::PathBuf::from(appdata).join("GlobeManager").join("logs")
+    } else if let Ok(home) = std::env::var("HOME") {
+        std::path::PathBuf::from(home).join(".config").join("GlobeManager").join("logs")
+    } else {
+        std::path::PathBuf::from("logs")
+    };
+    std::fs::create_dir_all(&dir).ok();
+    dir
+}
+
+fn write_log(filename: &str, content: &str) {
+    let path = get_log_dir().join(filename);
+    if let Ok(mut file) = OpenOptions::new().create(true).append(true).open(&path) {
+        let _ = writeln!(file, "[{}] {}", chrono_timestamp(), content);
+    }
+}
+
+fn chrono_timestamp() -> String {
+    let dur = std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .unwrap_or_default();
+    let secs = dur.as_secs();
+    let h = (secs / 3600) % 24;
+    let m = (secs / 60) % 60;
+    let s = secs % 60;
+    format!("{h:02}:{m:02}:{s:02}")
+}
+
 fn images_already_pulled(env: &DockerEnv) -> bool {
     new_command(&env.docker)
         .args(["images", "-q", "ghcr.io/romaric-creator/globeapp/backend"])
@@ -343,23 +375,57 @@ fn docker_compose_up_with_log(
     let mut child = match env.compose.build()
         .args(["up", "-d", "--remove-orphans"])
         .current_dir(compose_dir)
-        .stdout(std::process::Stdio::null())
-        .stderr(std::process::Stdio::null())
+        .stdout(std::process::Stdio::piped())
+        .stderr(std::process::Stdio::piped())
         .spawn()
     {
         Ok(c) => c,
         Err(e) => {
+            write_log("startup.log", &format!("compose spawn failed: {e}"));
             emit_splash_status(app, &format!("Impossible de démarrer les services: {e}"));
             return false;
         }
     };
+
+    let stderr = child.stderr.take();
+    let app_clone = app.clone();
+    let log_thread = std::thread::spawn(move || {
+        use std::io::BufRead;
+        let mut all_output = String::new();
+        if let Some(pipe) = stderr {
+            let reader = std::io::BufReader::new(pipe);
+            for line in reader.lines() {
+                if let Ok(line) = line {
+                    all_output.push_str(&line);
+                    all_output.push('\n');
+                    write_log("docker.log", &line);
+                    let _ = app_clone.emit("splash-detail", &line);
+                }
+            }
+        }
+        all_output
+    });
 
     let start = Instant::now();
     let mut last_update = Instant::now();
 
     loop {
         match child.try_wait() {
-            Ok(Some(status)) => return status.success(),
+            Ok(Some(status)) => {
+                let output = log_thread.join().unwrap_or_default();
+                if !status.success() {
+                    write_log("startup.log", &format!("compose up failed (exit {})", status.code().unwrap_or(-1)));
+                    let user_msg = if output.contains("manifest unknown") || output.contains("not found") {
+                        "Image serveur introuvable. Vérifiez votre connexion internet."
+                    } else if output.contains("timeout") || output.contains("deadline") {
+                        "Délai dépassé lors du téléchargement. Réessayez."
+                    } else {
+                        "Erreur au démarrage des services. Consultez les logs."
+                    };
+                    emit_splash_status(app, user_msg);
+                }
+                return status.success();
+            }
             Ok(None) => {
                 std::thread::sleep(Duration::from_secs(2));
                 let elapsed = start.elapsed().as_secs();
@@ -540,7 +606,9 @@ pub fn run() {
                 if let Some(s) = app_handle.get_webview_window("splash") { let _ = s.show(); let _ = s.set_focus(); }
                 if let Some(m) = app_handle.get_webview_window("main")   { let _ = m.hide(); }
 
+                write_log("startup.log", "=== GLOBE Manager startup ===");
                 let docker_env = DockerEnv::discover();
+                write_log("startup.log", &format!("Docker: {:?}, Compose: {:?}", docker_env.docker, docker_env.compose.program));
 
                 let config = {
                     let loaded = load_config();
@@ -590,9 +658,13 @@ pub fn run() {
                 };
 
                 emit_splash_status(&app_handle, "Chargement des données...");
+                write_log("startup.log", &format!("Waiting for backend: {health_url}"));
                 if !wait_for_backend(&app_handle, &health_url, 180) {
+                    write_log("startup.log", "Backend health check TIMEOUT");
                     emit_splash_status(&app_handle, "Connexion impossible. Vérifiez le réseau et relancez.");
                     std::thread::sleep(Duration::from_secs(4));
+                } else {
+                    write_log("startup.log", "Backend ready — opening main window");
                 }
 
                 show_main(&app_handle);

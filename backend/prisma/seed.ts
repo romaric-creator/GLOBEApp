@@ -4,6 +4,12 @@ import * as bcrypt from 'bcrypt';
 const prisma = new PrismaClient();
 
 async function main() {
+  const existingAdmin = await prisma.user.findFirst();
+  if (existingAdmin) {
+    console.log('Seed skipped — database already initialized');
+    return;
+  }
+
   const adminRole = await prisma.role.upsert({
     where: { nom: 'admin' },
     update: {},
@@ -12,10 +18,8 @@ async function main() {
 
   const passwordHash = await bcrypt.hash('admin123', 10);
 
-  await prisma.user.upsert({
-    where: { email: 'admin@residence.local' },
-    update: {},
-    create: {
+  await prisma.user.create({
+    data: {
       email: 'admin@residence.local',
       passwordHash,
       nom: 'Admin',

@@ -159,11 +159,21 @@
       border: 1px solid rgba(201,168,76,0.18);
       border-radius: 5px;
       padding: 6px 8px;
-      max-height: 62px;
+      max-height: 100px;
       overflow-y: auto;
+      user-select: text;
     }
 
     .log-panel.visible { display: block; }
+
+    .copy-btn {
+      font-size: 9px;
+      color: rgba(28,28,28,0.3);
+      cursor: pointer;
+      margin-left: 8px;
+      transition: color 0.15s;
+    }
+    .copy-btn:hover { color: #C9A84C; }
 
     .log-line {
       font-size: 9.5px;
@@ -335,7 +345,10 @@
         <span id="elapsed"></span>
       </div>
 
-      <div class="details-toggle" id="details-toggle" onclick="toggleDetails()">Détails ▾</div>
+      <div style="display:flex;align-items:center;justify-content:center;">
+        <div class="details-toggle" id="details-toggle" onclick="toggleDetails()">Détails ▾</div>
+        <span class="copy-btn" id="copy-btn" onclick="copyLogs()" title="Copier les logs">copier</span>
+      </div>
       <div class="log-panel" id="log-panel"></div>
     </div>
 
@@ -418,6 +431,18 @@
       line.innerHTML = `<span class="ts">[${ts}]</span>${msg}`;
       panel.appendChild(line);
       panel.scrollTop = panel.scrollHeight;
+
+      if (logLines.length > 3 && !detailsOpen) {
+        toggleDetails();
+      }
+    }
+
+    function copyLogs() {
+      const text = logLines.map(l => `[${l.ts}] ${l.msg}`).join('\n');
+      navigator.clipboard.writeText(text).then(() => {
+        document.getElementById('copy-btn').textContent = 'copié !';
+        setTimeout(() => { document.getElementById('copy-btn').textContent = 'copier'; }, 2000);
+      });
     }
 
     // ── Sélection mode ────────────────────────────────────────
@@ -501,6 +526,10 @@
 
       await listen('splash-status', (event) => {
         statusEl.textContent = event.payload;
+        addLog(event.payload);
+      });
+
+      await listen('splash-detail', (event) => {
         addLog(event.payload);
       });
 
