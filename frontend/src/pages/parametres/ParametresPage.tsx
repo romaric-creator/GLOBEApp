@@ -51,7 +51,7 @@ import { useAuthStore } from '../../store/auth';
 
 const { Text, Paragraph } = Typography;
 
-const isTauri = typeof (window as any).__TAURI_INTERNALS__ !== 'undefined';
+const isDesktop = typeof (window as any).electronAPI !== 'undefined';
 
 // ─── Tab Compte ──────────────────────────────────────────────────────────────
 
@@ -209,7 +209,7 @@ function TabCompte({ userId, isAdmin }: { userId: string; isAdmin: boolean }) {
   );
 }
 
-// ─── Tab Réseau (Tauri uniquement) ────────────────────────────────────────────
+// ─── Tab Réseau (Desktop uniquement) ──────────────────────────────────────────
 
 function TabReseau({ isAdmin }: { isAdmin: boolean }) {
   const { message, modal } = App.useApp();
@@ -223,24 +223,24 @@ function TabReseau({ isAdmin }: { isAdmin: boolean }) {
   const [loadingAutostart, setLoadingAutostart] = useState(false);
 
   useEffect(() => {
-    import('@tauri-apps/api/core').then(({ invoke }) => {
-      Promise.all([
-        invoke<{ mode: string; server_url: string | null; configured: boolean }>('get_config'),
-        invoke<boolean>('autostart_is_enabled'),
-      ])
-        .then(([cfg, as]) => {
-          setConfig(cfg);
-          setAutostart(as);
-        })
-        .finally(() => setLoadingConfig(false));
-    });
+    const api = (window as any).electronAPI;
+    if (!api) { setLoadingConfig(false); return; }
+    Promise.all([
+      api.getConfig(),
+      api.autostartIsEnabled(),
+    ])
+      .then(([cfg, as]: [any, boolean]) => {
+        setConfig(cfg);
+        setAutostart(as);
+      })
+      .finally(() => setLoadingConfig(false));
   }, []);
 
   const toggleAutostart = async (enabled: boolean) => {
     setLoadingAutostart(true);
     try {
-      const { invoke } = await import('@tauri-apps/api/core');
-      const ok = await invoke<boolean>(enabled ? 'autostart_enable' : 'autostart_disable');
+      const api = (window as any).electronAPI;
+      const ok = enabled ? await api.autostartEnable() : await api.autostartDisable();
       if (ok) {
         setAutostart(enabled);
         message.success(enabled ? 'Démarrage automatique activé' : 'Démarrage automatique désactivé');
@@ -261,8 +261,8 @@ function TabReseau({ isAdmin }: { isAdmin: boolean }) {
       okType: 'danger',
       cancelText: 'Annuler',
       onOk: async () => {
-        const { invoke } = await import('@tauri-apps/api/core');
-        const ok = await invoke<boolean>('reset_config');
+        const api = (window as any).electronAPI;
+        const ok = await api.resetConfig();
         if (ok) {
           message.success("Configuration réinitialisée — redémarrez l'application");
         } else {
@@ -937,11 +937,9 @@ function TabAbout() {
   const [version, setVersion] = useState('1.0.0');
 
   useEffect(() => {
-    if (!isTauri) return;
-    import('@tauri-apps/api/app')
-      .then(({ getVersion }) => getVersion())
-      .then(setVersion)
-      .catch(() => {});
+    const api = (window as any).electronAPI;
+    if (!api) return;
+    api.getVersion().then(setVersion).catch(() => {});
   }, []);
 
   return (
@@ -954,7 +952,7 @@ function TabAbout() {
               <Tag color="gold">v{version}</Tag>
             </Descriptions.Item>
             <Descriptions.Item label="Environnement">
-              {isTauri ? (
+              {isDesktop ? (
                 <Tag icon={<DesktopOutlined />} color="purple">Desktop (Tauri)</Tag>
               ) : (
                 <Tag icon={<GlobalOutlined />} color="cyan">Navigateur web</Tag>
@@ -990,7 +988,7 @@ export default function ParametresPage() {
       label: <Space><UserOutlined />Mon compte</Space>,
       children: <TabCompte userId={userId} isAdmin={isAdmin} />,
     },
-    ...(isTauri
+    ...(isDesktop
       ? [
           {
             key: 'reseau',

@@ -1,8 +1,9 @@
 {
-  "name": "frontend",
+  "name": "globe-manager",
   "private": true,
-  "version": "0.0.0",
+  "version": "1.2.0",
   "type": "module",
+  "main": "electron/main.cjs",
   "scripts": {
     "dev": "vite",
     "build": "tsc -b && vite build",
@@ -11,15 +12,13 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "test:coverage": "vitest run --coverage",
-    "tauri": "tauri",
-    "build:desktop": "tsc -b && vite build --mode desktop",
-    "desktop:dev": "tauri dev",
-    "desktop:build": "tauri build"
+    "electron:dev": "concurrently \"vite\" \"wait-on http://localhost:3000 && electron .\"",
+    "electron:build": "tsc -b && vite build && electron-builder",
+    "desktop:build": "tsc -b && vite build && electron-builder"
   },
   "dependencies": {
     "@ant-design/icons": "^6.3.2",
     "@tanstack/react-query": "^5.101.4",
-    "@tauri-apps/api": "^2.11.1",
     "antd": "^6.5.3",
     "axios": "^1.19.0",
     "dayjs": "^1.11.21",
@@ -31,7 +30,6 @@
   },
   "devDependencies": {
     "@tailwindcss/vite": "^4.3.3",
-    "@tauri-apps/cli": "^2.11.4",
     "@testing-library/jest-dom": "^6.9.1",
     "@testing-library/react": "^16.3.2",
     "@testing-library/user-event": "^14.6.3",
@@ -40,11 +38,63 @@
     "@types/react-dom": "^19.2.3",
     "@vitejs/plugin-react": "^6.0.4",
     "@vitest/coverage-v8": "^4.1.10",
+    "concurrently": "^9.1.2",
+    "electron": "^33.4.0",
+    "electron-builder": "^25.1.8",
     "jsdom": "^29.1.1",
     "oxlint": "^1.75.0",
     "tailwindcss": "^4.3.3",
     "typescript": "~6.0.2",
     "vite": "^8.2.0",
-    "vitest": "^4.1.10"
+    "vitest": "^4.1.10",
+    "wait-on": "^8.0.3"
+  },
+  "build": {
+    "appId": "com.globe.manager",
+    "productName": "GLOBE Manager",
+    "directories": {
+      "output": "release"
+    },
+    "files": [
+      "dist/**/*",
+      "electron/**/*",
+      "public/splash.html",
+      "public/logo.png",
+      "public/logo-globe.jpeg",
+      "public/favicon.svg"
+    ],
+    "extraResources": [
+      {
+        "from": "../backend/dist",
+        "to": "backend/dist"
+      },
+      {
+        "from": "../backend/node_modules",
+        "to": "backend/node_modules"
+      },
+      {
+        "from": "../backend/prisma",
+        "to": "backend/prisma"
+      },
+      {
+        "from": "../backend/package.json",
+        "to": "backend/package.json"
+      }
+    ],
+    "win": {
+      "target": ["nsis"],
+      "icon": "public/logo.png"
+    },
+    "nsis": {
+      "oneClick": false,
+      "perMachine": true,
+      "allowToChangeInstallationDirectory": true,
+      "installerIcon": "public/logo.png",
+      "uninstallerIcon": "public/logo.png"
+    },
+    "linux": {
+      "target": ["AppImage"],
+      "icon": "public/logo.png"
+    }
   }
 }

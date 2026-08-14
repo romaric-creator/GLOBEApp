@@ -3,16 +3,15 @@ import { createRoot } from 'react-dom/client';
 import './index.css';
 import App from './App';
 
-// En mode desktop Tauri client, récupérer l'URL serveur configurée avant de monter React
-if (typeof (window as any).__TAURI_INTERNALS__ !== 'undefined') {
+// En mode desktop Electron client, récupérer l'URL serveur configurée avant de monter React
+if ((window as any).electronAPI) {
   try {
-    const { invoke } = await import('@tauri-apps/api/core');
-    const serverUrl = await invoke<string | null>('get_server_url');
+    const serverUrl = await (window as any).electronAPI.getServerUrl();
     if (serverUrl) {
       (window as any).__GLOBE_API_URL__ = `${serverUrl.replace(/\/$/, '')}/api`;
     }
   } catch {
-    // Mode web ou invoke indisponible — utiliser VITE_API_BASE_URL
+    // Mode web ou API indisponible — utiliser VITE_API_BASE_URL
   }
 }
 

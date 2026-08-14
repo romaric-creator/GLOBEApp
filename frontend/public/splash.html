@@ -268,13 +268,13 @@
     .mode-btn .mode-label { font-size: 10px; font-weight: 600; color: #1c1c1c; display: block; }
     .mode-btn .mode-desc  { font-size: 9px; color: rgba(28,28,28,0.45); display: block; margin-top: 2px; }
 
-    #client-config {
+    #server-config, #client-config {
       display: none;
       width: 100%;
       margin-bottom: 10px;
       animation: fadein 0.2s ease;
     }
-    #client-config.visible { display: block; }
+    #server-config.visible, #client-config.visible { display: block; }
 
     .url-label {
       font-size: 10px;
@@ -373,6 +373,17 @@
       </div>
     </div>
 
+    <div id="server-config">
+      <label class="url-label">Connexion MySQL</label>
+      <input id="db-host" type="text" placeholder="localhost" value="localhost" autocomplete="off" spellcheck="false" style="width:100%;padding:6px 10px;border:1.5px solid rgba(201,168,76,0.3);border-radius:6px;background:rgba(255,255,255,0.7);font-size:11px;margin-bottom:5px;font-family:'Cascadia Code',monospace;outline:none;" />
+      <div style="display:flex;gap:5px;margin-bottom:5px;">
+        <input id="db-user" type="text" placeholder="Utilisateur (globe)" value="globe" autocomplete="off" style="flex:1;padding:6px 10px;border:1.5px solid rgba(201,168,76,0.3);border-radius:6px;background:rgba(255,255,255,0.7);font-size:11px;font-family:'Cascadia Code',monospace;outline:none;" />
+        <input id="db-pass" type="password" placeholder="Mot de passe" autocomplete="off" style="flex:1;padding:6px 10px;border:1.5px solid rgba(201,168,76,0.3);border-radius:6px;background:rgba(255,255,255,0.7);font-size:11px;font-family:'Cascadia Code',monospace;outline:none;" />
+      </div>
+      <input id="db-name" type="text" placeholder="Base (gestion_residence)" value="gestion_residence" autocomplete="off" spellcheck="false" style="width:100%;padding:6px 10px;border:1.5px solid rgba(201,168,76,0.3);border-radius:6px;background:rgba(255,255,255,0.7);font-size:11px;font-family:'Cascadia Code',monospace;outline:none;margin-bottom:5px;" />
+      <p id="input-error"></p>
+    </div>
+
     <div id="client-config">
       <label class="url-label" for="server-input">Adresse du serveur</label>
       <div class="url-row">
@@ -384,7 +395,7 @@
           spellcheck="false"
         />
       </div>
-      <p id="input-error"></p>
+      <p id="input-error-client"></p>
     </div>
 
     <button class="confirm-btn" id="confirm-btn" onclick="confirmSetup()" disabled>
@@ -453,12 +464,13 @@
       document.getElementById('btn-server').classList.toggle('selected', mode === 'server');
       document.getElementById('btn-client').classList.toggle('selected', mode === 'client');
 
-      const clientConfig = document.getElementById('client-config');
+      document.getElementById('server-config').classList.toggle('visible', mode === 'server');
+      document.getElementById('client-config').classList.toggle('visible', mode === 'client');
+
       if (mode === 'client') {
-        clientConfig.classList.add('visible');
         document.getElementById('server-input').focus();
-      } else {
-        clientConfig.classList.remove('visible');
+      } else if (mode === 'server') {
+        document.getElementById('db-pass').focus();
       }
       updateConfirmState();
     }
@@ -466,14 +478,22 @@
     function updateConfirmState() {
       const btn = document.getElementById('confirm-btn');
       if (!selectedMode) { btn.disabled = true; return; }
-      if (selectedMode === 'server') { btn.disabled = false; return; }
+      if (selectedMode === 'server') {
+        const pass = document.getElementById('db-pass').value.trim();
+        btn.disabled = pass.length === 0;
+        return;
+      }
       btn.disabled = document.getElementById('server-input').value.trim().length === 0;
     }
 
     document.getElementById('server-input').addEventListener('input', () => {
-      document.getElementById('input-error').textContent = '';
+      document.getElementById('input-error-client').textContent = '';
       document.getElementById('server-input').classList.remove('error');
       updateConfirmState();
+    });
+
+    ['db-host', 'db-user', 'db-pass', 'db-name'].forEach(id => {
+      document.getElementById(id).addEventListener('input', updateConfirmState);
     });
 
     async function confirmSetup() {
@@ -481,16 +501,24 @@
       btn.disabled = true;
       btn.textContent = 'Enregistrement...';
 
-      let serverUrl = null;
-      if (selectedMode === 'client') {
+      let config = { mode: selectedMode, configured: true };
+
+      if (selectedMode === 'server') {
+        const host = document.getElementById('db-host').value.trim() || 'localhost';
+        const user = document.getElementById('db-user').value.trim() || 'globe';
+        const pass = document.getElementById('db-pass').value.trim();
+        const dbName = document.getElementById('db-name').value.trim() || 'gestion_residence';
+        config.database_url = `mysql://${user}:${encodeURIComponent(pass)}@${host}:3306/${dbName}`;
+        config.port = 3001;
+      } else {
         let raw = document.getElementById('server-input').value.trim();
         if (!raw.startsWith('http://') && !raw.startsWith('https://')) raw = 'http://' + raw;
         try {
           const parsed = new URL(raw);
           if (!parsed.port) parsed.port = '3001';
-          serverUrl = parsed.origin;
+          config.server_url = parsed.origin;
         } catch {
-          document.getElementById('input-error').textContent = 'Adresse invalide';
+          document.getElementById('input-error-client').textContent = 'Adresse invalide';
           document.getElementById('server-input').classList.add('error');
           btn.disabled = false;
           btn.textContent = 'Valider et démarrer';
@@ -499,17 +527,12 @@
       }
 
       try {
-        const { invoke } = await import('@tauri-apps/api/core');
-        const ok = await invoke('save_config', {
-          config: { mode: selectedMode, server_url: serverUrl, configured: true },
-        });
-        if (ok) {
-          document.getElementById('setup-overlay').classList.remove('visible');
-          document.getElementById('status').textContent = 'Configuration enregistrée...';
-          addLog('Configuration enregistrée');
-        } else {
-          throw new Error('Échec de la sauvegarde');
+        if (window.electronAPI) {
+          window.electronAPI.setupComplete(config);
         }
+        document.getElementById('setup-overlay').classList.remove('visible');
+        document.getElementById('status').textContent = 'Configuration enregistrée...';
+        addLog('Configuration enregistrée');
       } catch (e) {
         document.getElementById('input-error').textContent = 'Erreur : ' + e.message;
         btn.disabled = false;
@@ -518,26 +541,22 @@
     }
   </script>
 
-  <script type="module">
+  <script>
     const statusEl = document.getElementById('status');
 
-    try {
-      const { listen } = await import('@tauri-apps/api/event');
-
-      await listen('splash-status', (event) => {
-        statusEl.textContent = event.payload;
-        addLog(event.payload);
+    if (window.electronAPI) {
+      window.electronAPI.onSplashStatus((msg) => {
+        statusEl.textContent = msg;
+        addLog(msg);
       });
 
-      await listen('splash-detail', (event) => {
-        addLog(event.payload);
+      window.electronAPI.onSplashDetail((msg) => {
+        addLog(msg);
       });
 
-      await listen('show-setup', () => {
+      window.electronAPI.onShowSetup(() => {
         document.getElementById('setup-overlay').classList.add('visible');
       });
-    } catch {
-      statusEl.textContent = 'Chargement des données de l\'application...';
     }
   </script>
 </body>

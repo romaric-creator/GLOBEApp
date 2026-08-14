@@ -23,6 +23,11 @@ payload.json
 *.docx
 *.doc
 
-# Tauri build artifacts
-frontend/src-tauri/target/
-frontend/src-tauri/WixTools/
+# Build & coverage
+backend/coverage/
+frontend/dist/
+frontend/release/
+node_modules/
+
+# Electron
+frontend/electron/*.js.map
