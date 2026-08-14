@@ -65,12 +65,22 @@ async function bootstrap() {
   const httpAdapter = app.getHttpAdapter();
   httpAdapter.get(
     '/api/health',
-    async (_req: unknown, res: { status: (code: number) => any; json: (v: unknown) => void }) => {
+    async (
+      _req: unknown,
+      res: {
+        status: (code: number) => { json: (v: unknown) => void };
+        json: (v: unknown) => void;
+      },
+    ) => {
       try {
         await prisma.$queryRaw`SELECT 1`;
         res.json({ status: 'ok', database: 'connected', version: '1.1.9' });
       } catch {
-        res.status(503).json({ status: 'degraded', database: 'disconnected', version: '1.1.9' });
+        res.status(503).json({
+          status: 'degraded',
+          database: 'disconnected',
+          version: '1.1.9',
+        });
       }
     },
   );
