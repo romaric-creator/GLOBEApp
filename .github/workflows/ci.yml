@@ -132,7 +132,7 @@ jobs:
         working-directory: frontend
         run: |
           npm ci
-          npm install @rolldown/binding-win32-x64-msvc lightningcss-win32-x64-msvc --no-save
+          npm install @rolldown/binding-win32-x64-msvc lightningcss-win32-x64-msvc @tailwindcss/oxide-win32-x64-msvc --no-save
           npm run desktop:build
 
       - name: Upload installeur Windows
