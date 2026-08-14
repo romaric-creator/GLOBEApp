@@ -39,6 +39,7 @@ function createMainWindow() {
     width: 1280,
     height: 800,
     show: false,
+    autoHideMenuBar: true,
     icon: path.join(__dirname, '..', 'public', 'logo.png'),
     webPreferences: {
       preload: path.join(__dirname, 'preload.cjs'),
@@ -46,6 +47,8 @@ function createMainWindow() {
       nodeIntegration: false,
     },
   });
+
+  mainWindow.setMenuBarVisibility(false);
 
   if (isDev) {
     mainWindow.loadURL('http://localhost:3000');
@@ -126,13 +129,22 @@ async function waitForRemoteBackend(url, timeoutSecs, emit) {
 }
 
 async function startup() {
+  Menu.setApplicationMenu(null);
   createSplashWindow();
   createMainWindow();
   createTray();
 
   backendRunner = new BackendRunner((channel, msg) => emitSplash(channel, msg));
 
-  await new Promise((r) => setTimeout(r, 300));
+  // Wait for splash page to fully load before sending events
+  if (splashWindow && !splashWindow.isDestroyed()) {
+    if (splashWindow.webContents.isLoading()) {
+      await new Promise((resolve) => {
+        splashWindow.webContents.on('did-finish-load', resolve);
+      });
+    }
+  }
+  await new Promise((r) => setTimeout(r, 500));
 
   let config = loadConfig();
 
