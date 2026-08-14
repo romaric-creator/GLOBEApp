@@ -128,7 +128,10 @@ describe('CaisseService', () => {
     });
 
     it('echoue si la facture est introuvable', async () => {
-      prisma.sessionCaisse.findUnique.mockResolvedValue({ id: 's1', statut: 'OUVERTE' });
+      prisma.sessionCaisse.findUnique.mockResolvedValue({
+        id: 's1',
+        statut: 'OUVERTE',
+      });
       prisma.factureSejour.findUnique.mockResolvedValue(null);
 
       await expect(
@@ -162,7 +165,10 @@ describe('CaisseService', () => {
     });
 
     it('echoue si la commande est introuvable', async () => {
-      prisma.sessionCaisse.findUnique.mockResolvedValue({ id: 's1', statut: 'OUVERTE' });
+      prisma.sessionCaisse.findUnique.mockResolvedValue({
+        id: 's1',
+        statut: 'OUVERTE',
+      });
       prisma.commandeTable.findUnique.mockResolvedValue(null);
 
       await expect(
