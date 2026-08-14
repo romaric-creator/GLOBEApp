@@ -60,6 +60,7 @@
       "electron/**/*",
       "public/splash.html",
       "public/logo.png",
+      "public/icon.ico",
       "public/logo-globe.jpeg",
       "public/favicon.svg"
     ],
@@ -83,14 +84,14 @@
     ],
     "win": {
       "target": ["nsis"],
-      "icon": "public/logo.png"
+      "icon": "public/icon.ico"
     },
     "nsis": {
       "oneClick": false,
       "perMachine": true,
       "allowToChangeInstallationDirectory": true,
-      "installerIcon": "public/logo.png",
-      "uninstallerIcon": "public/logo.png"
+      "installerIcon": "public/icon.ico",
+      "uninstallerIcon": "public/icon.ico"
     },
     "linux": {
       "target": ["AppImage"],
