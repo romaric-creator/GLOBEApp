@@ -68,9 +68,9 @@ async function bootstrap() {
     async (_req: unknown, res: { status: (code: number) => any; json: (v: unknown) => void }) => {
       try {
         await prisma.$queryRaw`SELECT 1`;
-        res.json({ status: 'ok', database: 'connected', version: '1.1.8' });
+        res.json({ status: 'ok', database: 'connected', version: '1.1.9' });
       } catch {
-        res.status(503).json({ status: 'degraded', database: 'disconnected', version: '1.1.8' });
+        res.status(503).json({ status: 'degraded', database: 'disconnected', version: '1.1.9' });
       }
     },
   );
