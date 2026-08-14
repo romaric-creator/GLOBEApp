@@ -931,6 +931,133 @@ function TabRoles() {
   );
 }
 
+// ─── Tab Serveur (config environnement) ──────────────────────────────────────
+
+function TabServeur() {
+  const { message } = App.useApp();
+  const [form] = Form.useForm();
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
+
+  useEffect(() => {
+    const api = (window as any).electronAPI;
+    if (!api) return;
+    api.getConfig().then((cfg: any) => {
+      const dbUrl = cfg.database_url || '';
+      let dbHost = 'localhost', dbUser = 'globe', dbPass = '', dbName = 'gestion_residence', dbPort = '3306';
+      try {
+        const match = dbUrl.match(/mysql:\/\/([^:]+):([^@]*)@([^:]+):(\d+)\/(.+)/);
+        if (match) {
+          dbUser = match[1];
+          dbPass = decodeURIComponent(match[2]);
+          dbHost = match[3];
+          dbPort = match[4];
+          dbName = match[5];
+        }
+      } catch {}
+      form.setFieldsValue({
+        db_host: dbHost,
+        db_port: dbPort,
+        db_user: dbUser,
+        db_password: dbPass,
+        db_name: dbName,
+        port: cfg.port || 3001,
+        jwt_secret: cfg.jwt_secret || '',
+        sync_remote_url: cfg.sync_remote_url || '',
+        sync_api_key: cfg.sync_api_key || '',
+      });
+      setLoading(false);
+    });
+  }, [form]);
+
+  const handleSave = async (values: any) => {
+    setSaving(true);
+    try {
+      const api = (window as any).electronAPI;
+      const dbUrl = `mysql://${values.db_user}:${encodeURIComponent(values.db_password)}@${values.db_host}:${values.db_port}/${values.db_name}`;
+      const currentConfig = await api.getConfig();
+      const newConfig = {
+        ...currentConfig,
+        database_url: dbUrl,
+        port: Number(values.port) || 3001,
+        jwt_secret: values.jwt_secret,
+        sync_remote_url: values.sync_remote_url || '',
+        sync_api_key: values.sync_api_key || '',
+      };
+      await api.saveConfig(newConfig);
+      message.success('Configuration sauvegardée. Redémarrez l\'application pour appliquer.');
+    } catch {
+      message.error('Erreur lors de la sauvegarde');
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  return (
+    <Form form={form} layout="vertical" onFinish={handleSave}>
+      <Row gutter={[16, 16]}>
+        <Col xs={24} lg={12}>
+          <Card title={<Space><CloudOutlined /> Base de données locale (MySQL)</Space>} loading={loading}>
+            <Form.Item label="Hôte" name="db_host" rules={[{ required: true }]}>
+              <Input placeholder="localhost" />
+            </Form.Item>
+            <Row gutter={8}>
+              <Col span={16}>
+                <Form.Item label="Utilisateur" name="db_user" rules={[{ required: true }]}>
+                  <Input placeholder="globe" />
+                </Form.Item>
+              </Col>
+              <Col span={8}>
+                <Form.Item label="Port" name="db_port">
+                  <Input placeholder="3306" />
+                </Form.Item>
+              </Col>
+            </Row>
+            <Form.Item label="Mot de passe" name="db_password" rules={[{ required: true }]}>
+              <Input.Password placeholder="Mot de passe MySQL" />
+            </Form.Item>
+            <Form.Item label="Nom de la base" name="db_name" rules={[{ required: true }]}>
+              <Input placeholder="gestion_residence" />
+            </Form.Item>
+          </Card>
+        </Col>
+
+        <Col xs={24} lg={12}>
+          <Card title={<Space><SyncOutlined /> Sauvegarde en ligne</Space>} loading={loading}>
+            <Form.Item label="URL du serveur distant" name="sync_remote_url">
+              <Input placeholder="https://backup.example.com/api" />
+            </Form.Item>
+            <Form.Item label="Clé API de synchronisation" name="sync_api_key">
+              <Input.Password placeholder="Clé secrète pour l'accès distant" />
+            </Form.Item>
+            <Alert
+              type="info"
+              showIcon
+              message="La sauvegarde envoie périodiquement les données vers le serveur distant configuré."
+              style={{ marginBottom: 0 }}
+            />
+          </Card>
+
+          <Card title={<Space><LockOutlined /> Sécurité</Space>} loading={loading} style={{ marginTop: 16 }}>
+            <Form.Item label="Port du serveur local" name="port">
+              <Input placeholder="3001" type="number" />
+            </Form.Item>
+            <Form.Item label="Secret JWT" name="jwt_secret">
+              <Input.Password placeholder="Clé secrète pour les tokens" />
+            </Form.Item>
+          </Card>
+        </Col>
+
+        <Col xs={24}>
+          <Button type="primary" htmlType="submit" loading={saving} style={{ marginTop: 8 }}>
+            Sauvegarder la configuration
+          </Button>
+        </Col>
+      </Row>
+    </Form>
+  );
+}
+
 // ─── Tab À propos ─────────────────────────────────────────────────────────────
 
 function TabAbout() {
@@ -953,7 +1080,7 @@ function TabAbout() {
             </Descriptions.Item>
             <Descriptions.Item label="Environnement">
               {isDesktop ? (
-                <Tag icon={<DesktopOutlined />} color="purple">Desktop (Tauri)</Tag>
+                <Tag icon={<DesktopOutlined />} color="purple">Desktop (Electron)</Tag>
               ) : (
                 <Tag icon={<GlobalOutlined />} color="cyan">Navigateur web</Tag>
               )}
@@ -1013,6 +1140,15 @@ export default function ParametresPage() {
             key: 'roles',
             label: <Space><SafetyOutlined />Rôles & Permissions</Space>,
             children: <TabRoles />,
+          },
+        ]
+      : []),
+    ...(isDesktop && isAdmin
+      ? [
+          {
+            key: 'serveur',
+            label: <Space><CloudOutlined />Serveur</Space>,
+            children: <TabServeur />,
           },
         ]
       : []),
