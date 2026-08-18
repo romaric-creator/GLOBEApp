@@ -1,0 +1,42 @@
+#!/bin/sh
+# Pre-push hook: run local checks before pushing to avoid CI failures.
+# Skips with: git push --no-verify
+
+set -e
+
+ROOT="$(git rev-parse --show-toplevel)"
+
+echo "══════════════════════════════════════════════════"
+echo "  Pre-push: vérifications locales en cours..."
+echo "══════════════════════════════════════════════════"
+
+# ── Frontend: type-check ──────────────────────────────
+echo ""
+echo "▶ [frontend] Type-check (tsc)..."
+cd "$ROOT/frontend"
+npx tsc --noEmit --skipLibCheck
+echo "  ✓ Type-check OK"
+
+# ── Frontend: tests ───────────────────────────────────
+echo ""
+echo "▶ [frontend] Tests unitaires..."
+npm run test 2>&1
+echo "  ✓ Tests frontend OK"
+
+# ── Backend: build check ──────────────────────────────
+echo ""
+echo "▶ [backend] Build (tsc)..."
+cd "$ROOT/backend"
+npm run build 2>&1
+echo "  ✓ Build backend OK"
+
+# ── Backend: unit tests (sans e2e, pas besoin de DB) ──
+echo ""
+echo "▶ [backend] Tests unitaires (sans e2e)..."
+npm run test -- --forceExit --passWithNoTests 2>&1
+echo "  ✓ Tests backend OK"
+
+echo ""
+echo "══════════════════════════════════════════════════"
+echo "  Toutes les vérifications passées. Push OK."
+echo "══════════════════════════════════════════════════"

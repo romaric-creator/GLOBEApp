@@ -112,6 +112,7 @@ jobs:
   desktop-windows:
     name: Desktop Windows (.exe)
     runs-on: windows-latest
+    if: github.ref == 'refs/heads/main'
 
     steps:
       - uses: actions/checkout@v4
