@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import {
   Table,
@@ -14,6 +14,10 @@ import {
   App,
   Tabs,
   Segmented,
+  Card,
+  Statistic,
+  Row,
+  Col,
 } from "antd";
 import {
   PlusOutlined,
@@ -22,9 +26,12 @@ import {
   WarningOutlined,
   AppstoreOutlined,
   UnorderedListOutlined,
+  SearchOutlined,
+  CoffeeOutlined,
+  ShoppingOutlined,
 } from "@ant-design/icons";
 import { produitsApi } from "../../api/produits";
-import type { Produit, CreateProduitDto } from "../../api/produits";
+import type { Produit, CreateProduitDto, Categorie } from "../../api/produits";
 import CategoriesTab from "./CategoriesTab";
 import MouvementsTab from "./MouvementsTab";
 import BoissonsGrid from "./BoissonsGrid";
@@ -34,6 +41,8 @@ export default function ProduitsPage() {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingProduit, setEditingProduit] = useState<Produit | null>(null);
   const [viewMode, setViewMode] = useState<'table' | 'grid'>('grid');
+  const [searchText, setSearchText] = useState('');
+  const [filterCatId, setFilterCatId] = useState<string | null>(null);
   const [form] = Form.useForm();
   const queryClient = useQueryClient();
   const { message } = App.useApp();
@@ -52,7 +61,7 @@ export default function ProduitsPage() {
     mutationFn: (data: CreateProduitDto) => produitsApi.create(data),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["produits"] });
-      message.success("Produit cree");
+      message.success("Produit créé");
       closeModal();
     },
     onError: (err: unknown) => message.error(getErrorMessage(err)),
@@ -68,7 +77,7 @@ export default function ProduitsPage() {
     }) => produitsApi.update(id, data),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["produits"] });
-      message.success("Produit modifie");
+      message.success("Produit modifié");
       closeModal();
     },
     onError: (err: unknown) => message.error(getErrorMessage(err)),
@@ -78,7 +87,7 @@ export default function ProduitsPage() {
     mutationFn: (id: string) => produitsApi.remove(id),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["produits"] });
-      message.success("Produit desactive");
+      message.success("Produit désactivé");
     },
   });
 
@@ -108,146 +117,199 @@ export default function ProduitsPage() {
     }
   };
 
+  const { activeProduits, boissonsParentId, restaurantParentId, boissonsSubCatIds, restaurantSubCatIds } = useMemo(() => {
+    const active = produits?.filter((p) => p.actif) || [];
+    const bParentId = categories?.find(
+      (c) => c.nom.toLowerCase() === 'boissons' && !c.parentId
+    )?.id;
+    const rParentId = categories?.find(
+      (c) => c.nom.toLowerCase() === 'restaurant' && !c.parentId
+    )?.id;
+    const bSubIds = new Set(
+      categories?.filter((c) => c.parentId === bParentId).map((c) => c.id) || []
+    );
+    const rSubIds = new Set(
+      categories?.filter((c) => c.parentId === rParentId).map((c) => c.id) || []
+    );
+    return { activeProduits: active, boissonsParentId: bParentId, restaurantParentId: rParentId, boissonsSubCatIds: bSubIds, restaurantSubCatIds: rSubIds };
+  }, [produits, categories]);
+
+  const produitsBoissons = activeProduits.filter((p) => boissonsSubCatIds.has(p.categorieId));
+  const produitsRestaurant = activeProduits.filter((p) => restaurantSubCatIds.has(p.categorieId));
+  const alerteCount = activeProduits.filter(p => p.stockActuel <= p.seuilAlerte).length;
+
+  const applyFilters = (list: Produit[]) => {
+    let result = list;
+    if (searchText) {
+      const q = searchText.toLowerCase();
+      result = result.filter((p) => p.nom.toLowerCase().includes(q) || p.reference.toLowerCase().includes(q));
+    }
+    if (filterCatId) {
+      result = result.filter((p) => p.categorieId === filterCatId);
+    }
+    return result;
+  };
+
   const columns = [
-    { title: "Reference", dataIndex: "reference", key: "reference" },
+    { title: "Réf.", dataIndex: "reference", key: "reference", width: 100 },
     {
       title: "Nom",
       dataIndex: "nom",
       key: "nom",
       sorter: (a: Produit, b: Produit) => a.nom.localeCompare(b.nom),
     },
-    { title: "Categorie", dataIndex: ["categorie", "nom"], key: "categorie" },
     {
-      title: "Prix achat",
-      dataIndex: "prixAchat",
-      key: "prixAchat",
-      render: (v: number) => `${v} FCFA`,
+      title: "Catégorie",
+      dataIndex: ["categorie", "nom"],
+      key: "categorie",
+      width: 160,
+      render: (val: string) => <Tag>{val}</Tag>,
     },
     {
       title: "Prix vente",
       dataIndex: "prixVente",
       key: "prixVente",
-      render: (v: number) => `${v} FCFA`,
+      width: 120,
+      sorter: (a: Produit, b: Produit) => Number(a.prixVente) - Number(b.prixVente),
+      render: (v: number) => <span className="font-medium">{Number(v).toLocaleString()} F</span>,
     },
     {
       title: "Stock",
       key: "stock",
+      width: 120,
       render: (_: unknown, record: Produit) => (
-        <span>
-          {record.stockActuel <= record.seuilAlerte ? (
-            <Tag color="red" icon={<WarningOutlined />}>
-              {record.stockActuel} {record.unite}
-            </Tag>
-          ) : (
-            <Tag color="green">
-              {record.stockActuel} {record.unite}
-            </Tag>
-          )}
-        </span>
+        record.stockActuel <= record.seuilAlerte ? (
+          <Tag color="red" icon={<WarningOutlined />}>
+            {record.stockActuel} {record.unite}
+          </Tag>
+        ) : (
+          <Tag color="green">
+            {record.stockActuel} {record.unite}
+          </Tag>
+        )
       ),
     },
     {
-      title: "Actions",
+      title: "",
       key: "actions",
+      width: 80,
       render: (_: unknown, record: Produit) => (
-        <Space>
+        <Space size="small">
           <Button
-            type="link"
+            type="text"
+            size="small"
             icon={<EditOutlined />}
             onClick={() => openEdit(record)}
           />
           <Popconfirm
-            title="Desactiver ce produit ?"
+            title="Désactiver ce produit ?"
             onConfirm={() => deleteMutation.mutate(record.id)}
           >
-            <Button type="link" danger icon={<DeleteOutlined />} />
+            <Button type="text" size="small" danger icon={<DeleteOutlined />} />
           </Popconfirm>
         </Space>
       ),
     },
   ];
 
-  const activeProduits = produits?.filter((p) => p.actif) || [];
-
-  const boissonsParentId = categories?.find(
-    (c) => c.nom.toLowerCase() === 'boissons' && !c.parentId
-  )?.id;
-  const boissonsSubCatIds = new Set(
-    categories?.filter((c) => c.parentId === boissonsParentId).map((c) => c.id) || []
+  const filterBar = (subCatIds: Set<string>) => (
+    <div className="flex items-center gap-3 flex-wrap mb-4">
+      <Input
+        placeholder="Rechercher..."
+        prefix={<SearchOutlined className="text-gray-400" />}
+        allowClear
+        style={{ width: 220 }}
+        value={searchText}
+        onChange={(e) => setSearchText(e.target.value)}
+      />
+      <Select
+        allowClear
+        placeholder="Catégorie"
+        style={{ width: 200 }}
+        value={filterCatId}
+        onChange={(val) => setFilterCatId(val || null)}
+      >
+        {categories?.filter((c) => subCatIds.has(c.id)).map((cat) => (
+          <Select.Option key={cat.id} value={cat.id}>
+            {cat.nom}
+          </Select.Option>
+        ))}
+      </Select>
+      <div className="ml-auto flex items-center gap-3">
+        <Segmented
+          value={viewMode}
+          onChange={(val) => setViewMode(val as 'table' | 'grid')}
+          options={[
+            { value: 'grid', icon: <AppstoreOutlined /> },
+            { value: 'table', icon: <UnorderedListOutlined /> },
+          ]}
+        />
+        <Button type="primary" icon={<PlusOutlined />} onClick={openCreate}>
+          Nouveau
+        </Button>
+      </div>
+    </div>
   );
-  const produitsBoissons = activeProduits.filter((p) => boissonsSubCatIds.has(p.categorieId));
-  const produitsRestaurant = activeProduits.filter((p) => !boissonsSubCatIds.has(p.categorieId));
+
+  const renderProductList = (list: Produit[], subCatIds: Set<string>, showGrid: boolean) => {
+    const filtered = applyFilters(list);
+    if (viewMode === 'table' || !showGrid) {
+      return (
+        <Table
+          columns={columns}
+          dataSource={filtered}
+          rowKey="id"
+          loading={isLoading}
+          size="middle"
+          pagination={{ pageSize: 15, showTotal: (total) => `${total} produit(s)`, showSizeChanger: true }}
+        />
+      );
+    }
+    return (
+      <BoissonsGrid
+        produits={filtered}
+        categories={categories || []}
+        loading={isLoading}
+        onEdit={openEdit}
+      />
+    );
+  };
+
+  const groupedCategories = useMemo(() => {
+    if (!categories) return [];
+    const parents = categories.filter((c) => !c.parentId);
+    return parents.map((parent) => ({
+      label: parent.nom,
+      options: categories
+        .filter((c) => c.parentId === parent.id)
+        .map((c) => ({ label: c.nom, value: c.id })),
+    }));
+  }, [categories]);
 
   const tabItems = [
     {
-      key: "produits",
-      label: "Produits",
+      key: "boissons",
+      label: <span><CoffeeOutlined /> Boissons ({produitsBoissons.length})</span>,
       children: (
         <>
-          <div className="flex justify-between items-center mb-4">
-            <h2 className="text-xl font-semibold">Produits</h2>
-            <div className="flex items-center gap-3">
-              <Segmented
-                value={viewMode}
-                onChange={(val) => setViewMode(val as 'table' | 'grid')}
-                options={[
-                  { value: 'grid', icon: <AppstoreOutlined /> },
-                  { value: 'table', icon: <UnorderedListOutlined /> },
-                ]}
-              />
-              <Button type="primary" icon={<PlusOutlined />} onClick={openCreate}>
-                Nouveau produit
-              </Button>
-            </div>
-          </div>
-
-          {viewMode === 'table' ? (
-            <Table
-              columns={columns}
-              dataSource={activeProduits}
-              rowKey="id"
-              loading={isLoading}
-              pagination={{
-                pageSize: 10,
-                showTotal: (total) => `${total} produit(s)`,
-              }}
-            />
-          ) : (
-            <div className="space-y-6">
-              {produitsBoissons.length > 0 && (
-                <div>
-                  <h3 className="text-lg font-semibold mb-3">Boissons</h3>
-                  <BoissonsGrid
-                    produits={produitsBoissons}
-                    categories={categories || []}
-                    loading={isLoading}
-                    onEdit={openEdit}
-                  />
-                </div>
-              )}
-              {produitsRestaurant.length > 0 && (
-                <div>
-                  <h3 className="text-lg font-semibold mb-3">Restaurant</h3>
-                  <Table
-                    columns={columns}
-                    dataSource={produitsRestaurant}
-                    rowKey="id"
-                    loading={isLoading}
-                    pagination={{
-                      pageSize: 10,
-                      showTotal: (total) => `${total} produit(s)`,
-                    }}
-                  />
-                </div>
-              )}
-            </div>
-          )}
+          {filterBar(boissonsSubCatIds)}
+          {renderProductList(produitsBoissons, boissonsSubCatIds, true)}
+        </>
+      ),
+    },
+    {
+      key: "restaurant",
+      label: <span><ShoppingOutlined /> Restaurant ({produitsRestaurant.length})</span>,
+      children: (
+        <>
+          {filterBar(restaurantSubCatIds)}
+          {renderProductList(produitsRestaurant, restaurantSubCatIds, false)}
         </>
       ),
     },
     {
       key: "categories",
-      label: "Categories",
+      label: "Catégories",
       children: <CategoriesTab />,
     },
     {
@@ -259,22 +321,20 @@ export default function ProduitsPage() {
       key: "alertes",
       label: (
         <span>
-          <WarningOutlined style={{ color: '#ff4d4f' }} /> Alertes stock
-          {produits && produits.filter(p => p.actif && p.stockActuel <= p.seuilAlerte).length > 0 && (
-            <Tag color="red" className="ml-2">{produits.filter(p => p.actif && p.stockActuel <= p.seuilAlerte).length}</Tag>
-          )}
+          <WarningOutlined style={{ color: alerteCount > 0 ? '#ff4d4f' : undefined }} /> Alertes
+          {alerteCount > 0 && <Tag color="red" className="ml-2">{alerteCount}</Tag>}
         </span>
       ),
       children: (
         <Table
           columns={[
-            { title: "Reference", dataIndex: "reference", key: "reference" },
+            { title: "Réf.", dataIndex: "reference", key: "reference" },
             { title: "Nom", dataIndex: "nom", key: "nom" },
             { title: "Stock actuel", dataIndex: "stockActuel", key: "stock", render: (v: number, r: Produit) => <Tag color="red">{v} {r.unite}</Tag> },
             { title: "Seuil alerte", dataIndex: "seuilAlerte", key: "seuil" },
-            { title: "Categorie", dataIndex: ["categorie", "nom"], key: "categorie" },
+            { title: "Catégorie", dataIndex: ["categorie", "nom"], key: "categorie" },
           ]}
-          dataSource={produits?.filter(p => p.actif && p.stockActuel <= p.seuilAlerte) || []}
+          dataSource={activeProduits.filter(p => p.stockActuel <= p.seuilAlerte)}
           rowKey="id"
           size="small"
           pagination={false}
@@ -286,7 +346,35 @@ export default function ProduitsPage() {
 
   return (
     <div id="tour-produits-page">
-      <Tabs id="tour-produits-tabs" items={tabItems} />
+      <Row gutter={16} className="mb-4">
+        <Col span={6}>
+          <Card size="small">
+            <Statistic title="Total produits" value={activeProduits.length} />
+          </Card>
+        </Col>
+        <Col span={6}>
+          <Card size="small">
+            <Statistic title="Boissons" value={produitsBoissons.length} prefix={<CoffeeOutlined />} />
+          </Card>
+        </Col>
+        <Col span={6}>
+          <Card size="small">
+            <Statistic title="Restaurant" value={produitsRestaurant.length} prefix={<ShoppingOutlined />} />
+          </Card>
+        </Col>
+        <Col span={6}>
+          <Card size="small">
+            <Statistic
+              title="En alerte stock"
+              value={alerteCount}
+              valueStyle={alerteCount > 0 ? { color: '#ff4d4f' } : undefined}
+              prefix={alerteCount > 0 ? <WarningOutlined /> : undefined}
+            />
+          </Card>
+        </Col>
+      </Row>
+
+      <Tabs id="tour-produits-tabs" items={tabItems} onChange={() => { setSearchText(''); setFilterCatId(null); }} />
 
       <Modal
         title={editingProduit ? "Modifier le produit" : "Nouveau produit"}
@@ -299,31 +387,30 @@ export default function ProduitsPage() {
           <div className="grid grid-cols-2 gap-4">
             <Form.Item
               name="reference"
-              label="Reference"
-              rules={[{ required: true, message: "Reference requise" }]}
+              label="Référence"
+              rules={[{ required: true, message: "Référence requise" }]}
             >
-              <Input />
+              <Input placeholder="Ex: BIR-001" />
             </Form.Item>
             <Form.Item
               name="nom"
               label="Nom"
               rules={[{ required: true, message: "Nom requis" }]}
             >
-              <Input />
+              <Input placeholder="Nom du produit" />
             </Form.Item>
           </div>
           <Form.Item
             name="categorieId"
-            label="Categorie"
-            rules={[{ required: true, message: "Categorie requise" }]}
+            label="Catégorie"
+            rules={[{ required: true, message: "Catégorie requise" }]}
           >
-            <Select placeholder="Choisir une categorie">
-              {categories?.map((cat) => (
-                <Select.Option key={cat.id} value={cat.id}>
-                  {cat.nom}
-                </Select.Option>
-              ))}
-            </Select>
+            <Select
+              placeholder="Choisir une catégorie"
+              showSearch
+              optionFilterProp="label"
+              options={groupedCategories}
+            />
           </Form.Item>
           <div className="grid grid-cols-2 gap-4">
             <Form.Item
@@ -348,27 +435,28 @@ export default function ProduitsPage() {
             <Form.Item name="seuilAlerte" label="Seuil alerte">
               <InputNumber min={0} className="w-full" />
             </Form.Item>
-            <Form.Item name="unite" label="Unite">
+            <Form.Item name="unite" label="Unité">
               <Select>
-                <Select.Option value="unite">Unite</Select.Option>
+                <Select.Option value="unite">Unité</Select.Option>
+                <Select.Option value="portion">Portion</Select.Option>
+                <Select.Option value="bouteille">Bouteille</Select.Option>
                 <Select.Option value="kg">Kg</Select.Option>
                 <Select.Option value="litre">Litre</Select.Option>
                 <Select.Option value="carton">Carton</Select.Option>
-                <Select.Option value="bouteille">Bouteille</Select.Option>
                 <Select.Option value="pack">Pack</Select.Option>
               </Select>
             </Form.Item>
           </div>
-          <Form.Item>
+          <Form.Item className="mb-0 text-right">
             <Space>
+              <Button onClick={closeModal}>Annuler</Button>
               <Button
                 type="primary"
                 htmlType="submit"
                 loading={createMutation.isPending || updateMutation.isPending}
               >
-                {editingProduit ? "Modifier" : "Creer"}
+                {editingProduit ? "Modifier" : "Créer"}
               </Button>
-              <Button onClick={closeModal}>Annuler</Button>
             </Space>
           </Form.Item>
         </Form>
