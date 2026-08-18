@@ -7,10 +7,12 @@ import type { Chambre } from '../../api/hotel';
 import { getErrorMessage } from '../../api/errors';
 
 const TYPE_COLORS: Record<string, string> = {
-  SIMPLE: 'gold',
-  DOUBLE: 'green',
-  SUITE: 'purple',
-  VIP: 'orange',
+  STANDARD: 'gold',
+  JUNIOR: 'green',
+  JUNIOR_PLUS: 'purple',
+  SENIOR: 'orange',
+  STUDIO: 'cyan',
+  APPARTEMENT: 'blue',
 };
 
 const STATUT_BG: Record<string, string> = {
@@ -175,10 +177,12 @@ export default function ChambresTab() {
           )}
           <Form.Item name="type" label="Categorie" rules={[{ required: true }]}>
             <Select options={[
-              { value: 'SIMPLE', label: 'Simple' },
-              { value: 'DOUBLE', label: 'Double' },
-              { value: 'SUITE', label: 'Suite' },
-              { value: 'VIP', label: 'VIP' },
+              { value: 'STANDARD', label: 'Standard' },
+              { value: 'JUNIOR', label: 'Junior' },
+              { value: 'JUNIOR_PLUS', label: 'Junior Plus' },
+              { value: 'SENIOR', label: 'Senior' },
+              { value: 'STUDIO', label: 'Studio' },
+              { value: 'APPARTEMENT', label: 'Appartement' },
             ]} />
           </Form.Item>
           <Form.Item name="capacite" label="Nombre de personnes max" rules={[{ required: true }]}>

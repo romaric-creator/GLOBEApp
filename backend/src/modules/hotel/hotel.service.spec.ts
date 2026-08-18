@@ -134,7 +134,7 @@ describe('HotelService', () => {
       prisma.reservation.update.mockResolvedValue({
         id: 'r1',
         statut: 'EN_COURS',
-        chambre: { numero: '101', type: 'SIMPLE', prixNuit: 100 },
+        chambre: { numero: '101', type: 'STANDARD', prixNuit: 100 },
         client: { nom: 'Test', prenom: 'Client' },
       });
 

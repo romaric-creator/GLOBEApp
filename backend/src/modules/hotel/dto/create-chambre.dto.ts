@@ -8,10 +8,12 @@ import {
 } from 'class-validator';
 
 export enum TypeChambreDto {
-  SIMPLE = 'SIMPLE',
-  DOUBLE = 'DOUBLE',
-  SUITE = 'SUITE',
-  VIP = 'VIP',
+  STANDARD = 'STANDARD',
+  JUNIOR = 'JUNIOR',
+  JUNIOR_PLUS = 'JUNIOR_PLUS',
+  SENIOR = 'SENIOR',
+  STUDIO = 'STUDIO',
+  APPARTEMENT = 'APPARTEMENT',
 }
 
 export class CreateChambreDto {

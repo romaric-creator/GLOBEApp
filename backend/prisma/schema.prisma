@@ -483,10 +483,12 @@ model Sauvegarde {
 // ========================
 
 enum TypeChambre {
-  SIMPLE
-  DOUBLE
-  SUITE
-  VIP
+  STANDARD
+  JUNIOR
+  JUNIOR_PLUS
+  SENIOR
+  STUDIO
+  APPARTEMENT
 }
 
 enum StatutChambre {

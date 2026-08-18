@@ -3,7 +3,7 @@ import axios from './axios';
 export interface Chambre {
   id: string;
   numero: string;
-  type: 'SIMPLE' | 'DOUBLE' | 'SUITE' | 'VIP';
+  type: 'STANDARD' | 'JUNIOR' | 'JUNIOR_PLUS' | 'SENIOR' | 'STUDIO' | 'APPARTEMENT';
   statut: 'DISPONIBLE' | 'OCCUPEE' | 'MAINTENANCE' | 'RESERVEE';
   prixNuit: number;
   capacite: number;
