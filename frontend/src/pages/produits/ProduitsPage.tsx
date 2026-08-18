@@ -169,6 +169,15 @@ export default function ProduitsPage() {
 
   const activeProduits = produits?.filter((p) => p.actif) || [];
 
+  const boissonsParentId = categories?.find(
+    (c) => c.nom.toLowerCase() === 'boissons' && !c.parentId
+  )?.id;
+  const boissonsSubCatIds = new Set(
+    categories?.filter((c) => c.parentId === boissonsParentId).map((c) => c.id) || []
+  );
+  const produitsBoissons = activeProduits.filter((p) => boissonsSubCatIds.has(p.categorieId));
+  const produitsRestaurant = activeProduits.filter((p) => !boissonsSubCatIds.has(p.categorieId));
+
   const tabItems = [
     {
       key: "produits",
@@ -204,12 +213,34 @@ export default function ProduitsPage() {
               }}
             />
           ) : (
-            <BoissonsGrid
-              produits={activeProduits}
-              categories={categories || []}
-              loading={isLoading}
-              onEdit={openEdit}
-            />
+            <div className="space-y-6">
+              {produitsBoissons.length > 0 && (
+                <div>
+                  <h3 className="text-lg font-semibold mb-3">Boissons</h3>
+                  <BoissonsGrid
+                    produits={produitsBoissons}
+                    categories={categories || []}
+                    loading={isLoading}
+                    onEdit={openEdit}
+                  />
+                </div>
+              )}
+              {produitsRestaurant.length > 0 && (
+                <div>
+                  <h3 className="text-lg font-semibold mb-3">Restaurant</h3>
+                  <Table
+                    columns={columns}
+                    dataSource={produitsRestaurant}
+                    rowKey="id"
+                    loading={isLoading}
+                    pagination={{
+                      pageSize: 10,
+                      showTotal: (total) => `${total} produit(s)`,
+                    }}
+                  />
+                </div>
+              )}
+            </div>
           )}
         </>
       ),

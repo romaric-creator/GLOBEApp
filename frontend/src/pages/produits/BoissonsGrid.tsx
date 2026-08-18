@@ -17,9 +17,13 @@ export default function BoissonsGrid({ produits, categories, loading, onEdit }: 
   const boissonsParent = categories.find(
     (c) => c.nom.toLowerCase() === 'boissons' && !c.parentId
   );
+  const restaurantParent = categories.find(
+    (c) => c.nom.toLowerCase() === 'restaurant' && !c.parentId
+  );
+  const subCategories = categories.filter((c) => c.parentId && c.parentId !== restaurantParent?.id);
   const boissonsCategories = boissonsParent
     ? categories.filter((c) => c.parentId === boissonsParent.id)
-    : categories.filter((c) => c.parentId);
+    : subCategories;
 
   const filtered = selectedCategorie
     ? produits.filter((p) => p.categorieId === selectedCategorie)
