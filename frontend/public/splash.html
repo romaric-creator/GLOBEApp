@@ -264,7 +264,7 @@
     .mode-btn:hover { border-color: #C9A84C; background: rgba(201,168,76,0.12); }
     .mode-btn.selected { border-color: #C9A84C; background: rgba(201,168,76,0.15); }
 
-    .mode-btn .mode-icon  { font-size: 20px; margin-bottom: 4px; }
+    .mode-btn .mode-icon  { margin-bottom: 6px; color: #C9A84C; display: flex; justify-content: center; }
     .mode-btn .mode-label { font-size: 10px; font-weight: 600; color: #1c1c1c; display: block; }
     .mode-btn .mode-desc  { font-size: 9px; color: rgba(28,28,28,0.45); display: block; margin-top: 2px; }
 
@@ -300,8 +300,6 @@
     #server-input:focus { border-color: #C9A84C; }
     #server-input.error { border-color: rgba(180,40,30,0.5); }
 
-    #input-error { font-size: 9px; color: rgba(180,40,30,0.7); margin-top: 4px; min-height: 12px; }
-
     .confirm-btn {
       width: 100%;
       padding: 8px;
@@ -323,6 +321,55 @@
       color: rgba(28,28,28,0.25);
       margin-top: 10px;
       text-align: center;
+    }
+
+    .setup-error {
+      font-size: 10px;
+      color: #b42a1e;
+      background: rgba(180,42,30,0.06);
+      border: 1px solid rgba(180,42,30,0.2);
+      border-radius: 5px;
+      padding: 6px 10px;
+      margin-bottom: 8px;
+      width: 100%;
+      display: none;
+      animation: fadein 0.2s ease;
+    }
+    .setup-error.visible { display: block; }
+
+    .setup-success {
+      font-size: 10px;
+      color: #2e7d32;
+      background: rgba(46,125,50,0.06);
+      border: 1px solid rgba(46,125,50,0.2);
+      border-radius: 5px;
+      padding: 6px 10px;
+      margin-bottom: 8px;
+      width: 100%;
+      display: none;
+      animation: fadein 0.2s ease;
+    }
+    .setup-success.visible { display: block; }
+
+    .confirm-btn.testing {
+      background: linear-gradient(135deg, #888, #666);
+      cursor: wait;
+    }
+
+    .spinner {
+      display: inline-block;
+      width: 10px;
+      height: 10px;
+      border: 2px solid rgba(255,255,255,0.3);
+      border-top-color: white;
+      border-radius: 50%;
+      animation: spin 0.6s linear infinite;
+      margin-right: 6px;
+      vertical-align: middle;
+    }
+
+    @keyframes spin {
+      to { transform: rotate(360deg); }
     }
   </style>
 </head>
@@ -362,12 +409,29 @@
 
     <div class="mode-buttons">
       <div class="mode-btn" id="btn-server" onclick="selectMode('server')">
-        <div class="mode-icon">🖥️</div>
+        <div class="mode-icon">
+          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+            <rect x="2" y="2" width="20" height="8" rx="2"/>
+            <rect x="2" y="14" width="20" height="8" rx="2"/>
+            <circle cx="6" cy="6" r="1" fill="currentColor"/>
+            <circle cx="6" cy="18" r="1" fill="currentColor"/>
+            <line x1="10" y1="6" x2="18" y2="6" opacity="0.5"/>
+            <line x1="10" y1="18" x2="18" y2="18" opacity="0.5"/>
+          </svg>
+        </div>
         <span class="mode-label">Serveur</span>
         <span class="mode-desc">Ce PC héberge la base de données</span>
       </div>
       <div class="mode-btn" id="btn-client" onclick="selectMode('client')">
-        <div class="mode-icon">💻</div>
+        <div class="mode-icon">
+          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+            <rect x="3" y="4" width="18" height="12" rx="2"/>
+            <line x1="7" y1="20" x2="17" y2="20"/>
+            <line x1="12" y1="16" x2="12" y2="20"/>
+            <path d="M7 9l3 3-3 3" opacity="0.6"/>
+            <line x1="12" y1="12" x2="16" y2="12" opacity="0.4"/>
+          </svg>
+        </div>
         <span class="mode-label">Poste client</span>
         <span class="mode-desc">Se connecter à un serveur existant</span>
       </div>
@@ -375,13 +439,15 @@
 
     <div id="server-config">
       <label class="url-label">Connexion MySQL</label>
-      <input id="db-host" type="text" placeholder="localhost" value="localhost" autocomplete="off" spellcheck="false" style="width:100%;padding:6px 10px;border:1.5px solid rgba(201,168,76,0.3);border-radius:6px;background:rgba(255,255,255,0.7);font-size:11px;margin-bottom:5px;font-family:'Cascadia Code',monospace;outline:none;" />
+      <div style="display:flex;gap:5px;margin-bottom:5px;">
+        <input id="db-host" type="text" placeholder="localhost" value="localhost" autocomplete="off" spellcheck="false" style="flex:3;padding:6px 10px;border:1.5px solid rgba(201,168,76,0.3);border-radius:6px;background:rgba(255,255,255,0.7);font-size:11px;font-family:'Cascadia Code',monospace;outline:none;" />
+        <input id="db-port" type="text" placeholder="3306" value="3306" autocomplete="off" style="flex:1;padding:6px 10px;border:1.5px solid rgba(201,168,76,0.3);border-radius:6px;background:rgba(255,255,255,0.7);font-size:11px;font-family:'Cascadia Code',monospace;outline:none;" />
+      </div>
       <div style="display:flex;gap:5px;margin-bottom:5px;">
         <input id="db-user" type="text" placeholder="Utilisateur (globe)" value="globe" autocomplete="off" style="flex:1;padding:6px 10px;border:1.5px solid rgba(201,168,76,0.3);border-radius:6px;background:rgba(255,255,255,0.7);font-size:11px;font-family:'Cascadia Code',monospace;outline:none;" />
         <input id="db-pass" type="password" placeholder="Mot de passe" autocomplete="off" style="flex:1;padding:6px 10px;border:1.5px solid rgba(201,168,76,0.3);border-radius:6px;background:rgba(255,255,255,0.7);font-size:11px;font-family:'Cascadia Code',monospace;outline:none;" />
       </div>
       <input id="db-name" type="text" placeholder="Base (gestion_residence)" value="gestion_residence" autocomplete="off" spellcheck="false" style="width:100%;padding:6px 10px;border:1.5px solid rgba(201,168,76,0.3);border-radius:6px;background:rgba(255,255,255,0.7);font-size:11px;font-family:'Cascadia Code',monospace;outline:none;margin-bottom:5px;" />
-      <p id="input-error"></p>
     </div>
 
     <div id="client-config">
@@ -395,8 +461,10 @@
           spellcheck="false"
         />
       </div>
-      <p id="input-error-client"></p>
     </div>
+
+    <div class="setup-error" id="setup-error"></div>
+    <div class="setup-success" id="setup-success"></div>
 
     <button class="confirm-btn" id="confirm-btn" onclick="confirmSetup()" disabled>
       Valider et démarrer
@@ -487,29 +555,125 @@
     }
 
     document.getElementById('server-input').addEventListener('input', () => {
-      document.getElementById('input-error-client').textContent = '';
       document.getElementById('server-input').classList.remove('error');
+      hideSetupMessages();
       updateConfirmState();
     });
 
-    ['db-host', 'db-user', 'db-pass', 'db-name'].forEach(id => {
-      document.getElementById(id).addEventListener('input', updateConfirmState);
+    ['db-host', 'db-port', 'db-user', 'db-pass', 'db-name'].forEach(id => {
+      document.getElementById(id).addEventListener('input', () => {
+        hideSetupMessages();
+        updateConfirmState();
+      });
     });
 
-    async function confirmSetup() {
+    function showSetupError(msg) {
+      const el = document.getElementById('setup-error');
+      el.textContent = msg;
+      el.classList.add('visible');
+      document.getElementById('setup-success').classList.remove('visible');
+    }
+
+    function showSetupSuccess(msg) {
+      const el = document.getElementById('setup-success');
+      el.textContent = msg;
+      el.classList.add('visible');
+      document.getElementById('setup-error').classList.remove('visible');
+    }
+
+    function hideSetupMessages() {
+      document.getElementById('setup-error').classList.remove('visible');
+      document.getElementById('setup-success').classList.remove('visible');
+    }
+
+    function setButtonState(state) {
       const btn = document.getElementById('confirm-btn');
-      btn.disabled = true;
-      btn.textContent = 'Enregistrement...';
+      btn.classList.remove('testing');
+      switch (state) {
+        case 'idle':
+          btn.disabled = false;
+          btn.innerHTML = 'Valider et démarrer';
+          break;
+        case 'testing':
+          btn.disabled = true;
+          btn.classList.add('testing');
+          btn.innerHTML = '<span class="spinner"></span>Test de connexion...';
+          break;
+        case 'saving':
+          btn.disabled = true;
+          btn.innerHTML = '<span class="spinner"></span>Enregistrement...';
+          break;
+        case 'disabled':
+          btn.disabled = true;
+          btn.innerHTML = 'Valider et démarrer';
+          break;
+      }
+    }
+
+    function buildDbUrl() {
+      const host = document.getElementById('db-host').value.trim() || 'localhost';
+      const port = document.getElementById('db-port').value.trim() || '3306';
+      const user = document.getElementById('db-user').value.trim() || 'globe';
+      const pass = document.getElementById('db-pass').value.trim();
+      const dbName = document.getElementById('db-name').value.trim() || 'gestion_residence';
+
+      const portNum = parseInt(port, 10);
+      if (isNaN(portNum) || portNum < 1 || portNum > 65535) {
+        return { error: 'Le port doit être un nombre entre 1 et 65535' };
+      }
+
+      return {
+        url: `mysql://${user}:${encodeURIComponent(pass)}@${host}:${portNum}/${dbName}`,
+        host, port: portNum, user, dbName,
+      };
+    }
+
+    async function confirmSetup() {
+      hideSetupMessages();
 
       let config = { mode: selectedMode, configured: true };
 
       if (selectedMode === 'server') {
-        const host = document.getElementById('db-host').value.trim() || 'localhost';
-        const user = document.getElementById('db-user').value.trim() || 'globe';
-        const pass = document.getElementById('db-pass').value.trim();
-        const dbName = document.getElementById('db-name').value.trim() || 'gestion_residence';
-        config.database_url = `mysql://${user}:${encodeURIComponent(pass)}@${host}:3306/${dbName}`;
+        const dbInfo = buildDbUrl();
+        if (dbInfo.error) {
+          showSetupError(dbInfo.error);
+          return;
+        }
+
+        setButtonState('testing');
+
+        try {
+          const result = await window.electronAPI.testDbConnection(dbInfo.url);
+          if (!result.ok) {
+            const hint = result.error || '';
+            let msg = 'Connexion à MySQL échouée.';
+            if (hint.includes('ECONNREFUSED')) {
+              msg += ` Impossible de joindre ${dbInfo.host}:${dbInfo.port}. Vérifiez que MySQL est démarré.`;
+            } else if (hint.includes('Access denied')) {
+              msg += ' Identifiants incorrects (utilisateur ou mot de passe).';
+            } else if (hint.includes('Unknown database')) {
+              msg += ` La base "${dbInfo.dbName}" n'existe pas. Créez-la d'abord.`;
+            } else if (hint.includes('ETIMEDOUT') || hint.includes('timeout')) {
+              msg += ` Délai dépassé pour ${dbInfo.host}:${dbInfo.port}. Vérifiez l'hôte et le port.`;
+            } else if (hint) {
+              msg += ' ' + hint;
+            }
+            showSetupError(msg);
+            setButtonState('idle');
+            return;
+          }
+        } catch (e) {
+          showSetupError('Erreur inattendue lors du test : ' + (e.message || e));
+          setButtonState('idle');
+          return;
+        }
+
+        showSetupSuccess('Connexion réussie !');
+        setButtonState('saving');
+
+        config.database_url = dbInfo.url;
         config.port = 3001;
+
       } else {
         let raw = document.getElementById('server-input').value.trim();
         if (!raw.startsWith('http://') && !raw.startsWith('https://')) raw = 'http://' + raw;
@@ -518,12 +682,11 @@
           if (!parsed.port) parsed.port = '3001';
           config.server_url = parsed.origin;
         } catch {
-          document.getElementById('input-error-client').textContent = 'Adresse invalide';
+          showSetupError('Adresse invalide. Exemple : http://192.168.1.100:3001');
           document.getElementById('server-input').classList.add('error');
-          btn.disabled = false;
-          btn.textContent = 'Valider et démarrer';
           return;
         }
+        setButtonState('saving');
       }
 
       try {
@@ -534,9 +697,8 @@
         document.getElementById('status').textContent = 'Configuration enregistrée...';
         addLog('Configuration enregistrée');
       } catch (e) {
-        document.getElementById('input-error').textContent = 'Erreur : ' + e.message;
-        btn.disabled = false;
-        btn.textContent = 'Valider et démarrer';
+        showSetupError('Impossible de sauvegarder : ' + (e.message || e));
+        setButtonState('idle');
       }
     }
   </script>

@@ -934,10 +934,12 @@ function TabRoles() {
 // ─── Tab Serveur (config environnement) ──────────────────────────────────────
 
 function TabServeur() {
-  const { message } = App.useApp();
+  const { message, modal } = App.useApp();
   const [form] = Form.useForm();
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [testing, setTesting] = useState(false);
+  const [dbStatus, setDbStatus] = useState<{ type: 'success' | 'error' | null; msg: string }>({ type: null, msg: '' });
 
   useEffect(() => {
     const api = (window as any).electronAPI;
@@ -970,11 +972,97 @@ function TabServeur() {
     });
   }, [form]);
 
-  const handleSave = async (values: any) => {
-    setSaving(true);
+  const buildDbUrl = (values: any) => {
+    const port = parseInt(values.db_port, 10) || 3306;
+    return `mysql://${values.db_user}:${encodeURIComponent(values.db_password)}@${values.db_host}:${port}/${values.db_name}`;
+  };
+
+  const parseDbError = (error: string, values: any): string => {
+    if (error.includes('ECONNREFUSED')) {
+      return `Impossible de joindre ${values.db_host}:${values.db_port}. Vérifiez que MySQL est démarré et accessible.`;
+    }
+    if (error.includes('Access denied')) {
+      return 'Identifiants incorrects (utilisateur ou mot de passe).';
+    }
+    if (error.includes('Unknown database')) {
+      return `La base "${values.db_name}" n'existe pas sur ce serveur.`;
+    }
+    if (error.includes('ETIMEDOUT') || error.includes('timeout')) {
+      return `Délai dépassé pour ${values.db_host}:${values.db_port}. Vérifiez l'hôte et le port.`;
+    }
+    if (error.includes('ENOTFOUND')) {
+      return `Hôte "${values.db_host}" introuvable. Vérifiez l'adresse.`;
+    }
+    return error;
+  };
+
+  const handleTestConnection = async () => {
+    try {
+      await form.validateFields(['db_host', 'db_port', 'db_user', 'db_password', 'db_name']);
+    } catch {
+      return;
+    }
+
+    const values = form.getFieldsValue();
+    const portNum = parseInt(values.db_port, 10);
+    if (isNaN(portNum) || portNum < 1 || portNum > 65535) {
+      setDbStatus({ type: 'error', msg: 'Le port doit être un nombre entre 1 et 65535.' });
+      return;
+    }
+
+    setTesting(true);
+    setDbStatus({ type: null, msg: '' });
+
     try {
       const api = (window as any).electronAPI;
-      const dbUrl = `mysql://${values.db_user}:${encodeURIComponent(values.db_password)}@${values.db_host}:${values.db_port}/${values.db_name}`;
+      const dbUrl = buildDbUrl(values);
+      const result = await api.testDbConnection(dbUrl);
+
+      if (result.ok) {
+        setDbStatus({ type: 'success', msg: 'Connexion à MySQL réussie.' });
+      } else {
+        setDbStatus({ type: 'error', msg: parseDbError(result.error || 'Erreur inconnue', values) });
+      }
+    } catch (e: any) {
+      setDbStatus({ type: 'error', msg: 'Erreur inattendue : ' + (e.message || e) });
+    } finally {
+      setTesting(false);
+    }
+  };
+
+  const handleSave = async (values: any) => {
+    const portNum = parseInt(values.db_port, 10);
+    if (isNaN(portNum) || portNum < 1 || portNum > 65535) {
+      setDbStatus({ type: 'error', msg: 'Le port doit être un nombre entre 1 et 65535.' });
+      return;
+    }
+
+    setSaving(true);
+    setDbStatus({ type: null, msg: '' });
+
+    const api = (window as any).electronAPI;
+    const dbUrl = buildDbUrl(values);
+
+    try {
+      const result = await api.testDbConnection(dbUrl);
+      if (!result.ok) {
+        const errMsg = parseDbError(result.error || 'Erreur inconnue', values);
+        setDbStatus({ type: 'error', msg: errMsg });
+        modal.error({
+          title: 'Connexion échouée',
+          content: `Impossible de se connecter à MySQL avec ces paramètres.\n\n${errMsg}`,
+          okText: 'Compris',
+        });
+        setSaving(false);
+        return;
+      }
+    } catch (e: any) {
+      setDbStatus({ type: 'error', msg: 'Erreur inattendue : ' + (e.message || e) });
+      setSaving(false);
+      return;
+    }
+
+    try {
       const currentConfig = await api.getConfig();
       const newConfig = {
         ...currentConfig,
@@ -985,40 +1073,60 @@ function TabServeur() {
         sync_api_key: values.sync_api_key || '',
       };
       await api.saveConfig(newConfig);
+      setDbStatus({ type: 'success', msg: 'Configuration sauvegardée avec succès.' });
       message.success('Configuration sauvegardée. Redémarrez l\'application pour appliquer.');
     } catch {
-      message.error('Erreur lors de la sauvegarde');
+      message.error('Erreur lors de la sauvegarde du fichier de configuration.');
     } finally {
       setSaving(false);
     }
   };
 
   return (
-    <Form form={form} layout="vertical" onFinish={handleSave}>
+    <Form form={form} layout="vertical" onFinish={handleSave} onValuesChange={() => setDbStatus({ type: null, msg: '' })}>
       <Row gutter={[16, 16]}>
         <Col xs={24} lg={12}>
           <Card title={<Space><CloudOutlined /> Base de données locale (MySQL)</Space>} loading={loading}>
-            <Form.Item label="Hôte" name="db_host" rules={[{ required: true }]}>
-              <Input placeholder="localhost" />
-            </Form.Item>
             <Row gutter={8}>
               <Col span={16}>
-                <Form.Item label="Utilisateur" name="db_user" rules={[{ required: true }]}>
-                  <Input placeholder="globe" />
+                <Form.Item label="Hôte" name="db_host" rules={[{ required: true, message: 'Hôte requis' }]}>
+                  <Input placeholder="localhost" />
                 </Form.Item>
               </Col>
               <Col span={8}>
-                <Form.Item label="Port" name="db_port">
+                <Form.Item label="Port" name="db_port" rules={[{ required: true, message: 'Port requis' }]}>
                   <Input placeholder="3306" />
                 </Form.Item>
               </Col>
             </Row>
-            <Form.Item label="Mot de passe" name="db_password" rules={[{ required: true }]}>
+            <Form.Item label="Utilisateur" name="db_user" rules={[{ required: true, message: 'Utilisateur requis' }]}>
+              <Input placeholder="globe" />
+            </Form.Item>
+            <Form.Item label="Mot de passe" name="db_password" rules={[{ required: true, message: 'Mot de passe requis' }]}>
               <Input.Password placeholder="Mot de passe MySQL" />
             </Form.Item>
-            <Form.Item label="Nom de la base" name="db_name" rules={[{ required: true }]}>
+            <Form.Item label="Nom de la base" name="db_name" rules={[{ required: true, message: 'Nom de base requis' }]}>
               <Input placeholder="gestion_residence" />
             </Form.Item>
+
+            {dbStatus.type && (
+              <Alert
+                type={dbStatus.type}
+                showIcon
+                message={dbStatus.type === 'success' ? 'Connexion réussie' : 'Connexion échouée'}
+                description={dbStatus.msg}
+                style={{ marginBottom: 12 }}
+              />
+            )}
+
+            <Button
+              icon={<CheckCircleOutlined />}
+              loading={testing}
+              onClick={handleTestConnection}
+              style={{ marginRight: 8 }}
+            >
+              Tester la connexion
+            </Button>
           </Card>
         </Col>
 

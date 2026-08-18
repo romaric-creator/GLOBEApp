@@ -9,6 +9,7 @@ contextBridge.exposeInMainWorld('electronAPI', {
   autostartIsEnabled: () => ipcRenderer.invoke('autostart-is-enabled'),
   autostartEnable: () => ipcRenderer.invoke('autostart-enable'),
   autostartDisable: () => ipcRenderer.invoke('autostart-disable'),
+  testDbConnection: (dbUrl) => ipcRenderer.invoke('test-db-connection', dbUrl),
 
   // Splash events
   onSplashStatus: (cb) => ipcRenderer.on('splash-status', (_e, msg) => cb(msg)),

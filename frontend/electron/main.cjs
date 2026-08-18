@@ -188,6 +188,15 @@ async function startup() {
 ipcMain.handle('get-config', () => loadConfig());
 ipcMain.handle('save-config', (_e, config) => saveConfig(config));
 ipcMain.handle('reset-config', () => resetConfig());
+ipcMain.handle('test-db-connection', async (_e, dbUrl) => {
+  if (!backendRunner) return { ok: false, error: 'Backend runner non initialisé' };
+  try {
+    await backendRunner.testMySQLConnection(dbUrl);
+    return { ok: true };
+  } catch (e) {
+    return { ok: false, error: e.message || String(e) };
+  }
+});
 ipcMain.handle('get-server-url', () => {
   const c = loadConfig();
   return c.mode === 'client' ? c.server_url : null;

@@ -41,14 +41,16 @@ class BackendRunner {
         {
           cwd: this.backendDir,
           encoding: 'utf-8',
-          timeout: 10000,
+          timeout: 15000,
           env: { ...process.env, DATABASE_URL: dbUrl },
         }
       );
       return result.trim() === 'ok';
     } catch (e) {
-      this.emit('splash-detail', `MySQL inaccessible: ${e.message || e}`);
-      return false;
+      const stderr = e.stderr ? e.stderr.toString().trim() : '';
+      const errorMsg = stderr || e.message || String(e);
+      this.emit('splash-detail', `MySQL inaccessible: ${errorMsg}`);
+      throw new Error(errorMsg);
     }
   }
 
@@ -114,8 +116,13 @@ class BackendRunner {
 
     // Test MySQL connection
     this.emit('splash-status', 'Connexion à la base de données...');
-    const mysqlOk = await this.testMySQLConnection(dbUrl);
-    if (!mysqlOk) {
+    try {
+      const mysqlOk = await this.testMySQLConnection(dbUrl);
+      if (!mysqlOk) {
+        this.emit('splash-status', 'Impossible de se connecter à MySQL. Vérifiez que MySQL est démarré.');
+        return false;
+      }
+    } catch {
       this.emit('splash-status', 'Impossible de se connecter à MySQL. Vérifiez que MySQL est démarré.');
       return false;
     }
