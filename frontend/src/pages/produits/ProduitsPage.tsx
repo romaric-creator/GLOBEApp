@@ -31,7 +31,7 @@ import {
   ShoppingOutlined,
 } from "@ant-design/icons";
 import { produitsApi } from "../../api/produits";
-import type { Produit, CreateProduitDto, Categorie } from "../../api/produits";
+import type { Produit, CreateProduitDto } from "../../api/produits";
 import CategoriesTab from "./CategoriesTab";
 import MouvementsTab from "./MouvementsTab";
 import BoissonsGrid from "./BoissonsGrid";
@@ -117,7 +117,7 @@ export default function ProduitsPage() {
     }
   };
 
-  const { activeProduits, boissonsParentId, restaurantParentId, boissonsSubCatIds, restaurantSubCatIds } = useMemo(() => {
+  const { activeProduits, boissonsSubCatIds, restaurantSubCatIds } = useMemo(() => {
     const active = produits?.filter((p) => p.actif) || [];
     const bParentId = categories?.find(
       (c) => c.nom.toLowerCase() === 'boissons' && !c.parentId
@@ -131,7 +131,7 @@ export default function ProduitsPage() {
     const rSubIds = new Set(
       categories?.filter((c) => c.parentId === rParentId).map((c) => c.id) || []
     );
-    return { activeProduits: active, boissonsParentId: bParentId, restaurantParentId: rParentId, boissonsSubCatIds: bSubIds, restaurantSubCatIds: rSubIds };
+    return { activeProduits: active, boissonsSubCatIds: bSubIds, restaurantSubCatIds: rSubIds };
   }, [produits, categories]);
 
   const produitsBoissons = activeProduits.filter((p) => boissonsSubCatIds.has(p.categorieId));
@@ -251,7 +251,7 @@ export default function ProduitsPage() {
     </div>
   );
 
-  const renderProductList = (list: Produit[], subCatIds: Set<string>, showGrid: boolean) => {
+  const renderProductList = (list: Produit[], _subCatIds: Set<string>, showGrid: boolean) => {
     const filtered = applyFilters(list);
     if (viewMode === 'table' || !showGrid) {
       return (
