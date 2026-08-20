@@ -199,7 +199,8 @@ ipcMain.handle('test-db-connection', async (_e, dbUrl) => {
 });
 ipcMain.handle('get-server-url', () => {
   const c = loadConfig();
-  return c.mode === 'client' ? c.server_url : null;
+  if (c.mode === 'client') return c.server_url;
+  return `http://localhost:${c.port || 3001}`;
 });
 ipcMain.handle('get-version', () => app.getVersion());
 ipcMain.handle('autostart-is-enabled', () => {
