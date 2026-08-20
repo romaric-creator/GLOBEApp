@@ -547,8 +547,7 @@
       const btn = document.getElementById('confirm-btn');
       if (!selectedMode) { btn.disabled = true; return; }
       if (selectedMode === 'server') {
-        const pass = document.getElementById('db-pass').value.trim();
-        btn.disabled = pass.length === 0;
+        btn.disabled = false;
         return;
       }
       btn.disabled = document.getElementById('server-input').value.trim().length === 0;

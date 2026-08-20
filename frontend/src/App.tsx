@@ -1,4 +1,4 @@
-import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
+import { HashRouter, Routes, Route, Navigate } from "react-router-dom";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { App as AntApp, ConfigProvider } from "antd";
 import frFR from "antd/locale/fr_FR";
@@ -60,7 +60,7 @@ export default function App() {
         }}
       >
         <AntApp>
-          <BrowserRouter>
+          <HashRouter>
             <Routes>
               <Route path="/login" element={<LoginPage />} />
               <Route
@@ -87,7 +87,7 @@ export default function App() {
               </Route>
               <Route path="*" element={<Navigate to="/dashboard" replace />} />
             </Routes>
-          </BrowserRouter>
+          </HashRouter>
         </AntApp>
       </ConfigProvider>
     </QueryClientProvider>
