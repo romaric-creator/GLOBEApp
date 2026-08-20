@@ -1,19 +1,18 @@
 # GLOBEApp
 
-Application de gestion commerciale et de comptabilite destinee aux residences, hotels, restaurants, bars et PME.
+Application desktop de gestion commerciale destinee aux residences, hotels, restaurants, bars et PME.
 
 ## Stack technique
 
 | Couche | Technologies |
 |--------|-------------|
+| **Desktop** | Electron (Windows, Linux) |
 | **Frontend** | React 19, Ant Design 6, TailwindCSS 4, React Query 5, Zustand, Vite 8 |
 | **Backend** | NestJS (Node.js / TypeScript), Prisma ORM |
-| **Base de donnees** | PostgreSQL 15 |
-| **Cache** | Redis 7 |
+| **Base de donnees** | MySQL |
 | **Auth** | JWT (Access + Refresh tokens), RBAC (admin, manager, caissier, serveur, employe) |
-| **Infra** | Docker & Docker Compose, Nginx |
 
-## Modules
+## Fonctionnalites
 
 ### Modules principaux
 
@@ -27,7 +26,7 @@ Application de gestion commerciale et de comptabilite destinee aux residences, h
 | Gestion du Personnel | Fiches employes, contrats, conges (avec detection chevauchement), pointage |
 | Comptabilite | Plan comptable, ecritures en partie double, clotures periodiques |
 | Rapports & Statistiques | Chiffre d'affaires, occupation hotel, top produits, resume mensuel |
-| Sauvegarde | Backup PostgreSQL complet/incrementiel, historique |
+| Sauvegarde | Backup MySQL complet, historique |
 
 ### Modules metier
 
@@ -38,68 +37,80 @@ Application de gestion commerciale et de comptabilite destinee aux residences, h
 | Piscine & Loisirs | Tickets d'acces, abonnements avec expiration automatique |
 | Salle de fete | Reservations avec detection de chevauchement horaire |
 
-## Architecture
-
-```
-├── backend/
-│   ├── prisma/
-│   │   ├── schema.prisma          # Schema BDD (23 index, cascades)
-│   │   ├── migrations/            # Migrations SQL
-│   │   └── seed.ts                # Donnees initiales
-│   ├── src/
-│   │   ├── modules/               # Modules metier (auth, hotel, ventes, restaurant, etc.)
-│   │   ├── common/                # Guards, decorators, filtres
-│   │   ├── prisma/                # Service Prisma global
-│   │   └── main.ts               # Point d'entree (port 3001)
-│   └── Dockerfile
-├── frontend/
-│   ├── src/
-│   │   ├── api/                   # Clients API (axios + intercepteur refresh)
-│   │   ├── components/            # Layout, ProtectedRoute
-│   │   ├── pages/                 # Pages par module
-│   │   ├── store/                 # Zustand (auth)
-│   │   └── hooks/                 # Hooks custom (useAuth)
-│   ├── Dockerfile
-│   └── nginx.conf                 # Reverse proxy /api → backend
-├── docker-compose.yml             # Orchestration complète
-└── README.md
-```
-
 ## Installation
 
-### Prerequis
+### Application desktop (recommande)
 
-- Docker & Docker Compose
+Telecharger l'installateur depuis la page [Releases](https://github.com/romaric-creator/GLOBEApp/releases) :
+- **Windows** : `GLOBE Manager Setup x.x.x.exe`
+- **Linux** : `GLOBE-Manager-x.x.x.AppImage`
 
-### Lancement (production)
+Au premier lancement, l'application propose deux modes :
+- **Serveur** : ce poste heberge la base de donnees MySQL (configurer host, port, utilisateur, mot de passe, nom de base)
+- **Poste client** : se connecter a un serveur existant sur le reseau local
 
-```bash
-git clone https://github.com/romaric-creator/GLOBEApp.git
-cd GLOBEApp
+### Prerequis (mode serveur)
 
-# Lancer tous les services
-docker compose up -d
+- MySQL installe et demarre
+- Une base de donnees creee (par defaut : `gestion_residence`)
 
-# L'application est accessible sur http://localhost:8080
-```
+L'application cree automatiquement les tables et les donnees initiales au premier demarrage.
 
-### Lancement (developpement)
+### Developpement
 
 ```bash
 # Backend
 cd backend
 npm install
 cp .env.example .env
-docker compose up -d postgres redis
 npx prisma generate
 npx prisma db push
 npx prisma db seed
 npm run start:dev          # http://localhost:3001
 
 # Frontend
-cd ../frontend
+cd frontend
 npm install
-npm run dev                # http://localhost:3000 (proxy /api → :3001)
+npm run dev                # http://localhost:3000 (proxy /api -> :3001)
+
+# Electron (desktop)
+npm run electron:dev
+```
+
+### Build desktop
+
+```bash
+cd frontend
+npm run desktop:build      # Genere l'installateur dans frontend/release/
+```
+
+## Architecture
+
+```
+├── backend/
+│   ├── prisma/
+│   │   ├── schema.prisma          # Schema BDD MySQL
+│   │   └── seed.ts                # Donnees initiales
+│   ├── src/
+│   │   ├── modules/               # Modules metier (auth, hotel, ventes, restaurant, etc.)
+│   │   ├── common/                # Guards, decorators, filtres
+│   │   ├── prisma/                # Service Prisma global
+│   │   └── main.ts               # Point d'entree (port 3001)
+├── frontend/
+│   ├── electron/
+│   │   ├── main.cjs               # Process principal Electron
+│   │   ├── backend-runner.cjs     # Lancement du backend integre
+│   │   ├── config.cjs             # Configuration persistante
+│   │   └── preload.cjs            # Bridge IPC
+│   ├── src/
+│   │   ├── api/                   # Clients API (axios + intercepteur refresh)
+│   │   ├── components/            # Layout, ProtectedRoute
+│   │   ├── pages/                 # Pages par module
+│   │   ├── store/                 # Zustand (auth)
+│   │   └── hooks/                 # Hooks custom
+│   └── public/
+│       └── splash.html            # Ecran de demarrage + configuration initiale
+└── README.md
 ```
 
 ## Securite
@@ -107,7 +118,6 @@ npm run dev                # http://localhost:3000 (proxy /api → :3001)
 - Authentification JWT avec rotation automatique des tokens
 - Controle d'acces par role (RBAC) sur les routes backend ET frontend
 - Validation des DTOs via class-validator sur tous les endpoints
-- Protection CSRF, rate limiting sur l'auth
 - Transactions Prisma pour l'integrite des donnees (ventes, stock, reservations)
 - Verification caisse ouverte avant enregistrement de vente
 - Soft-delete sur les produits (desactivation au lieu de suppression)
@@ -118,16 +128,6 @@ npm run dev                # http://localhost:3000 (proxy /api → :3001)
 |------|-------|-------------|
 | Admin | admin@residence.local | admin123 |
 | Manager | manager@residence.local | manager123 |
-
-## Ports
-
-| Service | Port |
-|---------|------|
-| Frontend (nginx) | 8080 |
-| Backend (NestJS) | 3001 |
-| PostgreSQL | 5432 |
-| Redis | 6379 |
-| Vite dev server | 3000 |
 
 ## Licence
 
