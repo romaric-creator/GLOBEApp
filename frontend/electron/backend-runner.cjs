@@ -19,6 +19,14 @@ class BackendRunner {
     return path.join(process.resourcesPath, 'backend');
   }
 
+  getNodeExe() {
+    return process.execPath;
+  }
+
+  getExecEnv(extra = {}) {
+    return { ...process.env, ELECTRON_RUN_AS_NODE: '1', ...extra };
+  }
+
   async checkPort(port) {
     return new Promise((resolve) => {
       const server = net.createServer();
@@ -36,13 +44,15 @@ class BackendRunner {
         await this.runPrismaGenerate(dbUrl);
       }
 
+      const nodeExe = this.getNodeExe();
+      const script = `const{PrismaClient}=require('@prisma/client');const p=new PrismaClient();p.$queryRaw\`SELECT 1\`.then(()=>{console.log('ok');process.exit(0)}).catch(e=>{console.error(e.message);process.exit(1)})`;
       const result = execSync(
-        `node -e "const{PrismaClient}=require('@prisma/client');const p=new PrismaClient();p.$queryRaw\`SELECT 1\`.then(()=>{console.log('ok');process.exit(0)}).catch(e=>{console.error(e.message);process.exit(1)})"`,
+        `"${nodeExe}" -e "${script}"`,
         {
           cwd: this.backendDir,
           encoding: 'utf-8',
           timeout: 15000,
-          env: { ...process.env, DATABASE_URL: dbUrl },
+          env: this.getExecEnv({ DATABASE_URL: dbUrl }),
         }
       );
       return result.trim() === 'ok';
@@ -57,11 +67,15 @@ class BackendRunner {
   async runPrismaGenerate(dbUrl) {
     this.emit('splash-detail', 'Génération du client Prisma...');
     try {
-      execSync('npx prisma generate', {
+      const nodeExe = this.getNodeExe();
+      const prismaCli = path.join(this.backendDir, 'node_modules', '.bin', 'prisma');
+      const prismaJs = path.join(this.backendDir, 'node_modules', 'prisma', 'build', 'index.js');
+      const bin = fs.existsSync(prismaJs) ? `"${nodeExe}" "${prismaJs}"` : `"${prismaCli}"`;
+      execSync(`${bin} generate`, {
         cwd: this.backendDir,
         encoding: 'utf-8',
         timeout: 30000,
-        env: { ...process.env, DATABASE_URL: dbUrl },
+        env: this.getExecEnv({ DATABASE_URL: dbUrl }),
       });
     } catch (e) {
       this.emit('splash-detail', `Erreur prisma generate: ${e.message}`);
@@ -72,11 +86,15 @@ class BackendRunner {
     this.emit('splash-status', 'Mise à jour de la base de données...');
     this.emit('splash-detail', 'Application du schéma Prisma...');
     try {
-      execSync('npx prisma db push --skip-generate', {
+      const nodeExe = this.getNodeExe();
+      const prismaJs = path.join(this.backendDir, 'node_modules', 'prisma', 'build', 'index.js');
+      const prismaCli = path.join(this.backendDir, 'node_modules', '.bin', 'prisma');
+      const bin = fs.existsSync(prismaJs) ? `"${nodeExe}" "${prismaJs}"` : `"${prismaCli}"`;
+      execSync(`${bin} db push --skip-generate`, {
         cwd: this.backendDir,
         encoding: 'utf-8',
         timeout: 60000,
-        env: { ...process.env, DATABASE_URL: dbUrl },
+        env: this.getExecEnv({ DATABASE_URL: dbUrl }),
       });
       this.emit('splash-detail', 'Schéma appliqué avec succès.');
       return true;
@@ -90,11 +108,15 @@ class BackendRunner {
   async runSeed(dbUrl) {
     this.emit('splash-detail', 'Vérification des données initiales...');
     try {
-      execSync('npx prisma db seed', {
+      const nodeExe = this.getNodeExe();
+      const prismaJs = path.join(this.backendDir, 'node_modules', 'prisma', 'build', 'index.js');
+      const prismaCli = path.join(this.backendDir, 'node_modules', '.bin', 'prisma');
+      const bin = fs.existsSync(prismaJs) ? `"${nodeExe}" "${prismaJs}"` : `"${prismaCli}"`;
+      execSync(`${bin} db seed`, {
         cwd: this.backendDir,
         encoding: 'utf-8',
         timeout: 30000,
-        env: { ...process.env, DATABASE_URL: dbUrl },
+        env: this.getExecEnv({ DATABASE_URL: dbUrl }),
       });
       this.emit('splash-detail', 'Données initiales vérifiées.');
     } catch (e) {
@@ -146,11 +168,10 @@ class BackendRunner {
       return false;
     }
 
-    const nodeExe = process.platform === 'win32' ? 'node.exe' : 'node';
+    const nodeExe = this.getNodeExe();
     this.backendProcess = spawn(nodeExe, [mainFile], {
       cwd: this.backendDir,
-      env: {
-        ...process.env,
+      env: this.getExecEnv({
         NODE_ENV: 'production',
         DATABASE_URL: dbUrl,
         JWT_SECRET: config.jwt_secret || 'globe-jwt-secret-change-in-production',
@@ -160,7 +181,7 @@ class BackendRunner {
         ALLOWED_ORIGINS: config.allowed_origins || '',
         SYNC_REMOTE_URL: config.sync_remote_url || '',
         SYNC_API_KEY: config.sync_api_key || '',
-      },
+      }),
       stdio: ['ignore', 'pipe', 'pipe'],
       windowsHide: true,
     });
