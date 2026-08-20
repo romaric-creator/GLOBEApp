@@ -1,6 +1,7 @@
-const { spawn, execSync } = require('child_process');
+const { spawn, execFileSync } = require('child_process');
 const path = require('path');
 const fs = require('fs');
+const os = require('os');
 const http = require('http');
 const net = require('net');
 
@@ -45,16 +46,16 @@ class BackendRunner {
       }
 
       const nodeExe = this.getNodeExe();
-      const script = `const{PrismaClient}=require('@prisma/client');const p=new PrismaClient();p.$queryRaw\`SELECT 1\`.then(()=>{console.log('ok');process.exit(0)}).catch(e=>{console.error(e.message);process.exit(1)})`;
-      const result = execSync(
-        `"${nodeExe}" -e "${script}"`,
-        {
-          cwd: this.backendDir,
-          encoding: 'utf-8',
-          timeout: 15000,
-          env: this.getExecEnv({ DATABASE_URL: dbUrl }),
-        }
-      );
+      const script = "const{PrismaClient}=require('@prisma/client');const p=new PrismaClient();p.$queryRaw`SELECT 1`.then(()=>{console.log('ok');process.exit(0)}).catch(e=>{console.error(e.message);process.exit(1)})";
+      const tmpFile = path.join(os.tmpdir(), 'globe-db-test.js');
+      fs.writeFileSync(tmpFile, script);
+      const result = execFileSync(nodeExe, [tmpFile], {
+        cwd: this.backendDir,
+        encoding: 'utf-8',
+        timeout: 15000,
+        env: this.getExecEnv({ DATABASE_URL: dbUrl }),
+      });
+      try { fs.unlinkSync(tmpFile); } catch {}
       return result.trim() === 'ok';
     } catch (e) {
       const stderr = e.stderr ? e.stderr.toString().trim() : '';
@@ -64,14 +65,22 @@ class BackendRunner {
     }
   }
 
+  getPrismaCommand() {
+    const nodeExe = this.getNodeExe();
+    const prismaJs = path.join(this.backendDir, 'node_modules', 'prisma', 'build', 'index.js');
+    if (fs.existsSync(prismaJs)) {
+      return { exe: nodeExe, prefix: [prismaJs] };
+    }
+    const ext = process.platform === 'win32' ? '.cmd' : '';
+    const prismaCli = path.join(this.backendDir, 'node_modules', '.bin', `prisma${ext}`);
+    return { exe: prismaCli, prefix: [] };
+  }
+
   async runPrismaGenerate(dbUrl) {
     this.emit('splash-detail', 'Génération du client Prisma...');
     try {
-      const nodeExe = this.getNodeExe();
-      const prismaCli = path.join(this.backendDir, 'node_modules', '.bin', 'prisma');
-      const prismaJs = path.join(this.backendDir, 'node_modules', 'prisma', 'build', 'index.js');
-      const bin = fs.existsSync(prismaJs) ? `"${nodeExe}" "${prismaJs}"` : `"${prismaCli}"`;
-      execSync(`${bin} generate`, {
+      const { exe, prefix } = this.getPrismaCommand();
+      execFileSync(exe, [...prefix, 'generate'], {
         cwd: this.backendDir,
         encoding: 'utf-8',
         timeout: 30000,
@@ -86,11 +95,8 @@ class BackendRunner {
     this.emit('splash-status', 'Mise à jour de la base de données...');
     this.emit('splash-detail', 'Application du schéma Prisma...');
     try {
-      const nodeExe = this.getNodeExe();
-      const prismaJs = path.join(this.backendDir, 'node_modules', 'prisma', 'build', 'index.js');
-      const prismaCli = path.join(this.backendDir, 'node_modules', '.bin', 'prisma');
-      const bin = fs.existsSync(prismaJs) ? `"${nodeExe}" "${prismaJs}"` : `"${prismaCli}"`;
-      execSync(`${bin} db push --skip-generate`, {
+      const { exe, prefix } = this.getPrismaCommand();
+      execFileSync(exe, [...prefix, 'db', 'push', '--skip-generate'], {
         cwd: this.backendDir,
         encoding: 'utf-8',
         timeout: 60000,
@@ -108,11 +114,8 @@ class BackendRunner {
   async runSeed(dbUrl) {
     this.emit('splash-detail', 'Vérification des données initiales...');
     try {
-      const nodeExe = this.getNodeExe();
-      const prismaJs = path.join(this.backendDir, 'node_modules', 'prisma', 'build', 'index.js');
-      const prismaCli = path.join(this.backendDir, 'node_modules', '.bin', 'prisma');
-      const bin = fs.existsSync(prismaJs) ? `"${nodeExe}" "${prismaJs}"` : `"${prismaCli}"`;
-      execSync(`${bin} db seed`, {
+      const { exe, prefix } = this.getPrismaCommand();
+      execFileSync(exe, [...prefix, 'db', 'seed'], {
         cwd: this.backendDir,
         encoding: 'utf-8',
         timeout: 30000,
@@ -250,12 +253,14 @@ class BackendRunner {
   }
 
   stop() {
-    if (this.backendProcess) {
-      this.backendProcess.kill('SIGTERM');
-      setTimeout(() => {
-        if (this.backendProcess) this.backendProcess.kill('SIGKILL');
-      }, 5000);
-      this.backendProcess = null;
+    if (!this.backendProcess) return;
+    const proc = this.backendProcess;
+    this.backendProcess = null;
+    if (process.platform === 'win32') {
+      proc.kill();
+    } else {
+      proc.kill('SIGTERM');
+      setTimeout(() => { try { proc.kill('SIGKILL'); } catch {} }, 5000);
     }
   }
 }

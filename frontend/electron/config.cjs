@@ -2,9 +2,9 @@ const fs = require('fs');
 const path = require('path');
 
 function configDir() {
-  const dir = process.platform === 'win32'
-    ? path.join(process.env.APPDATA || '', 'GlobeManager')
-    : path.join(process.env.HOME || '', '.config', 'GlobeManager');
+  const { app } = require('electron');
+  const base = app.getPath('appData');
+  const dir = path.join(base, 'GlobeManager');
   fs.mkdirSync(dir, { recursive: true });
   return dir;
 }
