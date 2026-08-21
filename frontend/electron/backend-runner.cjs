@@ -53,7 +53,10 @@ class BackendRunner {
         cwd: this.backendDir,
         encoding: 'utf-8',
         timeout: 15000,
-        env: this.getExecEnv({ DATABASE_URL: dbUrl }),
+        env: this.getExecEnv({
+          DATABASE_URL: dbUrl,
+          NODE_PATH: path.join(this.backendDir, 'node_modules'),
+        }),
       });
       try { fs.unlinkSync(tmpFile); } catch {}
       return result.trim() === 'ok';
