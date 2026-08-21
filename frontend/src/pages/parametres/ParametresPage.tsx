@@ -52,6 +52,31 @@ import { useAuthStore } from '../../store/auth';
 const { Text, Paragraph } = Typography;
 
 const isDesktop = typeof (window as any).electronAPI !== 'undefined';
+const eAPI = () => (window as any).electronAPI as any;
+
+function parseDbError(error: string, ctx: { host?: string; port?: string | number; name?: string }): string {
+  if (error.includes('ECONNREFUSED'))
+    return `Impossible de joindre ${ctx.host}:${ctx.port}. Vérifiez que MySQL est démarré.`;
+  if (error.includes('Access denied'))
+    return 'Identifiants incorrects (utilisateur ou mot de passe).';
+  if (error.includes('Unknown database'))
+    return `La base "${ctx.name}" n'existe pas sur ce serveur.`;
+  if (error.includes('ETIMEDOUT') || error.includes('timeout'))
+    return `Délai dépassé pour ${ctx.host}:${ctx.port}. Vérifiez l'hôte et le port.`;
+  if (error.includes('ENOTFOUND'))
+    return `Hôte "${ctx.host}" introuvable. Vérifiez l'adresse.`;
+  return error;
+}
+
+function useStatusAlert() {
+  const [status, setStatus] = useState<{ type: 'success' | 'error' | null; msg: string }>({ type: null, msg: '' });
+  return {
+    status,
+    ok: (msg: string) => setStatus({ type: 'success', msg }),
+    err: (msg: string) => setStatus({ type: 'error', msg }),
+    clear: () => setStatus({ type: null, msg: '' }),
+  };
+}
 
 // ─── Tab Compte ──────────────────────────────────────────────────────────────
 
@@ -223,7 +248,7 @@ function TabReseau({ isAdmin }: { isAdmin: boolean }) {
   const [loadingAutostart, setLoadingAutostart] = useState(false);
 
   useEffect(() => {
-    const api = (window as any).electronAPI;
+    const api = eAPI();
     if (!api) { setLoadingConfig(false); return; }
     Promise.all([
       api.getConfig(),
@@ -239,7 +264,7 @@ function TabReseau({ isAdmin }: { isAdmin: boolean }) {
   const toggleAutostart = async (enabled: boolean) => {
     setLoadingAutostart(true);
     try {
-      const api = (window as any).electronAPI;
+      const api = eAPI();
       const ok = enabled ? await api.autostartEnable() : await api.autostartDisable();
       if (ok) {
         setAutostart(enabled);
@@ -261,7 +286,7 @@ function TabReseau({ isAdmin }: { isAdmin: boolean }) {
       okType: 'danger',
       cancelText: 'Annuler',
       onOk: async () => {
-        const api = (window as any).electronAPI;
+        const api = eAPI();
         const ok = await api.resetConfig();
         if (ok) {
           message.success("Configuration réinitialisée — redémarrez l'application");
@@ -347,12 +372,13 @@ function TabSync({ isAdmin }: { isAdmin: boolean }) {
   const [syncForm] = Form.useForm();
   const [savingSync, setSavingSync] = useState(false);
   const [testingRemote, setTestingRemote] = useState(false);
-  const [remoteStatus, setRemoteStatus] = useState<{ type: 'success' | 'error' | null; msg: string }>({ type: null, msg: '' });
+  const remote = useStatusAlert();
   const [syncConfigLoaded, setSyncConfigLoaded] = useState(false);
 
   useEffect(() => {
-    const api = (window as any).electronAPI;
-    if (!api || !isAdmin) { setSyncConfigLoaded(true); return; }
+    setSyncConfigLoaded(true);
+    const api = eAPI();
+    if (!api) return;
     api.getConfig().then((cfg: any) => {
       syncForm.setFieldsValue({
         remote_db_host: cfg.remote_db_host || '',
@@ -361,8 +387,7 @@ function TabSync({ isAdmin }: { isAdmin: boolean }) {
         remote_db_password: cfg.remote_db_password || '',
         remote_db_name: cfg.remote_db_name || '',
       });
-      setSyncConfigLoaded(true);
-    }).catch(() => setSyncConfigLoaded(true));
+    }).catch(() => {});
   }, [syncForm, isAdmin]);
 
   const handleTestRemote = async () => {
@@ -371,7 +396,7 @@ function TabSync({ isAdmin }: { isAdmin: boolean }) {
     } catch { return; }
     const values = syncForm.getFieldsValue();
     setTestingRemote(true);
-    setRemoteStatus({ type: null, msg: '' });
+    remote.clear();
     try {
       const result = await syncApi.testConnection({
         host: values.remote_db_host,
@@ -381,12 +406,16 @@ function TabSync({ isAdmin }: { isAdmin: boolean }) {
         database: values.remote_db_name,
       }).then((r) => r.data);
       if (result.ok) {
-        setRemoteStatus({ type: 'success', msg: 'Connexion à la base distante réussie.' });
+        remote.ok('Connexion à la base distante réussie.');
       } else {
-        setRemoteStatus({ type: 'error', msg: result.erreur || 'Connexion échouée.' });
+        remote.err(parseDbError(result.erreur || 'Connexion échouée.', {
+          host: values.remote_db_host,
+          port: values.remote_db_port,
+          name: values.remote_db_name,
+        }));
       }
     } catch {
-      setRemoteStatus({ type: 'error', msg: 'Impossible de joindre le serveur.' });
+      remote.err('Impossible de joindre le serveur.');
     } finally {
       setTestingRemote(false);
     }
@@ -395,7 +424,7 @@ function TabSync({ isAdmin }: { isAdmin: boolean }) {
   const handleSaveSync = async (values: any) => {
     setSavingSync(true);
     try {
-      const api = (window as any).electronAPI;
+      const api = eAPI();
       if (!api) return;
       const current = await api.getConfig();
       await api.saveConfig({
@@ -488,8 +517,8 @@ function TabSync({ isAdmin }: { isAdmin: boolean }) {
 
   return (
     <Row gutter={[16, 16]}>
-      {/* Configuration base distante — admin desktop uniquement */}
-      {isAdmin && isDesktop && (
+      {/* Configuration base distante — admin uniquement */}
+      {isAdmin && (
         <Col xs={24}>
           <Card
             title={<Space><CloudOutlined /> Base de données distante (MySQL)</Space>}
@@ -500,7 +529,7 @@ function TabSync({ isAdmin }: { isAdmin: boolean }) {
               form={syncForm}
               layout="vertical"
               onFinish={handleSaveSync}
-              onValuesChange={() => setRemoteStatus({ type: null, msg: '' })}
+              onValuesChange={remote.clear}
             >
               <Row gutter={12}>
                 <Col xs={24} md={14}>
@@ -544,12 +573,12 @@ function TabSync({ isAdmin }: { isAdmin: boolean }) {
                 <Input placeholder="gestion_residence_backup" />
               </Form.Item>
 
-              {remoteStatus.type && (
+              {remote.status.type && (
                 <Alert
-                  type={remoteStatus.type}
+                  type={remote.status.type}
                   showIcon
-                  message={remoteStatus.type === 'success' ? 'Connexion réussie' : 'Connexion échouée'}
-                  description={remoteStatus.msg}
+                  message={remote.status.type === 'success' ? 'Connexion réussie' : 'Connexion échouée'}
+                  description={remote.status.msg}
                   style={{ marginBottom: 12 }}
                 />
               )}
@@ -564,9 +593,11 @@ function TabSync({ isAdmin }: { isAdmin: boolean }) {
                 <Button icon={<CheckCircleOutlined />} loading={testingRemote} onClick={handleTestRemote}>
                   Tester la connexion
                 </Button>
-                <Button type="primary" htmlType="submit" loading={savingSync} icon={<SyncOutlined />}>
-                  Enregistrer
-                </Button>
+                {isDesktop && (
+                  <Button type="primary" htmlType="submit" loading={savingSync} icon={<SyncOutlined />}>
+                    Enregistrer
+                  </Button>
+                )}
               </Space>
             </Form>
           </Card>
@@ -1093,10 +1124,10 @@ function TabServeur() {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [testing, setTesting] = useState(false);
-  const [dbStatus, setDbStatus] = useState<{ type: 'success' | 'error' | null; msg: string }>({ type: null, msg: '' });
+  const db = useStatusAlert();
 
   useEffect(() => {
-    const api = (window as any).electronAPI;
+    const api = eAPI();
     if (!api) return;
     api.getConfig().then((cfg: any) => {
       const dbUrl = cfg.database_url || '';
@@ -1129,25 +1160,6 @@ function TabServeur() {
     return `mysql://${values.db_user}:${encodeURIComponent(values.db_password)}@${values.db_host}:${port}/${values.db_name}`;
   };
 
-  const parseDbError = (error: string, values: any): string => {
-    if (error.includes('ECONNREFUSED')) {
-      return `Impossible de joindre ${values.db_host}:${values.db_port}. Vérifiez que MySQL est démarré et accessible.`;
-    }
-    if (error.includes('Access denied')) {
-      return 'Identifiants incorrects (utilisateur ou mot de passe).';
-    }
-    if (error.includes('Unknown database')) {
-      return `La base "${values.db_name}" n'existe pas sur ce serveur.`;
-    }
-    if (error.includes('ETIMEDOUT') || error.includes('timeout')) {
-      return `Délai dépassé pour ${values.db_host}:${values.db_port}. Vérifiez l'hôte et le port.`;
-    }
-    if (error.includes('ENOTFOUND')) {
-      return `Hôte "${values.db_host}" introuvable. Vérifiez l'adresse.`;
-    }
-    return error;
-  };
-
   const handleTestConnection = async () => {
     try {
       await form.validateFields(['db_host', 'db_port', 'db_user', 'db_password', 'db_name']);
@@ -1158,25 +1170,25 @@ function TabServeur() {
     const values = form.getFieldsValue();
     const portNum = parseInt(values.db_port, 10);
     if (isNaN(portNum) || portNum < 1 || portNum > 65535) {
-      setDbStatus({ type: 'error', msg: 'Le port doit être un nombre entre 1 et 65535.' });
+      db.err('Le port doit être un nombre entre 1 et 65535.');
       return;
     }
 
     setTesting(true);
-    setDbStatus({ type: null, msg: '' });
+    db.clear();
 
     try {
-      const api = (window as any).electronAPI;
+      const api = eAPI();
       const dbUrl = buildDbUrl(values);
       const result = await api.testDbConnection(dbUrl);
 
       if (result.ok) {
-        setDbStatus({ type: 'success', msg: 'Connexion à MySQL réussie.' });
+        db.ok('Connexion à MySQL réussie.');
       } else {
-        setDbStatus({ type: 'error', msg: parseDbError(result.error || 'Erreur inconnue', values) });
+        db.err(parseDbError(result.error || 'Erreur inconnue', { host: values.db_host, port: values.db_port, name: values.db_name }));
       }
     } catch (e: any) {
-      setDbStatus({ type: 'error', msg: 'Erreur inattendue : ' + (e.message || e) });
+      db.err('Erreur inattendue : ' + (e.message || e));
     } finally {
       setTesting(false);
     }
@@ -1185,21 +1197,21 @@ function TabServeur() {
   const handleSave = async (values: any) => {
     const portNum = parseInt(values.db_port, 10);
     if (isNaN(portNum) || portNum < 1 || portNum > 65535) {
-      setDbStatus({ type: 'error', msg: 'Le port doit être un nombre entre 1 et 65535.' });
+      db.err('Le port doit être un nombre entre 1 et 65535.');
       return;
     }
 
     setSaving(true);
-    setDbStatus({ type: null, msg: '' });
+    db.clear();
 
-    const api = (window as any).electronAPI;
+    const api = eAPI();
     const dbUrl = buildDbUrl(values);
 
     try {
       const result = await api.testDbConnection(dbUrl);
       if (!result.ok) {
-        const errMsg = parseDbError(result.error || 'Erreur inconnue', values);
-        setDbStatus({ type: 'error', msg: errMsg });
+        const errMsg = parseDbError(result.error || 'Erreur inconnue', { host: values.db_host, port: values.db_port, name: values.db_name });
+        db.err(errMsg);
         modal.error({
           title: 'Connexion échouée',
           content: `Impossible de se connecter à MySQL avec ces paramètres.\n\n${errMsg}`,
@@ -1209,7 +1221,7 @@ function TabServeur() {
         return;
       }
     } catch (e: any) {
-      setDbStatus({ type: 'error', msg: 'Erreur inattendue : ' + (e.message || e) });
+      db.err('Erreur inattendue : ' + (e.message || e));
       setSaving(false);
       return;
     }
@@ -1223,7 +1235,7 @@ function TabServeur() {
         jwt_secret: values.jwt_secret,
       };
       await api.saveConfig(newConfig);
-      setDbStatus({ type: 'success', msg: 'Configuration sauvegardée avec succès.' });
+      db.ok('Configuration sauvegardée avec succès.');
       message.success('Configuration sauvegardée. Redémarrez l\'application pour appliquer.');
     } catch {
       message.error('Erreur lors de la sauvegarde du fichier de configuration.');
@@ -1233,7 +1245,7 @@ function TabServeur() {
   };
 
   return (
-    <Form form={form} layout="vertical" onFinish={handleSave} onValuesChange={() => setDbStatus({ type: null, msg: '' })}>
+    <Form form={form} layout="vertical" onFinish={handleSave} onValuesChange={db.clear}>
       <Row gutter={[16, 16]}>
         <Col xs={24} lg={12}>
           <Card title={<Space><CloudOutlined /> Base de données locale (MySQL)</Space>} loading={loading}>
@@ -1259,12 +1271,12 @@ function TabServeur() {
               <Input placeholder="gestion_residence" />
             </Form.Item>
 
-            {dbStatus.type && (
+            {db.status.type && (
               <Alert
-                type={dbStatus.type}
+                type={db.status.type}
                 showIcon
-                message={dbStatus.type === 'success' ? 'Connexion réussie' : 'Connexion échouée'}
-                description={dbStatus.msg}
+                message={db.status.type === 'success' ? 'Connexion réussie' : 'Connexion échouée'}
+                description={db.status.msg}
                 style={{ marginBottom: 12 }}
               />
             )}
@@ -1307,7 +1319,7 @@ function TabAbout() {
   const [version, setVersion] = useState('1.0.0');
 
   useEffect(() => {
-    const api = (window as any).electronAPI;
+    const api = eAPI();
     if (!api) return;
     api.getVersion().then(setVersion).catch(() => {});
   }, []);
@@ -1405,7 +1417,12 @@ export default function ParametresPage() {
   return (
     <div>
       <h2 className="text-xl font-semibold mb-4">Paramètres</h2>
-      <Tabs items={tabItems} destroyInactiveTabPane={false} />
+      <Tabs
+        items={tabItems}
+        destroyInactiveTabPane={false}
+        tabBarStyle={{ overflowX: 'auto', flexWrap: 'nowrap' }}
+        size="small"
+      />
     </div>
   );
 }
