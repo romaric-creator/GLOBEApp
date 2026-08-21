@@ -42,9 +42,33 @@ class BackendRunner {
     return app.isPackaged;
   }
 
+  parseDbUrl(dbUrl) {
+    const match = dbUrl.match(/^mysql:\/\/([^:]+):([^@]*)@([^:]+):(\d+)\/(.+)$/);
+    if (!match) return null;
+    return { user: match[1], pass: match[2], host: match[3], port: match[4], dbName: match[5] };
+  }
+
   async testMySQLConnection(dbUrl) {
     this.emit('splash-detail', 'Test de connexion à MySQL...');
     try {
+      const nodeExe = this.getNodeExe();
+      const parsed = this.parseDbUrl(dbUrl);
+
+      // Step 1: Test MySQL server reachability (without specific database)
+      const baseUrl = parsed
+        ? `mysql://${parsed.user}:${parsed.pass}@${parsed.host}:${parsed.port}/mysql`
+        : dbUrl;
+
+      const testScript = [
+        "const{PrismaClient}=require('@prisma/client');",
+        "const p=new PrismaClient({datasources:{db:{url:process.env.DATABASE_URL}}});",
+        "p.$queryRaw`SELECT 1`.then(()=>{console.log('ok');process.exit(0)})",
+        ".catch(e=>{console.error(e.message);process.exit(1)})"
+      ].join('');
+
+      const tmpFile = path.join(os.tmpdir(), 'globe-db-test.js');
+
+      // Check prisma client exists
       const mainEntry = path.join(this.backendDir, 'node_modules', '.prisma', 'client', 'index.js');
       if (!fs.existsSync(mainEntry)) {
         if (this.isPackaged()) {
@@ -53,10 +77,51 @@ class BackendRunner {
         await this.runPrismaGenerate(dbUrl);
       }
 
-      const nodeExe = this.getNodeExe();
-      const script = "const{PrismaClient}=require('@prisma/client');const p=new PrismaClient();p.$queryRaw`SELECT 1`.then(()=>{console.log('ok');process.exit(0)}).catch(e=>{console.error(e.message);process.exit(1)})";
-      const tmpFile = path.join(os.tmpdir(), 'globe-db-test.js');
-      fs.writeFileSync(tmpFile, script);
+      // Test connection to MySQL server (using system 'mysql' db)
+      fs.writeFileSync(tmpFile, testScript);
+      const baseResult = execFileSync(nodeExe, [tmpFile], {
+        cwd: this.backendDir,
+        encoding: 'utf-8',
+        timeout: 15000,
+        env: this.getExecEnv({
+          DATABASE_URL: baseUrl,
+          NODE_PATH: path.join(this.backendDir, 'node_modules'),
+        }),
+      });
+      if (baseResult.trim() !== 'ok') {
+        throw new Error('Impossible de se connecter au serveur MySQL');
+      }
+      this.emit('splash-detail', 'Serveur MySQL accessible.');
+
+      // Step 2: Create database if it doesn't exist
+      if (parsed) {
+        this.emit('splash-detail', `Vérification de la base "${parsed.dbName}"...`);
+        const createScript = [
+          "const{PrismaClient}=require('@prisma/client');",
+          "const p=new PrismaClient({datasources:{db:{url:process.env.DATABASE_URL}}});",
+          `p.$executeRawUnsafe('CREATE DATABASE IF NOT EXISTS \\`${parsed.dbName}\\`')`,
+          ".then(()=>{console.log('ok');process.exit(0)})",
+          ".catch(e=>{console.error(e.message);process.exit(1)})"
+        ].join('');
+        fs.writeFileSync(tmpFile, createScript);
+        try {
+          execFileSync(nodeExe, [tmpFile], {
+            cwd: this.backendDir,
+            encoding: 'utf-8',
+            timeout: 15000,
+            env: this.getExecEnv({
+              DATABASE_URL: baseUrl,
+              NODE_PATH: path.join(this.backendDir, 'node_modules'),
+            }),
+          });
+          this.emit('splash-detail', `Base "${parsed.dbName}" prête.`);
+        } catch (e) {
+          this.emit('splash-detail', `Impossible de créer la base: ${e.stderr || e.message}`);
+        }
+      }
+
+      // Step 3: Verify connection to the target database
+      fs.writeFileSync(tmpFile, testScript);
       const result = execFileSync(nodeExe, [tmpFile], {
         cwd: this.backendDir,
         encoding: 'utf-8',

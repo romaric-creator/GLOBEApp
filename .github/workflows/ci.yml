@@ -131,6 +131,8 @@ jobs:
 
       - name: Build frontend + Electron
         working-directory: frontend
+        env:
+          VITE_API_BASE_URL: http://localhost:3001/api
         run: |
           npm ci
           npm install @rolldown/binding-win32-x64-msvc lightningcss-win32-x64-msvc @tailwindcss/oxide-win32-x64-msvc --no-save
