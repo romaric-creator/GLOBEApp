@@ -96,6 +96,10 @@ jobs:
       - name: Installer les dependances
         run: npm ci
 
+      - name: Verifier syntaxe Electron (CJS)
+        run: |
+          for f in electron/*.cjs; do node -c "$f"; done
+
       - name: Tests unitaires
         run: npm run test
 

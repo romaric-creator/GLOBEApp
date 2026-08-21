@@ -99,7 +99,7 @@ class BackendRunner {
         const createScript = [
           "const{PrismaClient}=require('@prisma/client');",
           "const p=new PrismaClient({datasources:{db:{url:process.env.DATABASE_URL}}});",
-          `p.$executeRawUnsafe('CREATE DATABASE IF NOT EXISTS \\`${parsed.dbName}\\`')`,
+          "p.$executeRawUnsafe('CREATE DATABASE IF NOT EXISTS `" + parsed.dbName + "`')",
           ".then(()=>{console.log('ok');process.exit(0)})",
           ".catch(e=>{console.error(e.message);process.exit(1)})"
         ].join('');
