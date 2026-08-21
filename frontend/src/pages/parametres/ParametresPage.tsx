@@ -289,7 +289,7 @@ function TabReseau({ isAdmin }: { isAdmin: boolean }) {
         const api = eAPI();
         const ok = await api.resetConfig();
         if (ok) {
-          message.success("Configuration réinitialisée — redémarrez l'application");
+          message.success("Configuration réinitialisée. Redémarrez l'application pour appliquer.");
         } else {
           message.error('Échec de la réinitialisation');
         }
@@ -460,7 +460,7 @@ function TabSync({ isAdmin }: { isAdmin: boolean }) {
       queryClient.invalidateQueries({ queryKey: ['sync-status'] });
       queryClient.invalidateQueries({ queryKey: ['sync-logs'] });
       if (data.success) {
-        message.success(`Synchronisation réussie — ${data.nbEnvois} enregistrement(s) envoyé(s)`);
+        message.success(`Synchronisation réussie : ${data.nbEnvois} enregistrement(s) envoyé(s).`);
       } else {
         message.error('La synchronisation a échoué. Veuillez réessayer.');
       }
@@ -659,7 +659,7 @@ function TabSync({ isAdmin }: { isAdmin: boolean }) {
                   >
                     {syncStatus.dernierSync.statut}
                     {syncStatus.dernierSync.nbEnvois > 0 &&
-                      ` — ${syncStatus.dernierSync.nbEnvois} enregistrement(s)`}
+                      ` · ${syncStatus.dernierSync.nbEnvois} enregistrement(s)`}
                   </Tag>
                   {syncStatus.dernierSync.erreur && (
                     <Paragraph type="danger" style={{ fontSize: 11, marginTop: 4 }}>
@@ -1065,7 +1065,7 @@ function TabRoles() {
         <Card
           title={
             selectedRole
-              ? `Permissions — ${selectedRole.nom}`
+              ? `Permissions : ${selectedRole.nom}`
               : 'Sélectionnez un rôle'
           }
           loading={permsLoading}
@@ -1286,7 +1286,7 @@ function TabServeur() {
               loading={testing}
               onClick={handleTestConnection}
               disabled={!isDesktop}
-              title={!isDesktop ? 'Disponible uniquement dans l\'application desktop' : undefined}
+              title={!isDesktop ? "Disponible uniquement dans l'application installée sur le PC" : undefined}
               style={{ marginRight: 8 }}
             >
               Tester la connexion
@@ -1315,7 +1315,7 @@ function TabServeur() {
               type="info"
               showIcon
               style={{ marginTop: 8 }}
-              message="Lecture seule en mode navigateur — la sauvegarde nécessite l'application desktop."
+              message="Pour modifier ces paramètres, utilisez l'application installée sur le PC serveur."
             />
           )}
         </Col>
