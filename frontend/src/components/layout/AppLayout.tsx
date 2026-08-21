@@ -238,12 +238,12 @@ export default function AppLayout() {
           >
             {collapsed ? (
               <div className="flex h-10 w-10 items-center justify-center overflow-hidden rounded-full">
-                <img src="/logo-globe.jpeg" alt="Globe" className="w-full h-full object-cover" />
+                <img src="./logo-globe.jpeg" alt="Globe" className="w-full h-full object-cover" />
               </div>
             ) : (
               <div className="flex items-center justify-center transition-all duration-300 ease-in-out">
                 <div className="flex h-36 w-36 shrink-0 items-center justify-center overflow-hidden rounded-full">
-                  <img src="/logo-globe.jpeg" alt="Globe" className="w-full h-full object-cover" />
+                  <img src="./logo-globe.jpeg" alt="Globe" className="w-full h-full object-cover" />
                 </div>
               </div>
             )}

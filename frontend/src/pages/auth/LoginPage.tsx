@@ -37,7 +37,7 @@ export default function LoginPage() {
           <div
             className="absolute inset-0 opacity-30"
             style={{
-              backgroundImage: "url('/login-bg.png')",
+              backgroundImage: "url('./login-bg.png')",
               backgroundSize: "cover",
               backgroundPosition: "center",
               mixBlendMode: "overlay",
@@ -45,7 +45,7 @@ export default function LoginPage() {
           />
           <div className="relative z-10 flex flex-col items-center text-center">
             <img
-              src="/logo-globe.jpeg"
+              src="./logo-globe.jpeg"
               alt="Globe"
               className="w-28 h-28 rounded-2xl object-contain shadow-lg"
               style={{ background: "white", padding: "8px" }}
@@ -69,7 +69,7 @@ export default function LoginPage() {
         <div className="flex flex-col justify-center p-10 md:p-14 bg-white">
           <div className="lg:hidden flex justify-center mb-8">
             <img
-              src="/logo-globe.jpeg"
+              src="./logo-globe.jpeg"
               alt="Globe"
               className="w-16 h-16 rounded-xl object-contain"
               style={{ background: "white", padding: "4px", boxShadow: "0 2px 12px rgba(0,0,0,0.08)" }}
