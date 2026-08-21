@@ -52,10 +52,17 @@ export class SauvegardeService {
         throw new Error('DATABASE_URL non configuree');
       }
       await mkdir(backupDir, { recursive: true });
+      const whichCmd = process.platform === 'win32' ? 'where' : 'which';
+      let dumpBin = 'mysqldump';
       try {
-        execFileSync(process.platform === 'win32' ? 'where' : 'which', ['mysqldump'], { encoding: 'utf-8' });
+        execFileSync(whichCmd, ['mysqldump'], { encoding: 'utf-8' });
       } catch {
-        throw new Error('mysqldump non trouvé. Installez MySQL Client ou ajoutez-le au PATH.');
+        try {
+          execFileSync(whichCmd, ['mariadb-dump'], { encoding: 'utf-8' });
+          dumpBin = 'mariadb-dump';
+        } catch {
+          throw new Error('mysqldump/mariadb-dump non trouvé. Installez MySQL Client ou MariaDB Client.');
+        }
       }
       const execFileAsync = promisify(execFile);
       const dbUrl = new URL(databaseUrl);
@@ -64,7 +71,7 @@ export class SauvegardeService {
       const user = dbUrl.username;
       const password = dbUrl.password;
       const database = dbUrl.pathname.replace(/^\//, '');
-      await execFileAsync('mysqldump', [
+      await execFileAsync(dumpBin, [
         `-h${host}`,
         `-P${port}`,
         `-u${user}`,
