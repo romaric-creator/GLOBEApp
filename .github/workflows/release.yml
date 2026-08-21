@@ -9,8 +9,8 @@ permissions:
   contents: write
 
 jobs:
-  desktop-windows:
-    name: Build installeur Windows
+  build-windows:
+    name: Build Windows (NSIS)
     runs-on: windows-latest
 
     steps:
@@ -27,24 +27,110 @@ jobs:
           npm ci
           npx prisma generate
           npm run build
+          npm prune --omit=dev
 
-      - name: Build frontend + Electron
+      - name: Build frontend + Electron (Windows)
         working-directory: frontend
         run: |
           npm ci
           npm install @rolldown/binding-win32-x64-msvc lightningcss-win32-x64-msvc @tailwindcss/oxide-win32-x64-msvc --no-save
-          npm run desktop:build
+          npx tsc -b
+          npx vite build
+          npx electron-builder --win
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Upload artifact Windows
+        uses: actions/upload-artifact@v4
+        with:
+          name: windows-installer
+          path: frontend/release/*.exe
+          retention-days: 1
+
+  build-linux:
+    name: Build Linux (AppImage)
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Installer Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Installer dependances systeme (electron-builder)
+        run: sudo apt-get update && sudo apt-get install -y rpm fakeroot
+
+      - name: Build backend
+        working-directory: backend
+        run: |
+          npm ci
+          npx prisma generate
+          npm run build
+          npm prune --omit=dev
+
+      - name: Build frontend + Electron (Linux)
+        working-directory: frontend
+        run: |
+          npm ci
+          npx tsc -b
+          npx vite build
+          npx electron-builder --linux
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Upload artifact Linux
+        uses: actions/upload-artifact@v4
+        with:
+          name: linux-appimage
+          path: frontend/release/*.AppImage
+          retention-days: 1
+
+  publish-release:
+    name: Publier la release GitHub
+    needs: [build-windows, build-linux]
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Telecharger artifacts Windows
+        uses: actions/download-artifact@v4
+        with:
+          name: windows-installer
+          path: dist/
+
+      - name: Telecharger artifacts Linux
+        uses: actions/download-artifact@v4
+        with:
+          name: linux-appimage
+          path: dist/
 
       - name: Creer la release GitHub
         uses: softprops/action-gh-release@v2
         with:
           name: GLOBE Manager ${{ github.ref_name }}
           body: |
-            ## Installation
+            ## GLOBE Manager ${{ github.ref_name }}
 
-            1. Installer **MySQL** sur le PC serveur (https://dev.mysql.com/downloads/installer/)
-            2. Créer une base de données `gestion_residence`
-            3. Télécharger et lancer l'installeur `.exe`
-            4. Configurer la connexion MySQL au premier lancement
-          files: |
-            frontend/release/*.exe
+            ### Téléchargements
+
+            | Plateforme | Fichier | Description |
+            |------------|---------|-------------|
+            | Windows 10/11 | `.exe` | Installeur NSIS — double-clic pour installer |
+            | Linux | `.AppImage` | Portable — `chmod +x` puis lancer directement |
+
+            ### Prérequis
+
+            - **MySQL 8** ou **MariaDB 10.6+** installé sur le PC serveur
+            - Créer une base de données `gestion_residence`
+            - L'application configure automatiquement le schéma au premier lancement
+
+            ### Premier lancement
+
+            1. Lancer l'installeur (Windows) ou l'AppImage (Linux)
+            2. Sélectionner le mode **Serveur** si ce PC héberge MySQL
+            3. Renseigner les identifiants MySQL
+            4. Valider — la base est initialisée automatiquement
+          files: dist/*
+          draft: false
+          prerelease: false
