@@ -1128,7 +1128,7 @@ function TabServeur() {
 
   useEffect(() => {
     const api = eAPI();
-    if (!api) return;
+    if (!api) { setLoading(false); return; }
     api.getConfig().then((cfg: any) => {
       const dbUrl = cfg.database_url || '';
       let dbHost = 'localhost', dbUser = 'globe', dbPass = '', dbName = 'gestion_residence', dbPort = '3306';
@@ -1285,6 +1285,8 @@ function TabServeur() {
               icon={<CheckCircleOutlined />}
               loading={testing}
               onClick={handleTestConnection}
+              disabled={!isDesktop}
+              title={!isDesktop ? 'Disponible uniquement dans l\'application desktop' : undefined}
               style={{ marginRight: 8 }}
             >
               Tester la connexion
@@ -1304,9 +1306,18 @@ function TabServeur() {
         </Col>
 
         <Col xs={24}>
-          <Button type="primary" htmlType="submit" loading={saving} style={{ marginTop: 8 }}>
-            Sauvegarder la configuration
-          </Button>
+          {isDesktop ? (
+            <Button type="primary" htmlType="submit" loading={saving} style={{ marginTop: 8 }}>
+              Sauvegarder la configuration
+            </Button>
+          ) : (
+            <Alert
+              type="info"
+              showIcon
+              style={{ marginTop: 8 }}
+              message="Lecture seule en mode navigateur — la sauvegarde nécessite l'application desktop."
+            />
+          )}
         </Col>
       </Row>
     </Form>
@@ -1398,7 +1409,7 @@ export default function ParametresPage() {
           },
         ]
       : []),
-    ...(isDesktop && isAdmin
+    ...(isAdmin
       ? [
           {
             key: 'serveur',
