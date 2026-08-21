@@ -6,6 +6,8 @@ import { execFile } from 'child_process';
 import { promisify } from 'util';
 import { stat, mkdir } from 'fs/promises';
 import { URL } from 'url';
+import { homedir } from 'os';
+import { join } from 'path';
 
 @Injectable()
 export class SauvegardeService {
@@ -26,8 +28,14 @@ export class SauvegardeService {
     }));
   }
 
+  private getBackupDir(): string {
+    return this.configService.get<string>('BACKUP_DIR') || join(homedir(), 'globe-backups');
+  }
+
   async create(dto: CreateSauvegardeDto) {
-    const chemin = `/backups/backup_${Date.now()}.sql`;
+    const backupDir = this.getBackupDir();
+    const filename = `backup_${Date.now()}.sql`;
+    const chemin = join(backupDir, filename);
 
     const sauvegarde = await this.prisma.sauvegarde.create({
       data: {
@@ -43,7 +51,7 @@ export class SauvegardeService {
       if (!databaseUrl) {
         throw new Error('DATABASE_URL non configuree');
       }
-      await mkdir('/backups', { recursive: true });
+      await mkdir(backupDir, { recursive: true });
       const execFileAsync = promisify(execFile);
       const dbUrl = new URL(databaseUrl);
       const host = dbUrl.hostname;
