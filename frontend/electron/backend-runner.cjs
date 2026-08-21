@@ -37,11 +37,19 @@ class BackendRunner {
     });
   }
 
+  isPackaged() {
+    const { app } = require('electron');
+    return app.isPackaged;
+  }
+
   async testMySQLConnection(dbUrl) {
     this.emit('splash-detail', 'Test de connexion à MySQL...');
     try {
       const mainEntry = path.join(this.backendDir, 'node_modules', '.prisma', 'client', 'index.js');
       if (!fs.existsSync(mainEntry)) {
+        if (this.isPackaged()) {
+          throw new Error('Client Prisma manquant. Réinstallez l\'application.');
+        }
         await this.runPrismaGenerate(dbUrl);
       }
 
@@ -80,6 +88,10 @@ class BackendRunner {
   }
 
   async runPrismaGenerate(dbUrl) {
+    if (this.isPackaged()) {
+      this.emit('splash-detail', 'Client Prisma manquant (app packagee, écriture impossible).');
+      return;
+    }
     this.emit('splash-detail', 'Génération du client Prisma...');
     try {
       const { exe, prefix } = this.getPrismaCommand();
@@ -103,7 +115,10 @@ class BackendRunner {
         cwd: this.backendDir,
         encoding: 'utf-8',
         timeout: 60000,
-        env: this.getExecEnv({ DATABASE_URL: dbUrl }),
+        env: this.getExecEnv({
+          DATABASE_URL: dbUrl,
+          NODE_PATH: path.join(this.backendDir, 'node_modules'),
+        }),
       });
       this.emit('splash-detail', 'Schéma appliqué avec succès.');
       return true;
@@ -117,13 +132,31 @@ class BackendRunner {
   async runSeed(dbUrl) {
     this.emit('splash-detail', 'Vérification des données initiales...');
     try {
-      const { exe, prefix } = this.getPrismaCommand();
-      execFileSync(exe, [...prefix, 'db', 'seed'], {
-        cwd: this.backendDir,
-        encoding: 'utf-8',
-        timeout: 30000,
-        env: this.getExecEnv({ DATABASE_URL: dbUrl }),
-      });
+      if (this.isPackaged()) {
+        const seedFile = path.join(this.backendDir, 'dist', 'prisma', 'seed.js');
+        if (!fs.existsSync(seedFile)) {
+          this.emit('splash-detail', 'Fichier seed.js absent, étape ignorée.');
+          return;
+        }
+        const nodeExe = this.getNodeExe();
+        execFileSync(nodeExe, [seedFile], {
+          cwd: this.backendDir,
+          encoding: 'utf-8',
+          timeout: 30000,
+          env: this.getExecEnv({
+            DATABASE_URL: dbUrl,
+            NODE_PATH: path.join(this.backendDir, 'node_modules'),
+          }),
+        });
+      } else {
+        const { exe, prefix } = this.getPrismaCommand();
+        execFileSync(exe, [...prefix, 'db', 'seed'], {
+          cwd: this.backendDir,
+          encoding: 'utf-8',
+          timeout: 30000,
+          env: this.getExecEnv({ DATABASE_URL: dbUrl }),
+        });
+      }
       this.emit('splash-detail', 'Données initiales vérifiées.');
     } catch (e) {
       this.emit('splash-detail', `Seed: ${e.message}`);
@@ -187,6 +220,7 @@ class BackendRunner {
         ALLOWED_ORIGINS: config.allowed_origins || '',
         SYNC_REMOTE_URL: config.sync_remote_url || '',
         SYNC_API_KEY: config.sync_api_key || '',
+        NODE_PATH: path.join(this.backendDir, 'node_modules'),
       }),
       stdio: ['ignore', 'pipe', 'pipe'],
       windowsHide: true,
