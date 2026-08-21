@@ -26,6 +26,13 @@ function createSplashWindow() {
     },
   });
 
+  ipcMain.on('splash-resize', (_e, { width, height }) => {
+    if (splashWindow && !splashWindow.isDestroyed()) {
+      splashWindow.setSize(width, height, true);
+      splashWindow.center();
+    }
+  });
+
   const splashPath = isDev
     ? path.join(__dirname, '..', 'public', 'splash.html')
     : path.join(__dirname, '..', 'dist', 'splash.html');

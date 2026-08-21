@@ -8,7 +8,7 @@
 
     body {
       width: 480px;
-      height: 320px;
+      min-height: 320px;
       background:
         radial-gradient(circle at top left,  rgba(201,168,76,0.13), transparent 40%),
         radial-gradient(circle at bottom right, rgba(28,28,28,0.05), transparent 35%),
@@ -221,8 +221,9 @@
         linear-gradient(135deg, #faf9f5 0%, #f5f2e8 50%, #fdfcf8 100%);
       flex-direction: column;
       align-items: center;
-      justify-content: center;
+      justify-content: flex-start;
       padding: 24px 32px 20px;
+      overflow-y: auto;
       animation: fadein 0.25s ease;
     }
 
@@ -332,6 +333,9 @@
       padding: 6px 10px;
       margin-bottom: 8px;
       width: 100%;
+      max-height: 80px;
+      overflow-y: auto;
+      word-break: break-word;
       display: none;
       animation: fadein 0.2s ease;
     }
@@ -527,6 +531,12 @@
     // ── Sélection mode ────────────────────────────────────────
     let selectedMode = null;
 
+    function resizeSplash(height) {
+      if (window.electronAPI && window.electronAPI.splashResize) {
+        window.electronAPI.splashResize(480, height);
+      }
+    }
+
     function selectMode(mode) {
       selectedMode = mode;
       document.getElementById('btn-server').classList.toggle('selected', mode === 'server');
@@ -534,6 +544,8 @@
 
       document.getElementById('server-config').classList.toggle('visible', mode === 'server');
       document.getElementById('client-config').classList.toggle('visible', mode === 'client');
+
+      resizeSplash(mode === 'server' ? 500 : 420);
 
       if (mode === 'client') {
         document.getElementById('server-input').focus();
@@ -571,6 +583,7 @@
       el.textContent = msg;
       el.classList.add('visible');
       document.getElementById('setup-success').classList.remove('visible');
+      resizeSplash(selectedMode === 'server' ? 560 : 480);
     }
 
     function showSetupSuccess(msg) {
@@ -583,6 +596,7 @@
     function hideSetupMessages() {
       document.getElementById('setup-error').classList.remove('visible');
       document.getElementById('setup-success').classList.remove('visible');
+      resizeSplash(selectedMode === 'server' ? 500 : 420);
     }
 
     function setButtonState(state) {
@@ -717,6 +731,9 @@
 
       window.electronAPI.onShowSetup(() => {
         document.getElementById('setup-overlay').classList.add('visible');
+        if (window.electronAPI.splashResize) {
+          window.electronAPI.splashResize(480, 420);
+        }
       });
     }
   </script>

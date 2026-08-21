@@ -16,4 +16,5 @@ contextBridge.exposeInMainWorld('electronAPI', {
   onSplashDetail: (cb) => ipcRenderer.on('splash-detail', (_e, msg) => cb(msg)),
   onShowSetup: (cb) => ipcRenderer.on('show-setup', () => cb()),
   setupComplete: (config) => ipcRenderer.send('setup-complete', config),
+  splashResize: (width, height) => ipcRenderer.send('splash-resize', { width, height }),
 });
