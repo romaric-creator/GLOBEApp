@@ -77,7 +77,7 @@ export default function BoissonsGrid({ produits, categories, loading, onEdit }: 
               <div
                 role="button"
                 tabIndex={0}
-                aria-label={`${produit.nom} — ${produit.prixVente} FCFA — Stock: ${produit.stockActuel} ${produit.unite}`}
+                aria-label={`${produit.nom}, ${produit.prixVente} FCFA, stock : ${produit.stockActuel} ${produit.unite}`}
                 onClick={() => onEdit(produit)}
                 onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') onEdit(produit); }}
                 className="relative group cursor-pointer rounded-xl border border-gray-200 bg-white p-4

@@ -30,7 +30,7 @@ export function SyncWidget() {
     mutationFn: () => syncApi.push().then((r) => r.data),
     onSuccess: (result) => {
       if (result.success) {
-        message.success(`Synchronisation réussie — ${result.nbEnvois} enregistrements envoyés`);
+        message.success(`Synchronisation réussie : ${result.nbEnvois} enregistrement(s) envoyé(s).`);
       } else {
         message.error('La synchronisation a échoué. Veuillez réessayer.');
       }

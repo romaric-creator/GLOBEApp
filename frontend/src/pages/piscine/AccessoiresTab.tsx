@@ -362,7 +362,7 @@ export default function AccessoiresTab() {
 
       {/* Modal transaction */}
       <Modal
-        title={`Vente / Location — ${selectedAcc?.nom}`}
+        title={`Vente / Location : ${selectedAcc?.nom}`}
         open={txModalOpen}
         onCancel={closeTxModal}
         onOk={() => txForm.submit()}

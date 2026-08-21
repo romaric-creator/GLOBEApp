@@ -274,7 +274,7 @@ function ReservationsTab() {
       title: 'Horaire',
       key: 'horaire',
       width: 110,
-      render: (_: unknown, r: ReservationSalle) => `${r.heureDebut} — ${r.heureFin}`,
+      render: (_: unknown, r: ReservationSalle) => `${r.heureDebut} à ${r.heureFin}`,
     },
     {
       title: 'Client',
@@ -388,7 +388,7 @@ function ReservationsTab() {
       />
 
       <Modal
-        title="Nouvelle reservation — Salle de fete"
+        title="Nouvelle réservation : Salle de fête"
         open={modalOpen}
         onCancel={() => { setModalOpen(false); form.resetFields(); }}
         onOk={() => form.submit()}
