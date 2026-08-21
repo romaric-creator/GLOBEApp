@@ -26,8 +26,11 @@ function loadConfig() {
       port: 3001,
       jwt_secret: crypto.randomUUID() + crypto.randomUUID(),
       allowed_origins: '',
-      sync_remote_url: '',
-      sync_api_key: '',
+      remote_db_host: '',
+      remote_db_port: 3306,
+      remote_db_user: '',
+      remote_db_password: '',
+      remote_db_name: '',
       configured: false,
     };
   }

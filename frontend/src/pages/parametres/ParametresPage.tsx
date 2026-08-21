@@ -346,6 +346,8 @@ function TabSync({ isAdmin }: { isAdmin: boolean }) {
   const queryClient = useQueryClient();
   const [syncForm] = Form.useForm();
   const [savingSync, setSavingSync] = useState(false);
+  const [testingRemote, setTestingRemote] = useState(false);
+  const [remoteStatus, setRemoteStatus] = useState<{ type: 'success' | 'error' | null; msg: string }>({ type: null, msg: '' });
   const [syncConfigLoaded, setSyncConfigLoaded] = useState(false);
 
   useEffect(() => {
@@ -353,12 +355,42 @@ function TabSync({ isAdmin }: { isAdmin: boolean }) {
     if (!api || !isAdmin) { setSyncConfigLoaded(true); return; }
     api.getConfig().then((cfg: any) => {
       syncForm.setFieldsValue({
-        sync_remote_url: cfg.sync_remote_url || '',
-        sync_api_key: cfg.sync_api_key || '',
+        remote_db_host: cfg.remote_db_host || '',
+        remote_db_port: cfg.remote_db_port || 3306,
+        remote_db_user: cfg.remote_db_user || '',
+        remote_db_password: cfg.remote_db_password || '',
+        remote_db_name: cfg.remote_db_name || '',
       });
       setSyncConfigLoaded(true);
     }).catch(() => setSyncConfigLoaded(true));
   }, [syncForm, isAdmin]);
+
+  const handleTestRemote = async () => {
+    try {
+      await syncForm.validateFields(['remote_db_host', 'remote_db_user', 'remote_db_name']);
+    } catch { return; }
+    const values = syncForm.getFieldsValue();
+    setTestingRemote(true);
+    setRemoteStatus({ type: null, msg: '' });
+    try {
+      const result = await syncApi.testConnection({
+        host: values.remote_db_host,
+        port: Number(values.remote_db_port) || 3306,
+        user: values.remote_db_user,
+        password: values.remote_db_password || '',
+        database: values.remote_db_name,
+      }).then((r) => r.data);
+      if (result.ok) {
+        setRemoteStatus({ type: 'success', msg: 'Connexion à la base distante réussie.' });
+      } else {
+        setRemoteStatus({ type: 'error', msg: result.erreur || 'Connexion échouée.' });
+      }
+    } catch {
+      setRemoteStatus({ type: 'error', msg: 'Impossible de joindre le serveur.' });
+    } finally {
+      setTestingRemote(false);
+    }
+  };
 
   const handleSaveSync = async (values: any) => {
     setSavingSync(true);
@@ -368,8 +400,11 @@ function TabSync({ isAdmin }: { isAdmin: boolean }) {
       const current = await api.getConfig();
       await api.saveConfig({
         ...current,
-        sync_remote_url: values.sync_remote_url || '',
-        sync_api_key: values.sync_api_key || '',
+        remote_db_host: values.remote_db_host || '',
+        remote_db_port: Number(values.remote_db_port) || 3306,
+        remote_db_user: values.remote_db_user || '',
+        remote_db_password: values.remote_db_password || '',
+        remote_db_name: values.remote_db_name || '',
       });
       message.success('Configuration de synchronisation enregistrée. Redémarrez pour appliquer.');
     } catch {
@@ -453,44 +488,86 @@ function TabSync({ isAdmin }: { isAdmin: boolean }) {
 
   return (
     <Row gutter={[16, 16]}>
-      {/* Configuration — admin desktop uniquement */}
+      {/* Configuration base distante — admin desktop uniquement */}
       {isAdmin && isDesktop && (
         <Col xs={24}>
           <Card
-            title={<Space><CloudOutlined /> Configuration du serveur distant</Space>}
+            title={<Space><CloudOutlined /> Base de données distante (MySQL)</Space>}
             loading={!syncConfigLoaded}
             size="small"
           >
-            <Form form={syncForm} layout="vertical" onFinish={handleSaveSync}>
+            <Form
+              form={syncForm}
+              layout="vertical"
+              onFinish={handleSaveSync}
+              onValuesChange={() => setRemoteStatus({ type: null, msg: '' })}
+            >
               <Row gutter={12}>
-                <Col xs={24} md={12}>
+                <Col xs={24} md={14}>
                   <Form.Item
-                    label="URL du serveur distant"
-                    name="sync_remote_url"
-                    extra="Ex : https://backup.mon-serveur.com/api"
+                    label="Hôte"
+                    name="remote_db_host"
+                    rules={[{ required: true, message: 'Hôte requis' }]}
+                    extra="Adresse IP ou nom de domaine du serveur distant"
                   >
-                    <Input placeholder="https://…/api" allowClear />
+                    <Input placeholder="192.168.1.100 ou db.mon-serveur.com" allowClear />
                   </Form.Item>
                 </Col>
-                <Col xs={24} md={12}>
-                  <Form.Item
-                    label="Clé API"
-                    name="sync_api_key"
-                    extra="Clé secrète fournie par le serveur distant"
-                  >
-                    <Input.Password placeholder="Clé secrète" />
+                <Col xs={24} md={10}>
+                  <Form.Item label="Port" name="remote_db_port">
+                    <Input placeholder="3306" type="number" />
                   </Form.Item>
                 </Col>
               </Row>
+              <Row gutter={12}>
+                <Col xs={24} md={12}>
+                  <Form.Item
+                    label="Utilisateur MySQL"
+                    name="remote_db_user"
+                    rules={[{ required: true, message: 'Utilisateur requis' }]}
+                  >
+                    <Input placeholder="globe_sync" />
+                  </Form.Item>
+                </Col>
+                <Col xs={24} md={12}>
+                  <Form.Item label="Mot de passe" name="remote_db_password">
+                    <Input.Password placeholder="Mot de passe" />
+                  </Form.Item>
+                </Col>
+              </Row>
+              <Form.Item
+                label="Nom de la base de données"
+                name="remote_db_name"
+                rules={[{ required: true, message: 'Nom de base requis' }]}
+                extra="La base doit exister et avoir le même schéma que la base locale"
+              >
+                <Input placeholder="gestion_residence_backup" />
+              </Form.Item>
+
+              {remoteStatus.type && (
+                <Alert
+                  type={remoteStatus.type}
+                  showIcon
+                  message={remoteStatus.type === 'success' ? 'Connexion réussie' : 'Connexion échouée'}
+                  description={remoteStatus.msg}
+                  style={{ marginBottom: 12 }}
+                />
+              )}
+
               <Alert
                 type="info"
                 showIcon
                 style={{ marginBottom: 12 }}
                 message="La synchronisation s'exécute automatiquement chaque soir à 23h et à la fermeture de la caisse."
               />
-              <Button type="primary" htmlType="submit" loading={savingSync} icon={<SyncOutlined />}>
-                Enregistrer
-              </Button>
+              <Space>
+                <Button icon={<CheckCircleOutlined />} loading={testingRemote} onClick={handleTestRemote}>
+                  Tester la connexion
+                </Button>
+                <Button type="primary" htmlType="submit" loading={savingSync} icon={<SyncOutlined />}>
+                  Enregistrer
+                </Button>
+              </Space>
             </Form>
           </Card>
         </Col>
@@ -1042,8 +1119,6 @@ function TabServeur() {
         db_name: dbName,
         port: cfg.port || 3001,
         jwt_secret: cfg.jwt_secret || '',
-        sync_remote_url: cfg.sync_remote_url || '',
-        sync_api_key: cfg.sync_api_key || '',
       });
       setLoading(false);
     });
@@ -1146,8 +1221,6 @@ function TabServeur() {
         database_url: dbUrl,
         port: Number(values.port) || 3001,
         jwt_secret: values.jwt_secret,
-        sync_remote_url: values.sync_remote_url || '',
-        sync_api_key: values.sync_api_key || '',
       };
       await api.saveConfig(newConfig);
       setDbStatus({ type: 'success', msg: 'Configuration sauvegardée avec succès.' });
