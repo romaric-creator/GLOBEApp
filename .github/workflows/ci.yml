@@ -144,3 +144,38 @@ jobs:
           name: globe-manager-windows
           path: frontend/release/*.exe
           retention-days: 30
+
+  desktop-linux:
+    name: Desktop Linux (.AppImage)
+    runs-on: ubuntu-latest
+    if: github.ref == 'refs/heads/main'
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Installer Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Build backend
+        working-directory: backend
+        run: |
+          npm ci
+          npx prisma generate
+          npm run build
+
+      - name: Build frontend + Electron
+        working-directory: frontend
+        env:
+          VITE_API_BASE_URL: http://localhost:3001/api
+        run: |
+          npm ci
+          npm run desktop:build
+
+      - name: Upload AppImage Linux
+        uses: actions/upload-artifact@v4
+        with:
+          name: globe-manager-linux
+          path: frontend/release/*.AppImage
+          retention-days: 30

@@ -4,6 +4,14 @@ const http = require('http');
 const { BackendRunner } = require('./backend-runner.cjs');
 const { loadConfig, saveConfig, resetConfig } = require('./config.cjs');
 
+// Performance optimizations
+app.commandLine.appendSwitch('enable-gpu-rasterization');
+app.commandLine.appendSwitch('enable-zero-copy');
+app.commandLine.appendSwitch('ignore-gpu-blocklist');
+app.commandLine.appendSwitch('enable-accelerated-2d-canvas');
+app.commandLine.appendSwitch('disable-renderer-backgrounding');
+app.commandLine.appendSwitch('js-flags', '--max-old-space-size=4096');
+
 let mainWindow = null;
 let splashWindow = null;
 let tray = null;
@@ -23,6 +31,7 @@ function createSplashWindow() {
       preload: path.join(__dirname, 'preload.cjs'),
       contextIsolation: true,
       nodeIntegration: false,
+      spellcheck: false,
     },
   });
 
@@ -52,6 +61,9 @@ function createMainWindow() {
       preload: path.join(__dirname, 'preload.cjs'),
       contextIsolation: true,
       nodeIntegration: false,
+      spellcheck: false,
+      backgroundThrottling: false,
+      v8CacheOptions: 'bypassHeatCheck',
     },
   });
 
