@@ -78,8 +78,8 @@ export class HotelController {
   }
 
   @Patch('reservations/:id/checkout')
-  checkOut(@Param('id') id: string) {
-    return this.hotelService.checkOut(id);
+  checkOut(@Param('id') id: string, @Body() body?: { force?: boolean }) {
+    return this.hotelService.checkOut(id, body?.force);
   }
 
   // Factures

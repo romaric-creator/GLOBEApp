@@ -1,5 +1,6 @@
 const fs = require('fs');
 const path = require('path');
+const crypto = require('crypto');
 
 function configDir() {
   const { app } = require('electron');
@@ -23,7 +24,7 @@ function loadConfig() {
       server_url: null,
       database_url: null,
       port: 3001,
-      jwt_secret: 'globe-jwt-secret-change-in-production',
+      jwt_secret: crypto.randomUUID() + crypto.randomUUID(),
       allowed_origins: '',
       sync_remote_url: '',
       sync_api_key: '',

@@ -37,7 +37,8 @@ async function bootstrap() {
       origin: string | undefined,
       callback: (err: Error | null, allow?: boolean) => void,
     ) => {
-      if (!origin || origin === 'null' || allowedOrigins.includes(origin)) {
+      const allowNull = process.env.NODE_ENV !== 'production';
+      if (!origin || (origin === 'null' && allowNull) || allowedOrigins.includes(origin)) {
         callback(null, true);
       } else {
         callback(null, false);

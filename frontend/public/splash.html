@@ -378,7 +378,7 @@
   </style>
 </head>
 <body>
-  <span class="version">v1.0.0</span>
+  <span class="version" id="app-version">v—</span>
 
   <!-- Splash chargement normal -->
   <div class="container" id="loading-view">
@@ -720,6 +720,10 @@
     const statusEl = document.getElementById('status');
 
     if (window.electronAPI) {
+      window.electronAPI.getVersion().then(v => {
+        document.getElementById('app-version').textContent = 'v' + v;
+      }).catch(() => {});
+
       window.electronAPI.onSplashStatus((msg) => {
         statusEl.textContent = msg;
         addLog(msg);

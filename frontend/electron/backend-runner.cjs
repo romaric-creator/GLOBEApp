@@ -10,6 +10,9 @@ class BackendRunner {
     this.emit = emit;
     this.backendProcess = null;
     this.backendDir = this.getBackendDir();
+    this.intentionallyStopped = false;
+    this.restartCount = 0;
+    this.lastConfig = null;
   }
 
   getBackendDir() {
@@ -95,6 +98,9 @@ class BackendRunner {
 
       // Step 2: Create database if it doesn't exist
       if (parsed) {
+        if (!/^[a-zA-Z_][a-zA-Z0-9_]{0,63}$/.test(parsed.dbName)) {
+          throw new Error('Nom de base de données invalide: ' + parsed.dbName);
+        }
         this.emit('splash-detail', `Vérification de la base "${parsed.dbName}"...`);
         const createScript = [
           "const{PrismaClient}=require('@prisma/client');",
@@ -272,7 +278,30 @@ class BackendRunner {
       return false;
     }
 
+    this.lastConfig = config;
+    this.intentionallyStopped = false;
+    this.restartCount = 0;
+    this.startProcess();
+
+    // Wait for backend to be ready
+    const healthUrl = `http://localhost:${port}/api/health`;
+    const ready = await this.waitForBackend(healthUrl, 60);
+    if (!ready) {
+      this.emit('splash-status', 'Le serveur ne démarre pas. Consultez les logs.');
+      return false;
+    }
+
+    this.emit('splash-detail', 'Serveur prêt.');
+    return true;
+  }
+
+  startProcess() {
+    const config = this.lastConfig;
+    const dbUrl = config.database_url;
+    const port = config.port || 3001;
+    const mainFile = path.join(this.backendDir, 'dist', 'src', 'main.js');
     const nodeExe = this.getNodeExe();
+
     this.backendProcess = spawn(nodeExe, [mainFile], {
       cwd: this.backendDir,
       env: this.getExecEnv({
@@ -302,22 +331,19 @@ class BackendRunner {
     });
 
     this.backendProcess.on('exit', (code) => {
-      if (code !== 0 && code !== null) {
-        this.emit('splash-detail', `Backend arrêté (code ${code})`);
-      }
       this.backendProcess = null;
+      if (this.intentionallyStopped) return;
+      if (code !== 0 && code !== null) {
+        this.restartCount++;
+        const delay = Math.min(2000 * Math.pow(2, this.restartCount - 1), 30000);
+        if (this.restartCount <= 5) {
+          this.emit('splash-detail', `Backend arrêté (code ${code}). Redémarrage dans ${delay / 1000}s...`);
+          setTimeout(() => { if (!this.intentionallyStopped) this.startProcess(); }, delay);
+        } else {
+          this.emit('backend-fatal', `Le serveur a planté ${this.restartCount} fois.`);
+        }
+      }
     });
-
-    // Wait for backend to be ready
-    const healthUrl = `http://localhost:${port}/api/health`;
-    const ready = await this.waitForBackend(healthUrl, 60);
-    if (!ready) {
-      this.emit('splash-status', 'Le serveur ne démarre pas. Consultez les logs.');
-      return false;
-    }
-
-    this.emit('splash-detail', 'Serveur prêt.');
-    return true;
   }
 
   async waitForBackend(url, timeoutSecs) {
@@ -358,8 +384,9 @@ class BackendRunner {
     if (!this.backendProcess) return;
     const proc = this.backendProcess;
     this.backendProcess = null;
+    this.intentionallyStopped = true;
     if (process.platform === 'win32') {
-      proc.kill();
+      try { spawn('taskkill', ['/pid', String(proc.pid), '/T', '/F'], { windowsHide: true }); } catch {}
     } else {
       proc.kill('SIGTERM');
       setTimeout(() => { try { proc.kill('SIGKILL'); } catch {} }, 5000);

@@ -2,7 +2,7 @@ import { Injectable, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { PrismaService } from '../../prisma/prisma.service';
 import { CreateSauvegardeDto } from './dto/create-sauvegarde.dto';
-import { execFile } from 'child_process';
+import { execFile, execFileSync } from 'child_process';
 import { promisify } from 'util';
 import { stat, mkdir } from 'fs/promises';
 import { URL } from 'url';
@@ -52,6 +52,11 @@ export class SauvegardeService {
         throw new Error('DATABASE_URL non configuree');
       }
       await mkdir(backupDir, { recursive: true });
+      try {
+        execFileSync(process.platform === 'win32' ? 'where' : 'which', ['mysqldump'], { encoding: 'utf-8' });
+      } catch {
+        throw new Error('mysqldump non trouvé. Installez MySQL Client ou ajoutez-le au PATH.');
+      }
       const execFileAsync = promisify(execFile);
       const dbUrl = new URL(databaseUrl);
       const host = dbUrl.hostname;

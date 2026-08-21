@@ -283,12 +283,23 @@ export class HotelService {
     });
   }
 
-  async checkOut(id: string) {
+  async checkOut(id: string, force = false) {
     const reservation = await this.findOneReservation(id);
     if (reservation.statut !== 'EN_COURS') {
       throw new BadRequestException(
         'Check-out possible uniquement pour une reservation en cours',
       );
+    }
+
+    if (!force) {
+      const facture = await this.prisma.factureSejour.findUnique({
+        where: { reservationId: id },
+      });
+      if (facture && Number(facture.reste) > 0) {
+        throw new BadRequestException(
+          `Solde impaye de ${Number(facture.reste).toLocaleString()} FCFA. Encaissez avant le check-out ou forcez le depart.`,
+        );
+      }
     }
 
     await this.prisma.chambre.update({

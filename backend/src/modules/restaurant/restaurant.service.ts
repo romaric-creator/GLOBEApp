@@ -65,28 +65,36 @@ export class RestaurantService {
         `Produits introuvables ou inactifs: ${manquants.join(', ')}`,
       );
     }
-    const produitMap = new Map(produits.map((p) => [p.id, p]));
-    for (const ligne of dto.lignes) {
-      const produit = produitMap.get(ligne.produitId)!;
-      if (produit.stockActuel < ligne.quantite) {
-        throw new BadRequestException(
-          `Stock insuffisant pour "${produit.nom}" (stock: ${produit.stockActuel}, demande: ${ligne.quantite})`,
-        );
-      }
-    }
-    let total = 0;
-    const lignesData = dto.lignes.map((l) => {
-      const produit = produitMap.get(l.produitId)!;
-      const prixUnitaire = Number(produit.prixVente);
-      total += prixUnitaire * l.quantite;
-      return {
-        produitId: l.produitId,
-        quantite: l.quantite,
-        prixUnitaire,
-        notes: l.notes || null,
-      };
-    });
+
     return this.prisma.$transaction(async (tx) => {
+      // Re-read stock inside transaction for consistency
+      const freshProduits = await tx.produit.findMany({
+        where: { id: { in: produitIds } },
+      });
+      const produitMap = new Map(freshProduits.map((p) => [p.id, p]));
+
+      for (const ligne of dto.lignes) {
+        const produit = produitMap.get(ligne.produitId)!;
+        if (produit.stockActuel < ligne.quantite) {
+          throw new BadRequestException(
+            `Stock insuffisant pour "${produit.nom}" (stock: ${produit.stockActuel}, demande: ${ligne.quantite})`,
+          );
+        }
+      }
+
+      let total = 0;
+      const lignesData = dto.lignes.map((l) => {
+        const produit = produitMap.get(l.produitId)!;
+        const prixUnitaire = Number(produit.prixVente);
+        total += prixUnitaire * l.quantite;
+        return {
+          produitId: l.produitId,
+          quantite: l.quantite,
+          prixUnitaire,
+          notes: l.notes || null,
+        };
+      });
+
       const annee = new Date().getFullYear();
       const lastCmd = await tx.commandeTable.findFirst({
         where: { numero: { startsWith: `CMD-${annee}-` } },

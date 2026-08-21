@@ -3,7 +3,7 @@ import {
   BadRequestException,
   NotFoundException,
 } from '@nestjs/common';
-import { MoyenPaiement } from '@prisma/client';
+import { MoyenPaiement, Prisma } from '@prisma/client';
 import { PrismaService } from '../../prisma/prisma.service';
 
 @Injectable()
@@ -76,6 +76,36 @@ export class CaisseService {
     });
   }
 
+  private async generateReference(
+    tx: Prisma.TransactionClient,
+  ): Promise<string> {
+    const annee = new Date().getFullYear();
+    const last = await tx.paiement.findFirst({
+      where: { reference: { startsWith: `PAY-${annee}-` } },
+      orderBy: { reference: 'desc' },
+    });
+    const seq = last ? parseInt(last.reference.split('-')[2]) + 1 : 1;
+    return `PAY-${annee}-${String(seq).padStart(5, '0')}`;
+  }
+
+  private async createPaiementWithRetry(
+    data: Record<string, unknown>,
+    tx: Prisma.TransactionClient,
+    retries = 3,
+  ) {
+    for (let attempt = 0; attempt < retries; attempt++) {
+      const reference = await this.generateReference(tx);
+      try {
+        return await tx.paiement.create({ data: { ...data, reference } as any });
+      } catch (e) {
+        if (e instanceof Prisma.PrismaClientKnownRequestError && e.code === 'P2002' && attempt < retries - 1) {
+          continue;
+        }
+        throw e;
+      }
+    }
+  }
+
   async encaisserFactureHotel(
     factureId: string,
     sessionId: string,
@@ -96,20 +126,11 @@ export class CaisseService {
       if (!facture) throw new NotFoundException('Facture introuvable');
       if (facture.payee) throw new BadRequestException('Facture deja payee');
 
-      const annee = new Date().getFullYear();
-      const last = await tx.paiement.findFirst({
-        where: { reference: { startsWith: `PAY-${annee}-` } },
-        orderBy: { reference: 'desc' },
-      });
-      const seq = last ? parseInt(last.reference.split('-')[2]) + 1 : 1;
-      const reference = `PAY-${annee}-${String(seq).padStart(5, '0')}`;
-
       const nouvMontantPaye = Number(facture.montantPaye) + montant;
       const payee = nouvMontantPaye >= Number(facture.total);
 
-      const paiement = await tx.paiement.create({
-        data: {
-          reference,
+      const paiement = await this.createPaiementWithRetry(
+        {
           montant,
           moyen,
           sourceType: 'HOTEL_INVOICE',
@@ -117,7 +138,8 @@ export class CaisseService {
           userId,
           factureSejourId: factureId,
         },
-      });
+        tx,
+      );
       await tx.factureSejour.update({
         where: { id: factureId },
         data: {
@@ -157,17 +179,8 @@ export class CaisseService {
       });
       if (existing) throw new BadRequestException('Commande deja encaissee');
 
-      const annee = new Date().getFullYear();
-      const last = await tx.paiement.findFirst({
-        where: { reference: { startsWith: `PAY-${annee}-` } },
-        orderBy: { reference: 'desc' },
-      });
-      const seq = last ? parseInt(last.reference.split('-')[2]) + 1 : 1;
-      const reference = `PAY-${annee}-${String(seq).padStart(5, '0')}`;
-
-      return tx.paiement.create({
-        data: {
-          reference,
+      return this.createPaiementWithRetry(
+        {
           montant,
           moyen,
           sourceType: 'RESTAURANT_ORDER',
@@ -175,7 +188,8 @@ export class CaisseService {
           userId,
           commandeTableId: commandeId,
         },
-      });
+        tx,
+      );
     });
   }
 

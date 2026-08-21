@@ -12,9 +12,9 @@ contextBridge.exposeInMainWorld('electronAPI', {
   testDbConnection: (dbUrl) => ipcRenderer.invoke('test-db-connection', dbUrl),
 
   // Splash events
-  onSplashStatus: (cb) => ipcRenderer.on('splash-status', (_e, msg) => cb(msg)),
-  onSplashDetail: (cb) => ipcRenderer.on('splash-detail', (_e, msg) => cb(msg)),
-  onShowSetup: (cb) => ipcRenderer.on('show-setup', () => cb()),
+  onSplashStatus: (cb) => { ipcRenderer.removeAllListeners('splash-status'); ipcRenderer.on('splash-status', (_e, msg) => cb(msg)); },
+  onSplashDetail: (cb) => { ipcRenderer.removeAllListeners('splash-detail'); ipcRenderer.on('splash-detail', (_e, msg) => cb(msg)); },
+  onShowSetup: (cb) => { ipcRenderer.removeAllListeners('show-setup'); ipcRenderer.once('show-setup', () => cb()); },
   setupComplete: (config) => ipcRenderer.send('setup-complete', config),
   splashResize: (width, height) => ipcRenderer.send('splash-resize', { width, height }),
 });

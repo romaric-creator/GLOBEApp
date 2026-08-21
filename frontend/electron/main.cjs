@@ -1,4 +1,4 @@
-const { app, BrowserWindow, ipcMain, Tray, Menu } = require('electron');
+const { app, BrowserWindow, ipcMain, Tray, Menu, dialog, session } = require('electron');
 const path = require('path');
 const http = require('http');
 const { BackendRunner } = require('./backend-runner.cjs');
@@ -7,7 +7,6 @@ const { loadConfig, saveConfig, resetConfig } = require('./config.cjs');
 // Performance optimizations
 app.commandLine.appendSwitch('enable-gpu-rasterization');
 app.commandLine.appendSwitch('enable-zero-copy');
-app.commandLine.appendSwitch('ignore-gpu-blocklist');
 app.commandLine.appendSwitch('enable-accelerated-2d-canvas');
 app.commandLine.appendSwitch('disable-renderer-backgrounding');
 app.commandLine.appendSwitch('js-flags', '--max-old-space-size=4096');
@@ -85,7 +84,12 @@ function createMainWindow() {
 
 function createTray() {
   const iconPath = path.join(__dirname, '..', 'public', 'logo.png');
-  tray = new Tray(iconPath);
+  try {
+    tray = new Tray(iconPath);
+  } catch {
+    tray = null;
+    return;
+  }
 
   const contextMenu = Menu.buildFromTemplate([
     { label: 'Afficher', click: () => { mainWindow?.show(); mainWindow?.focus(); } },
@@ -149,11 +153,36 @@ async function waitForRemoteBackend(url, timeoutSecs, emit) {
 
 async function startup() {
   Menu.setApplicationMenu(null);
+
+  session.defaultSession.webRequest.onHeadersReceived((details, callback) => {
+    callback({
+      responseHeaders: {
+        ...details.responseHeaders,
+        'Content-Security-Policy': [
+          "default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' data: file:; connect-src 'self' http://localhost:* ws://localhost:*; font-src 'self' data:"
+        ],
+      },
+    });
+  });
+
   createSplashWindow();
   createMainWindow();
   createTray();
 
-  backendRunner = new BackendRunner((channel, msg) => emitSplash(channel, msg));
+  backendRunner = new BackendRunner((channel, msg) => {
+    if (channel === 'backend-fatal') {
+      dialog.showMessageBoxSync({
+        type: 'error',
+        title: 'Erreur critique',
+        message: 'Le serveur a planté plusieurs fois.',
+        detail: msg + '\nL\'application va se fermer.',
+        buttons: ['OK'],
+      });
+      app.exit(1);
+      return;
+    }
+    emitSplash(channel, msg);
+  });
 
   // Wait for splash page to fully load before sending events
   if (splashWindow && !splashWindow.isDestroyed()) {
@@ -181,9 +210,32 @@ async function startup() {
     emitSplash('splash-status', 'Démarrage du serveur...');
     emitSplash('splash-detail', 'Lancement du backend intégré...');
 
-    const ok = await backendRunner.start(config);
+    let ok = await backendRunner.start(config);
     if (!ok) {
-      await new Promise((r) => setTimeout(r, 4000));
+      const choice = dialog.showMessageBoxSync({
+        type: 'error',
+        title: 'Erreur de démarrage',
+        message: 'Le serveur backend n\'a pas pu démarrer.',
+        detail: 'Vérifiez que MySQL est lancé et que la configuration est correcte.',
+        buttons: ['Réessayer', 'Reconfigurer', 'Quitter'],
+        defaultId: 0,
+      });
+      if (choice === 0) {
+        ok = await backendRunner.start(config);
+      } else if (choice === 1) {
+        resetConfig();
+        app.relaunch();
+        app.exit(0);
+        return;
+      } else {
+        app.exit(1);
+        return;
+      }
+      if (!ok) {
+        dialog.showMessageBoxSync({ type: 'error', title: 'Erreur', message: 'Impossible de démarrer le serveur. L\'application va se fermer.' });
+        app.exit(1);
+        return;
+      }
     }
   } else {
     const base = (config.server_url || 'http://localhost:3001').replace(/\/$/, '');
@@ -248,6 +300,20 @@ if (!gotTheLock) {
 
   app.whenReady().then(startup);
 }
+
+app.on('before-quit', () => {
+  app.isQuitting = true;
+  if (backendRunner) backendRunner.stop();
+});
+
+process.on('SIGTERM', () => {
+  if (backendRunner) backendRunner.stop();
+  app.quit();
+});
+
+process.on('exit', () => {
+  if (backendRunner) backendRunner.stop();
+});
 
 app.on('window-all-closed', (e) => {
   e.preventDefault();
