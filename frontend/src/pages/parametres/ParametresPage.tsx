@@ -341,9 +341,43 @@ function TabReseau({ isAdmin }: { isAdmin: boolean }) {
 
 // ─── Tab Synchronisation ──────────────────────────────────────────────────────
 
-function TabSync() {
+function TabSync({ isAdmin }: { isAdmin: boolean }) {
   const { message } = App.useApp();
   const queryClient = useQueryClient();
+  const [syncForm] = Form.useForm();
+  const [savingSync, setSavingSync] = useState(false);
+  const [syncConfigLoaded, setSyncConfigLoaded] = useState(false);
+
+  useEffect(() => {
+    const api = (window as any).electronAPI;
+    if (!api || !isAdmin) { setSyncConfigLoaded(true); return; }
+    api.getConfig().then((cfg: any) => {
+      syncForm.setFieldsValue({
+        sync_remote_url: cfg.sync_remote_url || '',
+        sync_api_key: cfg.sync_api_key || '',
+      });
+      setSyncConfigLoaded(true);
+    }).catch(() => setSyncConfigLoaded(true));
+  }, [syncForm, isAdmin]);
+
+  const handleSaveSync = async (values: any) => {
+    setSavingSync(true);
+    try {
+      const api = (window as any).electronAPI;
+      if (!api) return;
+      const current = await api.getConfig();
+      await api.saveConfig({
+        ...current,
+        sync_remote_url: values.sync_remote_url || '',
+        sync_api_key: values.sync_api_key || '',
+      });
+      message.success('Configuration de synchronisation enregistrée. Redémarrez pour appliquer.');
+    } catch {
+      message.error('Impossible de sauvegarder la configuration.');
+    } finally {
+      setSavingSync(false);
+    }
+  };
 
   const { data: syncStatus, isLoading: statusLoading } = useQuery({
     queryKey: ['sync-status'],
@@ -419,6 +453,49 @@ function TabSync() {
 
   return (
     <Row gutter={[16, 16]}>
+      {/* Configuration — admin desktop uniquement */}
+      {isAdmin && isDesktop && (
+        <Col xs={24}>
+          <Card
+            title={<Space><CloudOutlined /> Configuration du serveur distant</Space>}
+            loading={!syncConfigLoaded}
+            size="small"
+          >
+            <Form form={syncForm} layout="vertical" onFinish={handleSaveSync}>
+              <Row gutter={12}>
+                <Col xs={24} md={12}>
+                  <Form.Item
+                    label="URL du serveur distant"
+                    name="sync_remote_url"
+                    extra="Ex : https://backup.mon-serveur.com/api"
+                  >
+                    <Input placeholder="https://…/api" allowClear />
+                  </Form.Item>
+                </Col>
+                <Col xs={24} md={12}>
+                  <Form.Item
+                    label="Clé API"
+                    name="sync_api_key"
+                    extra="Clé secrète fournie par le serveur distant"
+                  >
+                    <Input.Password placeholder="Clé secrète" />
+                  </Form.Item>
+                </Col>
+              </Row>
+              <Alert
+                type="info"
+                showIcon
+                style={{ marginBottom: 12 }}
+                message="La synchronisation s'exécute automatiquement chaque soir à 23h et à la fermeture de la caisse."
+              />
+              <Button type="primary" htmlType="submit" loading={savingSync} icon={<SyncOutlined />}>
+                Enregistrer
+              </Button>
+            </Form>
+          </Card>
+        </Col>
+      )}
+
       <Col xs={24} lg={10}>
         <Card
           title={<Space><CloudOutlined /> Statut de la synchronisation</Space>}
@@ -1131,22 +1208,7 @@ function TabServeur() {
         </Col>
 
         <Col xs={24} lg={12}>
-          <Card title={<Space><SyncOutlined /> Sauvegarde en ligne</Space>} loading={loading}>
-            <Form.Item label="URL du serveur distant" name="sync_remote_url">
-              <Input placeholder="https://backup.example.com/api" />
-            </Form.Item>
-            <Form.Item label="Clé API de synchronisation" name="sync_api_key">
-              <Input.Password placeholder="Clé secrète pour l'accès distant" />
-            </Form.Item>
-            <Alert
-              type="info"
-              showIcon
-              message="La sauvegarde envoie périodiquement les données vers le serveur distant configuré."
-              style={{ marginBottom: 0 }}
-            />
-          </Card>
-
-          <Card title={<Space><LockOutlined /> Sécurité</Space>} loading={loading} style={{ marginTop: 16 }}>
+          <Card title={<Space><LockOutlined /> Sécurité</Space>} loading={loading}>
             <Form.Item label="Port du serveur local" name="port">
               <Input placeholder="3001" type="number" />
             </Form.Item>
@@ -1235,7 +1297,7 @@ export default function ParametresPage() {
     {
       key: 'sync',
       label: <Space><SyncOutlined />Synchronisation</Space>,
-      children: <TabSync />,
+      children: <TabSync isAdmin={isAdmin} />,
     },
     ...(isAdmin
       ? [
