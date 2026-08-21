@@ -4,9 +4,21 @@ import * as bcrypt from 'bcrypt';
 const prisma = new PrismaClient();
 
 async function main() {
+  // Caisses — always ensure they exist
+  await prisma.caisse.upsert({
+    where: { id: 'caisse-hotel' },
+    update: {},
+    create: { id: 'caisse-hotel', nom: 'Caisse Hotel', type: 'HOTEL', actif: true },
+  });
+  await prisma.caisse.upsert({
+    where: { id: 'caisse-restaurant-bar' },
+    update: {},
+    create: { id: 'caisse-restaurant-bar', nom: 'Caisse Restaurant & Bar', type: 'RESTAURANT_BAR', actif: true },
+  });
+
   const existingAdmin = await prisma.user.findFirst();
   if (existingAdmin) {
-    console.log('Seed skipped — database already initialized');
+    console.log('Seed skipped — database already initialized (caisses ensured)');
     return;
   }
 
@@ -299,6 +311,7 @@ async function main() {
   console.log(`  ${produitsRestaurant.length} produits restaurant (6 catégories)`);
   console.log(`  ${produitsBoissons.length} boissons (11 catégories)`);
   console.log(`  1 type de salle de fête`);
+  console.log(`  2 caisses (Hotel + Restaurant/Bar)`);
 }
 
 main()
