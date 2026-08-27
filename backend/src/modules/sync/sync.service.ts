@@ -118,11 +118,11 @@ export class SyncService {
     for (const c of payload.commandes) {
       await conn.execute(
         `INSERT INTO commandes_table
-           (id, numero, tableReference, statut, total, notes, createdAt, completedAt, cancelledAt, serveurId, syncStatus, syncedAt)
-         VALUES (?,?,?,?,?,?,?,?,?,?,'SYNCED',NOW())
+           (id, numero, statut, total, notes, createdAt, completedAt, cancelledAt, serveurId, syncStatus, syncedAt)
+         VALUES (?,?,?,?,?,?,?,?,?,'SYNCED',NOW())
          ON DUPLICATE KEY UPDATE
            statut=VALUES(statut), total=VALUES(total), completedAt=VALUES(completedAt), syncStatus='SYNCED', syncedAt=NOW()`,
-        [c.id, c.numero, c.tableReference ?? null, c.statut, c.total, c.notes ?? null, c.createdAt, c.completedAt ?? null, c.cancelledAt ?? null, c.serveurId] as any[],
+        [c.id, c.numero, c.statut, c.total, c.notes ?? null, c.createdAt, c.completedAt ?? null, c.cancelledAt ?? null, c.serveurId] as any[],
       );
     }
 

@@ -85,13 +85,6 @@ export default function CommandesTab() {
   const columns = [
     { title: 'N°', dataIndex: 'numero', key: 'numero', width: 160 },
     {
-      title: 'Table',
-      dataIndex: 'tableReference',
-      key: 'table',
-      width: 100,
-      render: (t: string | null) => t || <span className="text-slate-400">-</span>,
-    },
-    {
       title: 'Articles',
       key: 'articles',
       render: (_: unknown, r: Commande) => (
@@ -242,7 +235,6 @@ export default function CommandesTab() {
             if (!user) return;
             createMutation.mutate({
               serveurId: user.id,
-              tableReference: values.tableReference || undefined,
               notes: values.notes || undefined,
               lignes: values.lignes.map((l: { produitId: string; quantite: number; notes?: string }) => ({
                 produitId: l.produitId,
@@ -252,10 +244,6 @@ export default function CommandesTab() {
             });
           }}
         >
-          <Form.Item name="tableReference" label="Reference table (optionnel)">
-            <Input placeholder="Ex: Table 5, Terrasse A..." />
-          </Form.Item>
-
           <Form.Item name="notes" label="Notes (optionnel)">
             <Input placeholder="Instructions speciales..." />
           </Form.Item>

@@ -1,5 +1,11 @@
-import { IsString, IsOptional, IsEmail, IsEnum } from 'class-validator';
-import { TypeClient } from '@prisma/client';
+import {
+  IsString,
+  IsOptional,
+  IsEmail,
+  IsEnum,
+  IsDateString,
+} from 'class-validator';
+import { TypeClient, TypeDocument } from '@prisma/client';
 
 export class CreateClientDto {
   @IsString()
@@ -24,4 +30,29 @@ export class CreateClientDto {
   @IsOptional()
   @IsEnum(TypeClient)
   type?: TypeClient;
+
+  // Informations légales (fiche de police)
+  @IsOptional()
+  @IsEnum(TypeDocument)
+  typeDocument?: TypeDocument;
+
+  @IsOptional()
+  @IsString()
+  numeroDocument?: string;
+
+  @IsOptional()
+  @IsString()
+  nationalite?: string;
+
+  @IsOptional()
+  @IsString()
+  paysProvenance?: string;
+
+  @IsOptional()
+  @IsDateString()
+  dateNaissance?: string;
+
+  @IsOptional()
+  @IsString()
+  observations?: string;
 }

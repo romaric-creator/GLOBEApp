@@ -7,11 +7,12 @@ import {
   Query,
   UseGuards,
 } from '@nestjs/common';
-import { IsEnum, IsNumber, IsUUID, Min } from 'class-validator';
+import { IsEnum, IsNumber, IsOptional, IsString, IsUUID, Min } from 'class-validator';
 import { MoyenPaiement } from '@prisma/client';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { CaisseService } from './caisse.service';
 import { CurrentUser } from '../auth/decorators/current-user.decorator';
+import { CreateMouvementCaisseDto } from './dto/create-mouvement-caisse.dto';
 
 class EncaisserHotelDto {
   @IsUUID() factureId: string;
@@ -25,6 +26,12 @@ class EncaisserRestaurantDto {
   @IsUUID() sessionId: string;
   @IsNumber() @Min(0) montant: number;
   @IsEnum(MoyenPaiement) moyen: MoyenPaiement;
+}
+
+class TrancheDto {
+  @IsNumber() @Min(1) montant: number;
+  @IsEnum(MoyenPaiement) moyen: MoyenPaiement;
+  @IsOptional() @IsString() notes?: string;
 }
 
 @Controller('caisse')
@@ -63,6 +70,27 @@ export class CaisseController {
     );
   }
 
+  // ========================
+  // Mouvements de Caisse
+  // ========================
+
+  @Post('sessions/:sessionId/mouvements')
+  ajouterMouvement(
+    @Param('sessionId') sessionId: string,
+    @Body() dto: CreateMouvementCaisseDto,
+  ) {
+    return this.caisseService.ajouterMouvement(sessionId, dto);
+  }
+
+  @Get('sessions/:sessionId/mouvements')
+  getMouvements(@Param('sessionId') sessionId: string) {
+    return this.caisseService.getMouvementsCaisse(sessionId);
+  }
+
+  // ========================
+  // Encaissements
+  // ========================
+
   @Post('encaisser/hotel')
   encaisserHotel(
     @Body() body: EncaisserHotelDto,
@@ -90,6 +118,32 @@ export class CaisseController {
       body.moyen,
     );
   }
+
+  // ========================
+  // Tranches de paiement hôtel
+  // ========================
+
+  @Get('factures/:factureId/tranches')
+  getTranchesFacture(@Param('factureId') factureId: string) {
+    return this.caisseService.getTranchesFacture(factureId);
+  }
+
+  @Post('factures/:factureId/tranches')
+  enregistrerTranche(
+    @Param('factureId') factureId: string,
+    @Body() dto: TrancheDto,
+  ) {
+    return this.caisseService.enregistrerTranche(
+      factureId,
+      dto.montant,
+      dto.moyen,
+      dto.notes,
+    );
+  }
+
+  // ========================
+  // Historique
+  // ========================
 
   @Get(':id/historique')
   getHistorique(

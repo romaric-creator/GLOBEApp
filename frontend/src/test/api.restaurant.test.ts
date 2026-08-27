@@ -37,7 +37,7 @@ describe('restaurantApi', () => {
   });
 
   it('createCommande envoie les donnees au bon endpoint', async () => {
-    const payload = { serveurId: 'u1', lignes: [{ produitId: 'p1', quantite: 2 }], tableReference: 'Table 3' };
+    const payload = { serveurId: 'u1', lignes: [{ produitId: 'p1', quantite: 2 }] };
     mockAxios.post.mockResolvedValue({ data: { id: 'c1', numero: 'CMD-001' } });
     const result = await restaurantApi.createCommande(payload);
     expect(mockAxios.post).toHaveBeenCalledWith('/restaurant/commandes', payload);

@@ -96,7 +96,6 @@ export default function CaisseRestaurantPage() {
 
   const commandesColumns = [
     { title: 'N°', dataIndex: 'numero', key: 'numero', width: 160 },
-    { title: 'Table', dataIndex: 'tableReference', key: 'table', width: 100, render: (t: string | null) => t || '-' },
     { title: 'Total', dataIndex: 'total', key: 'total', render: (t: number) => `${Number(t).toLocaleString()} FCFA` },
     {
       title: 'Heure',
@@ -261,7 +260,6 @@ export default function CaisseRestaurantPage() {
       >
         {encaisserModal && (
           <Descriptions size="small" className="mb-4" column={2} bordered>
-            <Descriptions.Item label="Table">{encaisserModal.tableReference || '—'}</Descriptions.Item>
             <Descriptions.Item label="Heure">{new Date(encaisserModal.createdAt).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' })}</Descriptions.Item>
             <Descriptions.Item label="Articles" span={2}>
               <div className="flex flex-wrap gap-1">

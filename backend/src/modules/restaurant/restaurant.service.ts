@@ -106,7 +106,6 @@ export class RestaurantService {
       const commande = await tx.commandeTable.create({
         data: {
           numero,
-          tableReference: dto.tableReference || null,
           serveurId: dto.serveurId,
           notes: dto.notes || null,
           total,

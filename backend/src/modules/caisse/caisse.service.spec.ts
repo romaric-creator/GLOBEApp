@@ -81,10 +81,11 @@ describe('CaisseService', () => {
           { statut: 'ENCAISSE', montant: 30 },
           { statut: 'ANNULE', montant: 20 },
         ],
+        mouvementsCaisse: [],
       });
       prisma.sessionCaisse.update.mockResolvedValue({});
 
-      // totalTheorique = 100 + 50 + 30 = 180, ecart = 200 - 180 = 20
+      // totalTheorique = 100 + 50 + 30 + 0 mouvements = 180, ecart = 200 - 180 = 20
       await service.fermerSession('s1', 200);
 
       expect(prisma.sessionCaisse.update).toHaveBeenCalledWith(

@@ -235,18 +235,31 @@ enum TypeClient {
   PROFESSIONNEL
 }
 
+enum TypeDocument {
+  CNI
+  PASSEPORT
+  PERMIS_CONDUIRE
+  CARTE_SEJOUR
+  AUTRE
+}
+
 model Client {
-  id            String     @id @default(uuid()) @db.VarChar(36)
-  type          TypeClient @default(PARTICULIER)
-  nom           String
-  prenom        String?
-  raisonSociale String?
-  telephone     String?
-  email         String?
-  pieceIdentite String?
-  observations  String?
-  actif         Boolean    @default(true)
-  createdAt     DateTime   @default(now())
+  id             String      @id @default(uuid()) @db.VarChar(36)
+  type           TypeClient  @default(PARTICULIER)
+  nom            String
+  prenom         String?
+  raisonSociale  String?
+  telephone      String?
+  email          String?
+  // Informations légales (fiche de police)
+  typeDocument   TypeDocument?
+  numeroDocument String?
+  nationalite    String?
+  paysProvenance String?
+  dateNaissance  DateTime?   @db.Date
+  observations   String?
+  actif          Boolean     @default(true)
+  createdAt      DateTime    @default(now())
 
   reservations           Reservation[]
   ticketsPiscine         TicketPiscine[]
@@ -499,14 +512,16 @@ enum StatutChambre {
 }
 
 model Chambre {
-  id        String        @id @default(uuid()) @db.VarChar(36)
-  numero    String        @unique
-  type      TypeChambre
-  statut    StatutChambre @default(DISPONIBLE)
-  prixNuit  Decimal       @db.Decimal(10, 2)
-  etage     Int?
-  capacite  Int           @default(2)
-  createdAt DateTime      @default(now())
+  id          String        @id @default(uuid()) @db.VarChar(36)
+  numero      String        @unique
+  type        TypeChambre
+  statut      StatutChambre @default(DISPONIBLE)
+  prixNuit    Decimal       @db.Decimal(10, 2)
+  prixSieste  Decimal?      @db.Decimal(10, 2)
+  prixJournee Decimal?      @db.Decimal(10, 2)
+  etage       Int?
+  capacite    Int           @default(2)
+  createdAt   DateTime      @default(now())
 
   reservations Reservation[]
 
@@ -521,17 +536,30 @@ enum StatutReservation {
   ANNULEE
 }
 
+enum TypeReservation {
+  NUIT
+  SIESTE
+  JOURNEE
+}
+
 model Reservation {
-  id           String            @id @default(uuid()) @db.VarChar(36)
-  dateArrivee  DateTime          @db.Date
-  dateDepart   DateTime          @db.Date
-  nbPersonnes  Int               @default(1)
-  statut       StatutReservation @default(EN_ATTENTE)
-  montantTotal Decimal           @db.Decimal(10, 2)
-  notes        String?
-  createdAt    DateTime          @default(now())
-  syncStatus   SyncStatus        @default(PENDING)
-  syncedAt     DateTime?
+  id              String           @id @default(uuid()) @db.VarChar(36)
+  typeReservation TypeReservation  @default(NUIT)
+  dateArrivee     DateTime         @db.Date
+  dateDepart      DateTime         @db.Date
+  heureArrivee    String?          // Format "HH:mm" ex: "14:00"
+  heureDepart     String?          // Format "HH:mm" ex: "18:00"
+  nbPersonnes     Int              @default(1)
+  statut          StatutReservation @default(EN_ATTENTE)
+  montantTotal    Decimal          @db.Decimal(10, 2)
+  notes           String?
+  // Informations légales du client au moment de la réservation
+  typeDocumentClient   TypeDocument?
+  numeroDocumentClient String?
+  nationaliteClient    String?
+  createdAt       DateTime         @default(now())
+  syncStatus      SyncStatus       @default(PENDING)
+  syncedAt        DateTime?
 
   chambreId String  @db.VarChar(36)
   chambre   Chambre @relation(fields: [chambreId], references: [id])
@@ -563,9 +591,25 @@ model FactureSejour {
   reservationId String      @unique @db.VarChar(36)
   reservation   Reservation @relation(fields: [reservationId], references: [id])
 
-  paiement Paiement?
+  paiement  Paiement?
+  tranches  PaiementTranche[]
 
   @@map("factures_sejour")
+}
+
+model PaiementTranche {
+  id          String    @id @default(uuid()) @db.VarChar(36)
+  montant     Decimal   @db.Decimal(10, 2)
+  moyen       MoyenPaiement @default(ESPECES)
+  reference   String    @unique
+  notes       String?
+  createdAt   DateTime  @default(now())
+
+  factureSejourId String @db.VarChar(36)
+  factureSejour   FactureSejour @relation(fields: [factureSejourId], references: [id], onDelete: Cascade)
+
+  @@index([factureSejourId])
+  @@map("paiements_tranche")
 }
 
 // ========================
@@ -579,17 +623,16 @@ enum StatutCommande {
 }
 
 model CommandeTable {
-  id             String         @id @default(uuid()) @db.VarChar(36)
-  numero         String         @unique
-  tableReference String?
-  statut         StatutCommande @default(EN_PREPARATION)
-  total          Decimal        @db.Decimal(10, 2) @default(0)
-  notes          String?
-  createdAt      DateTime       @default(now())
-  completedAt    DateTime?
-  cancelledAt    DateTime?
-  syncStatus     SyncStatus     @default(PENDING)
-  syncedAt       DateTime?
+  id          String         @id @default(uuid()) @db.VarChar(36)
+  numero      String         @unique
+  statut      StatutCommande @default(EN_PREPARATION)
+  total       Decimal        @db.Decimal(10, 2) @default(0)
+  notes       String?
+  createdAt   DateTime       @default(now())
+  completedAt DateTime?
+  cancelledAt DateTime?
+  syncStatus  SyncStatus     @default(PENDING)
+  syncedAt    DateTime?
 
   serveurId String @db.VarChar(36)
   serveur   User   @relation(fields: [serveurId], references: [id])
@@ -798,6 +841,26 @@ model Caisse {
   @@map("caisses")
 }
 
+enum TypeMouvementCaisse {
+  APPORT
+  RETRAIT
+  DEPENSE
+}
+
+model MouvementCaisse {
+  id        String               @id @default(uuid()) @db.VarChar(36)
+  type      TypeMouvementCaisse
+  montant   Decimal              @db.Decimal(10, 2)
+  motif     String
+  createdAt DateTime             @default(now())
+
+  sessionId String       @db.VarChar(36)
+  session   SessionCaisse @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+
+  @@index([sessionId])
+  @@map("mouvements_caisse")
+}
+
 enum StatutSessionCaisse {
   OUVERTE
   FERMEE
@@ -820,7 +883,8 @@ model SessionCaisse {
   userId String @db.VarChar(36)
   user   User   @relation(fields: [userId], references: [id])
 
-  paiements Paiement[]
+  paiements        Paiement[]
+  mouvementsCaisse MouvementCaisse[]
 
   @@index([caisseId])
   @@index([statut])

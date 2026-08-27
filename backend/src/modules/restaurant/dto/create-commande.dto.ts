@@ -17,7 +17,6 @@ export class LigneCommandeDto {
 }
 
 export class CreateCommandeDto {
-  @IsString() @IsOptional() tableReference?: string;
   @IsUUID() serveurId: string;
   @IsString() @IsOptional() notes?: string;
   @IsArray()

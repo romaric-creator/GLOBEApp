@@ -3,8 +3,9 @@ import {
   BadRequestException,
   NotFoundException,
 } from '@nestjs/common';
-import { MoyenPaiement, Prisma } from '@prisma/client';
+import { MoyenPaiement, Prisma, TypeMouvementCaisse } from '@prisma/client';
 import { PrismaService } from '../../prisma/prisma.service';
+import { CreateMouvementCaisseDto } from './dto/create-mouvement-caisse.dto';
 
 @Injectable()
 export class CaisseService {
@@ -43,15 +44,26 @@ export class CaisseService {
   async fermerSession(sessionId: string, totalReel: number, notes?: string) {
     const session = await this.prisma.sessionCaisse.findUnique({
       where: { id: sessionId },
-      include: { paiements: true },
+      include: { paiements: true, mouvementsCaisse: true },
     });
     if (!session) throw new NotFoundException('Session introuvable');
     if (session.statut === 'FERMEE')
       throw new BadRequestException('Cette session est deja fermee');
-    const totalTheorique = session.paiements
+
+    // Calcul théorique : fond initial + paiements encaissés + apports - retraits - dépenses
+    const totalPaiements = session.paiements
       .filter((p) => p.statut === 'ENCAISSE')
-      .reduce((s, p) => s + Number(p.montant), Number(session.fondInitial));
+      .reduce((s, p) => s + Number(p.montant), 0);
+
+    const totalMouvements = session.mouvementsCaisse.reduce((s, m) => {
+      if (m.type === 'APPORT') return s + Number(m.montant);
+      if (m.type === 'RETRAIT' || m.type === 'DEPENSE') return s - Number(m.montant);
+      return s;
+    }, 0);
+
+    const totalTheorique = Number(session.fondInitial) + totalPaiements + totalMouvements;
     const ecart = totalReel - totalTheorique;
+
     return this.prisma.sessionCaisse.update({
       where: { id: sessionId },
       data: {
@@ -203,11 +215,119 @@ export class CaisseService {
         take: limit,
         include: {
           user: { select: { nom: true, prenom: true } },
-          _count: { select: { paiements: true } },
+          _count: { select: { paiements: true, mouvementsCaisse: true } },
         },
       }),
       this.prisma.sessionCaisse.count({ where: { caisseId } }),
     ]);
     return { data, total, page, limit };
+  }
+
+  // ========================
+  // Mouvements de Caisse
+  // ========================
+
+  async ajouterMouvement(
+    sessionId: string,
+    dto: CreateMouvementCaisseDto,
+  ) {
+    const session = await this.prisma.sessionCaisse.findUnique({
+      where: { id: sessionId },
+    });
+    if (!session) throw new NotFoundException('Session introuvable');
+    if (session.statut !== 'OUVERTE')
+      throw new BadRequestException(
+        'Impossible d’ajouter un mouvement à une session fermée',
+      );
+
+    return this.prisma.mouvementCaisse.create({
+      data: {
+        type: dto.type as TypeMouvementCaisse,
+        montant: dto.montant,
+        motif: dto.motif,
+        sessionId,
+      },
+    });
+  }
+
+  async getMouvementsCaisse(sessionId: string) {
+    return this.prisma.mouvementCaisse.findMany({
+      where: { sessionId },
+      orderBy: { createdAt: 'desc' },
+    });
+  }
+
+  // ========================
+  // Tranches de paiement hôtel
+  // ========================
+
+  async getTranchesFacture(factureId: string) {
+    const facture = await this.prisma.factureSejour.findUnique({
+      where: { id: factureId },
+      include: {
+        tranches: { orderBy: { createdAt: 'asc' } },
+        reservation: {
+          include: {
+            client: { select: { nom: true, prenom: true } },
+            chambre: { select: { numero: true, type: true } },
+          },
+        },
+      },
+    });
+    if (!facture) throw new NotFoundException('Facture introuvable');
+    return facture;
+  }
+
+  async enregistrerTranche(
+    factureId: string,
+    montant: number,
+    moyen: MoyenPaiement,
+    notes?: string,
+  ) {
+    return this.prisma.$transaction(async (tx) => {
+      const facture = await tx.factureSejour.findUnique({
+        where: { id: factureId },
+      });
+      if (!facture) throw new NotFoundException('Facture introuvable');
+      if (facture.payee) throw new BadRequestException('Facture déjà soldée');
+
+      const nouveauMontantPaye = Number(facture.montantPaye) + montant;
+      if (nouveauMontantPaye > Number(facture.total)) {
+        throw new BadRequestException(
+          `Montant dépasse le reste dû (reste: ${Number(facture.reste).toLocaleString()} FCFA)`,
+        );
+      }
+      const payee = nouveauMontantPaye >= Number(facture.total);
+
+      // Générer référence tranche
+      const annee = new Date().getFullYear();
+      const last = await tx.paiementTranche.findFirst({
+        where: { reference: { startsWith: `TR-${annee}-` } },
+        orderBy: { reference: 'desc' },
+      });
+      const seq = last ? parseInt(last.reference.split('-')[2]) + 1 : 1;
+      const reference = `TR-${annee}-${String(seq).padStart(5, '0')}`;
+
+      const tranche = await tx.paiementTranche.create({
+        data: {
+          montant,
+          moyen,
+          reference,
+          notes: notes || null,
+          factureSejourId: factureId,
+        },
+      });
+
+      await tx.factureSejour.update({
+        where: { id: factureId },
+        data: {
+          montantPaye: nouveauMontantPaye,
+          reste: Number(facture.total) - nouveauMontantPaye,
+          payee,
+        },
+      });
+
+      return tranche;
+    });
   }
 }

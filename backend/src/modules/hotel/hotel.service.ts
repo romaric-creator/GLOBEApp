@@ -50,6 +50,8 @@ export class HotelService {
         numero: dto.numero,
         type: dto.type,
         prixNuit: dto.prixNuit,
+        prixSieste: dto.prixSieste ?? null,
+        prixJournee: dto.prixJournee ?? null,
         capacite: dto.capacite,
         etage: dto.etage ?? null,
       },
@@ -122,44 +124,109 @@ export class HotelService {
       );
     }
 
+    const typeReservation = dto.typeReservation ?? 'NUIT';
     const dateArrivee = new Date(dto.dateArrivee);
     const dateDepart = new Date(dto.dateDepart);
 
-    if (dateDepart <= dateArrivee) {
+    // Validation des heures pour sieste/journée
+    if (typeReservation !== 'NUIT') {
+      if (!dto.heureArrivee || !dto.heureDepart) {
+        throw new BadRequestException(
+          'heureArrivee et heureDepart sont obligatoires pour les réservations sieste/journée',
+        );
+      }
+      if (dto.heureArrivee >= dto.heureDepart) {
+        throw new BadRequestException(
+          "L'heure de départ doit être après l'heure d'arrivée",
+        );
+      }
+    }
+
+    if (typeReservation === 'NUIT' && dateDepart <= dateArrivee) {
       throw new BadRequestException(
         "La date de depart doit etre apres la date d'arrivee",
       );
     }
 
-    return this.prisma.$transaction(async (tx) => {
-      const conflit = await tx.reservation.findFirst({
-        where: {
-          chambreId: dto.chambreId,
-          statut: { in: ['EN_ATTENTE', 'CONFIRMEE', 'EN_COURS'] },
-          dateArrivee: { lt: dateDepart },
-          dateDepart: { gt: dateArrivee },
-        },
-      });
-      if (conflit) {
-        throw new ConflictException(
-          'La chambre est deja reservee pour ces dates',
+    // Calcul du montant selon le type
+    let montantTotal: number;
+    if (typeReservation === 'SIESTE') {
+      if (!chambre.prixSieste) {
+        throw new BadRequestException(
+          'Cette chambre ne propose pas de tarif sieste',
         );
       }
-
+      montantTotal = Number(chambre.prixSieste);
+    } else if (typeReservation === 'JOURNEE') {
+      if (!chambre.prixJournee) {
+        throw new BadRequestException(
+          'Cette chambre ne propose pas de tarif journée',
+        );
+      }
+      montantTotal = Number(chambre.prixJournee);
+    } else {
       const nbNuits = Math.ceil(
         (dateDepart.getTime() - dateArrivee.getTime()) / (1000 * 60 * 60 * 24),
       );
-      const montantTotal = Number(chambre.prixNuit) * nbNuits;
+      montantTotal = Number(chambre.prixNuit) * nbNuits;
+    }
+
+    return this.prisma.$transaction(async (tx) => {
+      // Vérification de conflit avec prise en compte des créneaux horaires
+      const reservationsActives = await tx.reservation.findMany({
+        where: {
+          chambreId: dto.chambreId,
+          statut: { in: ['EN_ATTENTE', 'CONFIRMEE', 'EN_COURS'] },
+          dateArrivee: { lte: dateDepart },
+          dateDepart: { gte: dateArrivee },
+        },
+      });
+
+      for (const existing of reservationsActives) {
+        // Si même date : vérifier chevauchement d'heures
+        const sameDay =
+          existing.dateArrivee.toISOString().split('T')[0] ===
+          dateArrivee.toISOString().split('T')[0];
+
+        if (sameDay && existing.heureArrivee && dto.heureArrivee) {
+          // Chevauchement horaire
+          const existStart = existing.heureArrivee;
+          const existEnd = existing.heureDepart ?? '23:59';
+          const newStart = dto.heureArrivee;
+          const newEnd = dto.heureDepart ?? '23:59';
+          if (!(newEnd <= existStart || newStart >= existEnd)) {
+            throw new ConflictException(
+              `La chambre est déjà réservée sur ce créneau (${existStart}-${existEnd})`,
+            );
+          }
+        } else if (!existing.heureArrivee && !dto.heureArrivee) {
+          // Les deux sont des réservations nuit — conflit de dates
+          throw new ConflictException(
+            'La chambre est deja reservee pour ces dates',
+          );
+        } else {
+          // Mix nuit + sieste/journée sur la même date — conflit
+          throw new ConflictException(
+            'La chambre est deja reservee (conflit avec une autre reservation)',
+          );
+        }
+      }
 
       const reservation = await tx.reservation.create({
         data: {
+          typeReservation,
           dateArrivee,
           dateDepart,
+          heureArrivee: dto.heureArrivee ?? null,
+          heureDepart: dto.heureDepart ?? null,
           nbPersonnes: dto.nbPersonnes,
           montantTotal,
           notes: dto.notes || null,
           chambreId: dto.chambreId,
           clientId: dto.clientId,
+          typeDocumentClient: dto.typeDocumentClient ?? null,
+          numeroDocumentClient: dto.numeroDocumentClient ?? null,
+          nationaliteClient: dto.nationaliteClient ?? null,
         },
         include: {
           chambre: { select: { numero: true, type: true } },
@@ -175,6 +242,7 @@ export class HotelService {
       return reservation;
     });
   }
+
 
   async confirmerReservation(id: string) {
     const reservation = await this.findOneReservation(id);
@@ -261,12 +329,7 @@ export class HotelService {
       });
 
       if (!factureExistante) {
-        const nbNuits = Math.ceil(
-          (reservation.dateDepart.getTime() -
-            reservation.dateArrivee.getTime()) /
-            (1000 * 60 * 60 * 24),
-        );
-        const montantNuitee = Number(updated.chambre.prixNuit) * nbNuits;
+        const montantNuitee = Number(reservation.montantTotal);
         await tx.factureSejour.create({
           data: {
             numero,

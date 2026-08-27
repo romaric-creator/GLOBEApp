@@ -13,7 +13,6 @@ export interface Commande {
   numero: string;
   statut: 'EN_PREPARATION' | 'TERMINEE' | 'ANNULEE';
   total: number;
-  tableReference: string | null;
   notes: string | null;
   createdAt: string;
   completedAt: string | null;
@@ -38,7 +37,6 @@ export const restaurantApi = {
 
   createCommande: (data: {
     serveurId: string;
-    tableReference?: string;
     notes?: string;
     lignes: { produitId: string; quantite: number; notes?: string }[];
   }) => axios.post('/restaurant/commandes', data).then((r) => r.data),

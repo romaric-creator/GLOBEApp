@@ -65,7 +65,7 @@ describe('HotelService', () => {
         capacite: 3,
         prixNuit: 100,
       });
-      prisma.reservation.findFirst.mockResolvedValue(null);
+      prisma.reservation.findMany.mockResolvedValue([]);
       const reservationCreee = {
         id: 'r1',
         statut: 'EN_ATTENTE',
@@ -108,6 +108,7 @@ describe('HotelService', () => {
         capacite: 3,
         prixNuit: 100,
       });
+      prisma.reservation.findMany.mockResolvedValue([]);
 
       await expect(
         service.createReservation({
@@ -127,6 +128,7 @@ describe('HotelService', () => {
         chambreId: 'ch1',
         dateArrivee: new Date('2026-09-01'),
         dateDepart: new Date('2026-09-05'),
+        montantTotal: 400,
         chambre: {},
         client: {},
       });
