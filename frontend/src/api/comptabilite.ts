@@ -50,6 +50,16 @@ export interface Depense {
   createdAt: string;
 }
 
+export interface RecetteDetail {
+  id: string;
+  reference: string;
+  montant: number;
+  moyen: string;
+  source: string;
+  detail: string;
+  createdAt: string;
+}
+
 export const comptabiliteApi = {
   getTableauBord: (mois?: string) =>
     axios.get<TableauBord>('/comptabilite/tableau-bord', { params: mois ? { mois } : {} }).then((r) => r.data),
@@ -68,4 +78,7 @@ export const comptabiliteApi = {
 
   deleteDepense: (id: string) =>
     axios.delete(`/comptabilite/depenses/${id}`).then((r) => r.data),
+
+  getRecettes: (params?: { dateDebut?: string; dateFin?: string }) =>
+    axios.get('/comptabilite/recettes', { params }).then((r) => r.data),
 };

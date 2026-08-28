@@ -940,3 +940,17 @@ model Paiement {
   @@index([createdAt])
   @@map("paiements")
 }
+
+model Notification {
+  id        String   @id @default(uuid()) @db.VarChar(36)
+  type      String   @db.VarChar(30)
+  titre     String   @db.VarChar(255)
+  message   String   @db.Text
+  data      Json?
+  lu        Boolean  @default(false)
+  createdAt DateTime @default(now())
+
+  @@index([createdAt])
+  @@index([lu])
+  @@map("notifications")
+}

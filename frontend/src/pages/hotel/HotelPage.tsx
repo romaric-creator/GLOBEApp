@@ -2,6 +2,7 @@ import { Tabs } from 'antd';
 import { useSearchParams } from 'react-router-dom';
 import ChambresTab from './ChambresTab';
 import ReservationsTab from './ReservationsTab';
+import FacturesTab from './FacturesTab';
 
 export default function HotelPage() {
   const [searchParams, setSearchParams] = useSearchParams();
@@ -15,6 +16,7 @@ export default function HotelPage() {
         onChange={(key) => setSearchParams({ tab: key })}
         items={[
           { key: 'reservations', label: 'Reservations', children: <ReservationsTab /> },
+          { key: 'factures', label: 'Factures & Tranches', children: <FacturesTab /> },
           { key: 'chambres', label: 'Chambres', children: <ChambresTab /> },
         ]}
       />

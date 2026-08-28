@@ -30,6 +30,8 @@ import {
 } from "@ant-design/icons";
 import { useAuthStore } from "../../store/auth";
 import { useAuth } from "../../hooks/useAuth";
+import { useNotifications } from "../../hooks/useNotifications";
+import NotificationCenter from "../NotificationCenter";
 import { authApi } from "../../api/auth";
 import GlobalSearch from "../GlobalSearch";
 import { SyncWidget } from "../SyncWidget";
@@ -130,6 +132,7 @@ export default function AppLayout() {
   const location = useLocation();
   const { user, logout } = useAuthStore();
   useAuth();
+  useNotifications();
 
   const menuItems: ReturnType<typeof Array.prototype.filter> =
     allMenuItems.reduce((acc: object[], item) => {
@@ -281,6 +284,7 @@ export default function AppLayout() {
           </div>
           <div className="flex items-center gap-2">
             <SyncWidget />
+            <NotificationCenter />
             <Tooltip title="Visite guidee">
               <Button
                 type="text"

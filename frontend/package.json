@@ -26,6 +26,7 @@
     "react": "^19.2.8",
     "react-dom": "^19.2.8",
     "react-router-dom": "^7.18.2",
+    "socket.io-client": "^4.8.3",
     "zustand": "^5.0.14"
   },
   "devDependencies": {
@@ -83,7 +84,9 @@
       }
     ],
     "win": {
-      "target": ["nsis"],
+      "target": [
+        "nsis"
+      ],
       "icon": "public/icon.ico"
     },
     "nsis": {
@@ -95,7 +98,9 @@
       "uninstallerIcon": "public/icon.ico"
     },
     "linux": {
-      "target": ["AppImage"],
+      "target": [
+        "AppImage"
+      ],
       "icon": "public/logo.png"
     }
   }

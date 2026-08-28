@@ -6,6 +6,7 @@ import {
 } from 'antd';
 import {
   UnlockOutlined, LockOutlined, DollarOutlined, ShoppingOutlined, ExclamationCircleOutlined,
+  SwapOutlined,
 } from '@ant-design/icons';
 import { caisseApi, MOYEN_OPTIONS } from '../../api/caisse';
 import type { Caisse, SessionCaisse, Paiement } from '../../api/caisse';
@@ -19,9 +20,11 @@ export default function CaisseRestaurantPage() {
   const [ouvrirModalOpen, setOuvrirModalOpen] = useState(false);
   const [fermerModalOpen, setFermerModalOpen] = useState(false);
   const [encaisserModal, setEncaisserModal] = useState<Commande | null>(null);
+  const [mouvementModalOpen, setMouvementModalOpen] = useState(false);
   const [fondInitialForm] = Form.useForm();
   const [fermerForm] = Form.useForm();
   const [encaisserForm] = Form.useForm();
+  const [mouvementForm] = Form.useForm();
 
   const { data: caisses, isLoading: caisseLoading } = useQuery({
     queryKey: ['caisses'],
@@ -74,6 +77,25 @@ export default function CaisseRestaurantPage() {
     mutationFn: (data: { commandeId: string; montant: number; moyen: string }) =>
       caisseApi.encaisserRestaurant({ ...data, sessionId: (session as SessionCaisse).id }),
     onSuccess: () => { message.success('Paiement enregistre'); setEncaisserModal(null); encaisserForm.resetFields(); invalidate(); },
+    onError: (err: unknown) => message.error(getErrorMessage(err)),
+  });
+
+  const { data: mouvements } = useQuery({
+    queryKey: ['mouvements-resto', (session as SessionCaisse)?.id],
+    queryFn: () => caisseApi.getMouvements((session as SessionCaisse).id),
+    enabled: !!session,
+  });
+
+  const mouvementMutation = useMutation({
+    mutationFn: (data: { type: string; montant: number; motif: string }) =>
+      caisseApi.ajouterMouvement((session as SessionCaisse).id, data),
+    onSuccess: () => {
+      message.success('Mouvement enregistre');
+      setMouvementModalOpen(false);
+      mouvementForm.resetFields();
+      queryClient.invalidateQueries({ queryKey: ['mouvements-resto'] });
+      invalidate();
+    },
     onError: (err: unknown) => message.error(getErrorMessage(err)),
   });
 
@@ -199,13 +221,39 @@ export default function CaisseRestaurantPage() {
             )}
           </Card>
 
-          <Card title="Paiements de la session" size="small">
+          <Card title="Paiements de la session" size="small" className="mb-4">
             <Table
               dataSource={(session as SessionCaisse).paiements || []}
               columns={paiementsColumns}
               rowKey="id"
               size="small"
               pagination={{ pageSize: 10 }}
+            />
+          </Card>
+
+          <Card
+            title="Mouvements de caisse"
+            size="small"
+            extra={<Button size="small" icon={<SwapOutlined />} onClick={() => setMouvementModalOpen(true)}>Nouveau mouvement</Button>}
+          >
+            <Table
+              dataSource={mouvements || []}
+              columns={[
+                {
+                  title: 'Type', dataIndex: 'type', key: 'type', width: 100,
+                  render: (t: string) => <Tag color={t === 'APPORT' ? 'green' : t === 'RETRAIT' ? 'orange' : 'red'}>{t}</Tag>,
+                },
+                { title: 'Montant', dataIndex: 'montant', key: 'montant', render: (m: number) => `${Number(m).toLocaleString()} FCFA` },
+                { title: 'Motif', dataIndex: 'motif', key: 'motif' },
+                {
+                  title: 'Heure', dataIndex: 'createdAt', key: 'heure', width: 80,
+                  render: (d: string) => new Date(d).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' }),
+                },
+              ]}
+              rowKey="id"
+              size="small"
+              pagination={false}
+              locale={{ emptyText: 'Aucun mouvement' }}
             />
           </Card>
         </>
@@ -286,6 +334,32 @@ export default function CaisseRestaurantPage() {
           </Form.Item>
           <Form.Item name="moyen" label="Moyen de paiement" initialValue="ESPECES" rules={[{ required: true }]}>
             <Select options={MOYEN_OPTIONS} />
+          </Form.Item>
+        </Form>
+      </Modal>
+
+      {/* Modal mouvement de caisse */}
+      <Modal
+        title="Nouveau mouvement de caisse"
+        open={mouvementModalOpen}
+        onCancel={() => { setMouvementModalOpen(false); mouvementForm.resetFields(); }}
+        onOk={() => mouvementForm.submit()}
+        confirmLoading={mouvementMutation.isPending}
+        okText="Enregistrer"
+      >
+        <Form form={mouvementForm} layout="vertical" onFinish={(v) => mouvementMutation.mutate(v)}>
+          <Form.Item name="type" label="Type" rules={[{ required: true }]}>
+            <Select options={[
+              { value: 'APPORT', label: 'Apport' },
+              { value: 'RETRAIT', label: 'Retrait' },
+              { value: 'DEPENSE', label: 'Depense' },
+            ]} />
+          </Form.Item>
+          <Form.Item name="montant" label="Montant (FCFA)" rules={[{ required: true }]}>
+            <InputNumber min={1} style={{ width: '100%' }} />
+          </Form.Item>
+          <Form.Item name="motif" label="Motif" rules={[{ required: true }]}>
+            <Input.TextArea rows={2} />
           </Form.Item>
         </Form>
       </Modal>

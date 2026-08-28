@@ -1,8 +1,9 @@
 import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { Table, Button, Modal, Form, Select, InputNumber, DatePicker, Tag, Card, Row, Col, Statistic, App, Popconfirm } from 'antd';
-import { PlusOutlined, CheckOutlined } from '@ant-design/icons';
+import { Table, Button, Modal, Form, Select, InputNumber, DatePicker, Tag, Card, Row, Col, Statistic, App, Popconfirm, Space } from 'antd';
+import { PlusOutlined, CheckOutlined, PrinterOutlined } from '@ant-design/icons';
 import { piscineApi } from '../../api/piscine';
+import { ticketsApi } from '../../api/caisse';
 import { clientsApi } from '../../api/clients';
 import type { TicketPiscine } from '../../api/piscine';
 
@@ -108,13 +109,29 @@ export default function TicketsTab() {
     {
       title: 'Actions',
       key: 'actions',
-      width: 100,
-      render: (_: unknown, r: TicketPiscine) =>
-        !r.utilise && (
-          <Popconfirm title="Valider ce ticket ?" description="Cette action est irreversible." onConfirm={() => utiliserMutation.mutate(r.id)} okText="Valider" cancelText="Annuler">
-            <Button size="small" icon={<CheckOutlined />}>Valider</Button>
-          </Popconfirm>
-        ),
+      width: 160,
+      render: (_: unknown, r: TicketPiscine) => (
+        <Space size="small">
+          {!r.utilise && (
+            <Popconfirm title="Valider ce ticket ?" description="Cette action est irreversible." onConfirm={() => utiliserMutation.mutate(r.id)} okText="Valider" cancelText="Annuler">
+              <Button size="small" icon={<CheckOutlined />}>Valider</Button>
+            </Popconfirm>
+          )}
+          <Button
+            size="small"
+            icon={<PrinterOutlined />}
+            onClick={async () => {
+              try {
+                const blob = await ticketsApi.imprimerPiscine(r.id);
+                const url = URL.createObjectURL(new Blob([blob], { type: 'application/pdf' }));
+                window.open(url, '_blank');
+              } catch { message.error('Erreur impression'); }
+            }}
+          >
+            Ticket
+          </Button>
+        </Space>
+      ),
     },
   ];
 

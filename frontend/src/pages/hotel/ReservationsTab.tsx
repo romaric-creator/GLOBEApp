@@ -1,8 +1,9 @@
 import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { Table, Button, Modal, Form, Select, InputNumber, DatePicker, Input, Tag, Space, App, Popconfirm } from 'antd';
-import { PlusOutlined, LoginOutlined, LogoutOutlined, UserAddOutlined } from '@ant-design/icons';
+import { Table, Button, Modal, Form, Select, InputNumber, DatePicker, Input, Tag, Space, App, Popconfirm, TimePicker, Row, Col } from 'antd';
+import { PlusOutlined, LoginOutlined, LogoutOutlined, UserAddOutlined, PrinterOutlined } from '@ant-design/icons';
 import { hotelApi } from '../../api/hotel';
+import { ticketsApi } from '../../api/caisse';
 import { clientsApi } from '../../api/clients';
 import type { Client } from '../../api/clients';
 import type { Reservation, Chambre } from '../../api/hotel';
@@ -170,6 +171,21 @@ export default function ReservationsTab() {
               <Button size="small" icon={<LogoutOutlined />} type="primary">Check-out</Button>
             </Popconfirm>
           )}
+          {(r.statut === 'EN_COURS' || r.statut === 'CONFIRMEE' || r.statut === 'TERMINEE') && (
+            <Button
+              size="small"
+              icon={<PrinterOutlined />}
+              onClick={async () => {
+                try {
+                  const blob = await ticketsApi.imprimerReservation(r.id);
+                  const url = URL.createObjectURL(new Blob([blob], { type: 'application/pdf' }));
+                  window.open(url, '_blank');
+                } catch { message.error('Erreur lors de l\'impression'); }
+              }}
+            >
+              Ticket
+            </Button>
+          )}
         </Space>
       ),
     },
@@ -216,6 +232,8 @@ export default function ReservationsTab() {
               dateArrivee: values.dates[0].format('YYYY-MM-DD'),
               dateDepart: values.dates[1].format('YYYY-MM-DD'),
               nbPersonnes: values.nbPersonnes,
+              heureArrivee: values.heureArrivee?.format('HH:mm') || undefined,
+              heureDepart: values.heureDepart?.format('HH:mm') || undefined,
               notes: values.notes || undefined,
             });
           }}
@@ -257,6 +275,18 @@ export default function ReservationsTab() {
           <Form.Item name="dates" label="Dates (arrivee - depart)" rules={[{ required: true }]}>
             <DatePicker.RangePicker className="w-full" />
           </Form.Item>
+          <Row gutter={12}>
+            <Col span={12}>
+              <Form.Item name="heureArrivee" label="Heure arrivee">
+                <TimePicker format="HH:mm" className="w-full" minuteStep={15} placeholder="14:00" />
+              </Form.Item>
+            </Col>
+            <Col span={12}>
+              <Form.Item name="heureDepart" label="Heure depart">
+                <TimePicker format="HH:mm" className="w-full" minuteStep={15} placeholder="12:00" />
+              </Form.Item>
+            </Col>
+          </Row>
           <Form.Item
             name="nbPersonnes"
             label={`Nombre de personnes (max ${maxPersonnes})`}

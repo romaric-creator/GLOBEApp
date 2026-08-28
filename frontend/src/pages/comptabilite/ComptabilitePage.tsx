@@ -80,6 +80,7 @@ export default function ComptabilitePage() {
   const [mois, setMois] = useState<string | undefined>(undefined);
   const [depenseModal, setDepenseModal] = useState(false);
   const [filtreDepense, setFiltreDepense] = useState<{ dateDebut?: string; dateFin?: string; centre?: string }>({});
+  const [filtreRecettes, setFiltreRecettes] = useState<{ dateDebut?: string; dateFin?: string }>({});
   const [form] = Form.useForm();
 
   const { data: tb, isLoading: tbLoading } = useQuery({
@@ -100,6 +101,11 @@ export default function ComptabilitePage() {
   const { data: depenses, isLoading: depLoading } = useQuery({
     queryKey: ['depenses', filtreDepense],
     queryFn: () => comptabiliteApi.getDepenses(filtreDepense),
+  });
+
+  const { data: recettes, isLoading: recLoading } = useQuery({
+    queryKey: ['recettes-detail', filtreRecettes],
+    queryFn: () => comptabiliteApi.getRecettes(filtreRecettes),
   });
 
   const invalidate = () => {
@@ -343,6 +349,91 @@ export default function ComptabilitePage() {
           </Row>
         </div>
       ),
+    },
+    {
+      key: 'recettes',
+      label: <span><ArrowUpOutlined /> Recettes</span>,
+      children: (() => {
+        interface RecItem { key: string; source: string; montant: number; detail: string; moyen: string; date: string; }
+        const items: RecItem[] = [];
+        if (recettes) {
+          (recettes.hotel || []).forEach((p: any) => items.push({
+            key: p.id,
+            source: 'Hotel',
+            montant: Number(p.montant),
+            detail: p.factureSejour?.reservation
+              ? `${p.factureSejour.reservation.client?.nom || ''} — Ch. ${p.factureSejour.reservation.chambre?.numero || ''}`
+              : p.reference,
+            moyen: p.moyen,
+            date: p.createdAt,
+          }));
+          (recettes.restaurant || []).forEach((p: any) => items.push({
+            key: p.id,
+            source: 'Restaurant',
+            montant: Number(p.montant),
+            detail: p.commandeTable?.numero || p.reference,
+            moyen: p.moyen,
+            date: p.createdAt,
+          }));
+          (recettes.piscine || []).forEach((t: any) => items.push({
+            key: t.id,
+            source: 'Piscine',
+            montant: Number(t.prix),
+            detail: t.client ? `${t.client.nom} ${t.client.prenom || ''}` : 'Anonyme',
+            moyen: '-',
+            date: t.createdAt,
+          }));
+          (recettes.salle || []).forEach((r: any) => items.push({
+            key: r.id,
+            source: 'Salle',
+            montant: Number(r.montantTotal),
+            detail: `${r.client?.nom || ''} — ${r.type?.nom || ''}`,
+            moyen: '-',
+            date: r.dateEvent,
+          }));
+        }
+        items.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+        const totalRecettes = items.reduce((s, r) => s + r.montant, 0);
+
+        return (
+          <div className="space-y-4">
+            <div className="flex gap-3 items-center">
+              <DatePicker.RangePicker
+                onChange={(dates) => {
+                  if (dates) {
+                    setFiltreRecettes({ dateDebut: dates[0]?.format('YYYY-MM-DD'), dateFin: dates[1]?.format('YYYY-MM-DD') });
+                  } else {
+                    setFiltreRecettes({});
+                  }
+                }}
+              />
+            </div>
+            <Table
+              dataSource={items}
+              rowKey="key"
+              loading={recLoading}
+              size="small"
+              pagination={{ pageSize: 20, showTotal: (t) => `${t} recette(s)` }}
+              columns={[
+                { title: 'Date', dataIndex: 'date', key: 'date', width: 100, render: (d: string) => new Date(d).toLocaleDateString('fr-FR') },
+                { title: 'Source', dataIndex: 'source', key: 'source', width: 110, render: (s: string) => {
+                  const colors: Record<string, string> = { Hotel: 'gold', Restaurant: 'orange', Piscine: 'cyan', Salle: 'purple' };
+                  return <Tag color={colors[s]}>{s}</Tag>;
+                }},
+                { title: 'Détail', dataIndex: 'detail', key: 'detail' },
+                { title: 'Moyen', dataIndex: 'moyen', key: 'moyen', width: 120, render: (m: string) => m !== '-' ? <Tag>{m}</Tag> : '-' },
+                { title: 'Montant', dataIndex: 'montant', key: 'montant', width: 140, render: (m: number) => <span className="font-medium text-green-600">{fmtFull(m)}</span> },
+              ]}
+              summary={() => (
+                <Table.Summary.Row>
+                  <Table.Summary.Cell index={0} colSpan={4}><span className="font-medium">Total</span></Table.Summary.Cell>
+                  <Table.Summary.Cell index={4}><span className="font-semibold text-green-600">{fmtFull(totalRecettes)}</span></Table.Summary.Cell>
+                </Table.Summary.Row>
+              )}
+            />
+          </div>
+        );
+      })(),
     },
     {
       key: 'depenses',

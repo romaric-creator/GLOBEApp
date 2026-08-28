@@ -39,6 +39,23 @@ export const MOYEN_OPTIONS = [
   { value: 'AUTRE', label: 'Autre' },
 ];
 
+export interface MouvementCaisse {
+  id: string;
+  type: 'APPORT' | 'RETRAIT' | 'DEPENSE';
+  montant: number;
+  motif: string;
+  createdAt: string;
+}
+
+export interface PaiementTranche {
+  id: string;
+  montant: number;
+  moyen: string;
+  reference: string;
+  notes: string | null;
+  createdAt: string;
+}
+
 export const caisseApi = {
   getCaisses: () => axios.get<Caisse[]>('/caisse').then((r) => r.data),
 
@@ -59,4 +76,25 @@ export const caisseApi = {
 
   getHistorique: (caisseId: string, page = 1) =>
     axios.get(`/caisse/${caisseId}/historique`, { params: { page } }).then((r) => r.data),
+
+  getMouvements: (sessionId: string) =>
+    axios.get<MouvementCaisse[]>(`/caisse/sessions/${sessionId}/mouvements`).then((r) => r.data),
+
+  ajouterMouvement: (sessionId: string, data: { type: string; montant: number; motif: string }) =>
+    axios.post(`/caisse/sessions/${sessionId}/mouvements`, data).then((r) => r.data),
+
+  getTranches: (factureId: string) =>
+    axios.get(`/caisse/factures/${factureId}/tranches`).then((r) => r.data),
+
+  enregistrerTranche: (factureId: string, data: { montant: number; moyen: string; notes?: string }) =>
+    axios.post(`/caisse/factures/${factureId}/tranches`, data).then((r) => r.data),
+};
+
+export const ticketsApi = {
+  imprimerReservation: (id: string) =>
+    axios.get(`/tickets/reservation/${id}`, { responseType: 'blob' }).then((r) => r.data),
+  imprimerCommande: (id: string) =>
+    axios.get(`/tickets/commande/${id}`, { responseType: 'blob' }).then((r) => r.data),
+  imprimerPiscine: (id: string) =>
+    axios.get(`/tickets/piscine/${id}`, { responseType: 'blob' }).then((r) => r.data),
 };

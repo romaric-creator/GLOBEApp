@@ -1,6 +1,92 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import PDFDocument = require('pdfkit');
+import * as path from 'path';
 import { PrismaService } from '../../prisma/prisma.service';
+
+const LOGO_PATH = path.join(__dirname, '..', '..', '..', 'assets', 'logo.png');
+const GOLD = '#C9A84C';
+const DARK = '#1A1A1A';
+const GRAY = '#666666';
+const LIGHT_GRAY = '#F5F5F5';
+const TICKET_WIDTH = 226;
+
+function fmt(n: number): string {
+  return Math.round(n).toString().replace(/\B(?=(\d{3})+(?!\d))/g, ' ');
+}
+
+function buildDoc(height: number): { doc: PDFKit.PDFDocument; chunks: Buffer[] } {
+  const doc = new PDFDocument({ size: [TICKET_WIDTH, height], margin: 0 });
+  const chunks: Buffer[] = [];
+  doc.on('data', (chunk: Buffer) => chunks.push(chunk));
+  return { doc, chunks };
+}
+
+function drawHeader(doc: PDFKit.PDFDocument, subtitle: string): number {
+  // Gold top bar
+  doc.rect(0, 0, TICKET_WIDTH, 6).fill(GOLD);
+
+  // Logo
+  doc.image(LOGO_PATH, TICKET_WIDTH / 2 - 28, 12, { width: 56, height: 56 });
+
+  // App name
+  doc
+    .fillColor(DARK)
+    .fontSize(11)
+    .font('Helvetica-Bold')
+    .text('RÉSIDENCE MEUBLÉE', 0, 74, { align: 'center' });
+  doc
+    .fillColor(GOLD)
+    .fontSize(14)
+    .font('Helvetica-Bold')
+    .text('GLOBE', 0, 88, { align: 'center' });
+
+  // Subtitle badge
+  doc.fillColor(DARK).rect(14, 108, TICKET_WIDTH - 28, 18).fill();
+  doc
+    .fillColor('#FFFFFF')
+    .fontSize(8)
+    .font('Helvetica-Bold')
+    .text(subtitle.toUpperCase(), 0, 113, { align: 'center' });
+
+  return 136; // y position after header
+}
+
+function drawSeparator(doc: PDFKit.PDFDocument, y: number): void {
+  doc.moveTo(14, y).lineTo(TICKET_WIDTH - 14, y).lineWidth(0.5).strokeColor(GOLD).stroke();
+}
+
+function drawField(
+  doc: PDFKit.PDFDocument,
+  label: string,
+  value: string,
+  y: number,
+  x = 14,
+): number {
+  doc.fillColor(GRAY).fontSize(7).font('Helvetica').text(label.toUpperCase(), x, y);
+  doc
+    .fillColor(DARK)
+    .fontSize(9)
+    .font('Helvetica-Bold')
+    .text(value, x, y + 9, { width: TICKET_WIDTH - 28 });
+  return y + 26;
+}
+
+function drawFooter(doc: PDFKit.PDFDocument, y: number): void {
+  // Gold bottom bar
+  doc.rect(0, y, TICKET_WIDTH, 6).fill(GOLD);
+  doc
+    .fillColor(GRAY)
+    .fontSize(6.5)
+    .font('Helvetica')
+    .text(`Imprimé le ${new Date().toLocaleString('fr-FR')}`, 0, y - 14, { align: 'center' });
+}
+
+function finalize(doc: PDFKit.PDFDocument, chunks: Buffer[]): Promise<Buffer> {
+  doc.end();
+  return new Promise((resolve) => {
+    doc.on('end', () => resolve(Buffer.concat(chunks)));
+  });
+}
 
 @Injectable()
 export class TicketsService {
@@ -9,59 +95,71 @@ export class TicketsService {
   async genererTicketReservation(reservationId: string): Promise<Buffer> {
     const reservation = await this.prisma.reservation.findUnique({
       where: { id: reservationId },
-      include: {
-        chambre: true,
-        client: true,
-        factureSejour: true,
-      },
+      include: { chambre: true, client: true, factureSejour: true },
     });
     if (!reservation) throw new NotFoundException('Reservation introuvable');
 
-    const doc = new PDFDocument({ size: [226, 400], margin: 10 });
-    const chunks: Buffer[] = [];
-    doc.on('data', (chunk: Buffer) => chunks.push(chunk));
+    const { doc, chunks } = buildDoc(440);
+    let y = drawHeader(doc, 'Ticket de réservation');
 
-    doc.fontSize(14).font('Helvetica-Bold').text('GLOBE RESIDENCE', { align: 'center' });
-    doc.moveDown(0.3);
-    doc.fontSize(8).font('Helvetica').text('Ticket de reservation', { align: 'center' });
-    doc.moveDown(0.5);
-    doc.text('─'.repeat(30), { align: 'center' });
-    doc.moveDown(0.3);
-
-    doc.fontSize(9).font('Helvetica-Bold').text('Client:');
-    doc.font('Helvetica').text(`${reservation.client.nom} ${reservation.client.prenom || ''}`);
-    if (reservation.client.telephone) doc.text(`Tel: ${reservation.client.telephone}`);
-    doc.moveDown(0.3);
-
-    doc.font('Helvetica-Bold').text('Chambre:');
-    doc.font('Helvetica').text(`N° ${reservation.chambre.numero} — ${reservation.chambre.type}`);
-    doc.moveDown(0.3);
-
-    doc.font('Helvetica-Bold').text('Sejour:');
-    doc.font('Helvetica').text(`Type: ${reservation.typeReservation}`);
-    doc.text(`Arrivee: ${reservation.dateArrivee.toLocaleDateString('fr-FR')}${reservation.heureArrivee ? ' ' + reservation.heureArrivee : ''}`);
-    doc.text(`Depart: ${reservation.dateDepart.toLocaleDateString('fr-FR')}${reservation.heureDepart ? ' ' + reservation.heureDepart : ''}`);
-    doc.text(`Personnes: ${reservation.nbPersonnes}`);
-    doc.moveDown(0.3);
-
-    doc.text('─'.repeat(30), { align: 'center' });
-    doc.moveDown(0.3);
-    doc.font('Helvetica-Bold').fontSize(11).text(`Total: ${Number(reservation.montantTotal).toLocaleString()} FCFA`, { align: 'center' });
-
-    if (reservation.factureSejour) {
-      doc.moveDown(0.2);
-      doc.fontSize(9).font('Helvetica').text(`Paye: ${Number(reservation.factureSejour.montantPaye).toLocaleString()} FCFA`, { align: 'center' });
-      doc.text(`Reste: ${Number(reservation.factureSejour.reste).toLocaleString()} FCFA`, { align: 'center' });
+    // Section client
+    y += 8;
+    y = drawField(doc, 'Client', `${reservation.client.nom} ${reservation.client.prenom || ''}`, y);
+    if (reservation.client.telephone) {
+      y = drawField(doc, 'Téléphone', reservation.client.telephone, y);
     }
 
-    doc.moveDown(0.5);
-    doc.fontSize(7).text(`Imprime le ${new Date().toLocaleString('fr-FR')}`, { align: 'center' });
-    doc.text('Merci de votre visite!', { align: 'center' });
+    drawSeparator(doc, y);
+    y += 8;
 
-    doc.end();
-    return new Promise((resolve) => {
-      doc.on('end', () => resolve(Buffer.concat(chunks)));
-    });
+    // Section chambre
+    y = drawField(doc, 'Chambre', `N° ${reservation.chambre.numero} — ${reservation.chambre.type}`, y);
+    y = drawField(doc, 'Type de séjour', reservation.typeReservation, y);
+    y = drawField(
+      doc,
+      'Arrivée',
+      `${reservation.dateArrivee.toLocaleDateString('fr-FR')}${reservation.heureArrivee ? '  ' + reservation.heureArrivee : ''}`,
+      y,
+    );
+    y = drawField(
+      doc,
+      'Départ',
+      `${reservation.dateDepart.toLocaleDateString('fr-FR')}${reservation.heureDepart ? '  ' + reservation.heureDepart : ''}`,
+      y,
+    );
+    y = drawField(doc, 'Personnes', String(reservation.nbPersonnes), y);
+
+    drawSeparator(doc, y);
+    y += 8;
+
+    // Total block
+    doc.rect(14, y, TICKET_WIDTH - 28, 28).fill(LIGHT_GRAY);
+    doc.fillColor(GRAY).fontSize(7).font('Helvetica').text('TOTAL', 14, y + 4, { width: TICKET_WIDTH - 28, align: 'center' });
+    doc
+      .fillColor(DARK)
+      .fontSize(13)
+      .font('Helvetica-Bold')
+      .text(`${fmt(Number(reservation.montantTotal))} FCFA`, 14, y + 12, {
+        width: TICKET_WIDTH - 28,
+        align: 'center',
+      });
+    y += 36;
+
+    if (reservation.factureSejour) {
+      doc.fillColor(GRAY).fontSize(8).font('Helvetica').text(
+        `Payé: ${fmt(Number(reservation.factureSejour.montantPaye))} FCFA`,
+        0, y, { align: 'center' },
+      );
+      y += 12;
+      doc.fillColor(Number(reservation.factureSejour.reste) > 0 ? '#C0392B' : '#27AE60').fontSize(8).font('Helvetica-Bold').text(
+        `Reste: ${fmt(Number(reservation.factureSejour.reste))} FCFA`,
+        0, y, { align: 'center' },
+      );
+      y += 16;
+    }
+
+    drawFooter(doc, y + 4);
+    return finalize(doc, chunks);
   }
 
   async genererTicketCommande(commandeId: string): Promise<Buffer> {
@@ -74,42 +172,60 @@ export class TicketsService {
     });
     if (!commande) throw new NotFoundException('Commande introuvable');
 
-    const doc = new PDFDocument({ size: [226, 400], margin: 10 });
-    const chunks: Buffer[] = [];
-    doc.on('data', (chunk: Buffer) => chunks.push(chunk));
+    const lineHeight = 14;
+    const height = 300 + commande.lignes.length * lineHeight;
+    const { doc, chunks } = buildDoc(height);
+    let y = drawHeader(doc, 'Ticket Restaurant / Bar');
 
-    doc.fontSize(14).font('Helvetica-Bold').text('GLOBE RESIDENCE', { align: 'center' });
-    doc.moveDown(0.3);
-    doc.fontSize(8).font('Helvetica').text('Ticket Restaurant / Bar', { align: 'center' });
-    doc.moveDown(0.3);
-    doc.fontSize(9).text(`Commande: ${commande.numero}`, { align: 'center' });
-    doc.text(`Serveur: ${commande.serveur.prenom} ${commande.serveur.nom}`, { align: 'center' });
-    doc.moveDown(0.5);
-    doc.text('─'.repeat(30), { align: 'center' });
-    doc.moveDown(0.3);
+    y += 8;
+    y = drawField(doc, 'Commande N°', commande.numero, y);
+    y = drawField(doc, 'Serveur', `${commande.serveur.prenom} ${commande.serveur.nom}`, y);
 
+    drawSeparator(doc, y);
+    y += 8;
+
+    // Column headers
+    doc.fillColor(GRAY).fontSize(7).font('Helvetica');
+    doc.text('ARTICLE', 14, y);
+    doc.text('TOTAL', TICKET_WIDTH - 55, y, { width: 41, align: 'right' });
+    y += 11;
+    drawSeparator(doc, y);
+    y += 6;
+
+    // Lines
     for (const ligne of commande.lignes) {
       const sousTotal = Number(ligne.prixUnitaire) * ligne.quantite;
-      doc.font('Helvetica').fontSize(9);
-      doc.text(`${ligne.quantite}x ${ligne.produit.nom}`, { continued: true });
-      doc.text(`  ${sousTotal.toLocaleString()}`, { align: 'right' });
+      doc.fillColor(DARK).fontSize(8.5).font('Helvetica');
+      doc.text(`${ligne.quantite}× ${ligne.produit.nom}`, 14, y, { width: 130 });
+      doc.text(`${fmt(sousTotal)}`, TICKET_WIDTH - 55, y, { width: 41, align: 'right' });
+      y += lineHeight;
     }
 
-    doc.moveDown(0.5);
-    doc.text('─'.repeat(30), { align: 'center' });
-    doc.moveDown(0.3);
-    doc.font('Helvetica-Bold').fontSize(11).text(`Total: ${Number(commande.total).toLocaleString()} FCFA`, { align: 'center' });
-    doc.moveDown(0.3);
-    doc.font('Helvetica').fontSize(9).text(`Statut: ${commande.statut}`, { align: 'center' });
+    y += 4;
+    drawSeparator(doc, y);
+    y += 8;
 
-    doc.moveDown(0.5);
-    doc.fontSize(7).text(`${new Date().toLocaleString('fr-FR')}`, { align: 'center' });
-    doc.text('Merci et a bientot!', { align: 'center' });
+    // Total block
+    doc.rect(14, y, TICKET_WIDTH - 28, 28).fill(LIGHT_GRAY);
+    doc.fillColor(GRAY).fontSize(7).font('Helvetica').text('TOTAL', 14, y + 4, { width: TICKET_WIDTH - 28, align: 'center' });
+    doc
+      .fillColor(DARK)
+      .fontSize(13)
+      .font('Helvetica-Bold')
+      .text(`${fmt(Number(commande.total))} FCFA`, 14, y + 12, {
+        width: TICKET_WIDTH - 28,
+        align: 'center',
+      });
+    y += 38;
 
-    doc.end();
-    return new Promise((resolve) => {
-      doc.on('end', () => resolve(Buffer.concat(chunks)));
-    });
+    // Status badge
+    const statutColor = commande.statut === 'TERMINEE' ? '#27AE60' : commande.statut === 'EN_PREPARATION' ? GOLD : GRAY;
+    doc.rect(TICKET_WIDTH / 2 - 35, y, 70, 16).fill(statutColor);
+    doc.fillColor('#FFFFFF').fontSize(7.5).font('Helvetica-Bold').text(commande.statut, 0, y + 4, { align: 'center' });
+    y += 24;
+
+    drawFooter(doc, y + 4);
+    return finalize(doc, chunks);
   }
 
   async genererTicketPiscine(ticketId: string): Promise<Buffer> {
@@ -119,42 +235,45 @@ export class TicketsService {
     });
     if (!ticket) throw new NotFoundException('Ticket piscine introuvable');
 
-    const doc = new PDFDocument({ size: [226, 300], margin: 10 });
-    const chunks: Buffer[] = [];
-    doc.on('data', (chunk: Buffer) => chunks.push(chunk));
+    const { doc, chunks } = buildDoc(340);
+    let y = drawHeader(doc, 'Ticket Piscine');
 
-    doc.fontSize(14).font('Helvetica-Bold').text('GLOBE RESIDENCE', { align: 'center' });
-    doc.moveDown(0.3);
-    doc.fontSize(8).font('Helvetica').text('Ticket Piscine', { align: 'center' });
-    doc.moveDown(0.5);
-    doc.text('─'.repeat(30), { align: 'center' });
-    doc.moveDown(0.3);
-
-    doc.fontSize(9).font('Helvetica-Bold').text('Type:');
-    doc.font('Helvetica').text(ticket.type);
-    doc.moveDown(0.3);
+    y += 8;
+    y = drawField(doc, "Type d'accès", ticket.type.replace(/_/g, ' '), y);
 
     if (ticket.client) {
-      doc.font('Helvetica-Bold').text('Client:');
-      doc.font('Helvetica').text(`${ticket.client.nom} ${ticket.client.prenom || ''}`);
-      doc.moveDown(0.3);
+      y = drawField(doc, 'Client', `${ticket.client.nom} ${ticket.client.prenom || ''}`, y);
     }
 
-    doc.font('Helvetica-Bold').text('Validite:');
-    doc.font('Helvetica').text(`Du ${ticket.dateDebut.toLocaleDateString('fr-FR')}${ticket.dateFin ? ' au ' + ticket.dateFin.toLocaleDateString('fr-FR') : ''}`);
-    doc.moveDown(0.5);
+    drawSeparator(doc, y);
+    y += 8;
 
-    doc.text('─'.repeat(30), { align: 'center' });
-    doc.moveDown(0.3);
-    doc.font('Helvetica-Bold').fontSize(11).text(`Prix: ${Number(ticket.prix).toLocaleString()} FCFA`, { align: 'center' });
+    const validite = ticket.dateFin
+      ? `${ticket.dateDebut.toLocaleDateString('fr-FR')} → ${ticket.dateFin.toLocaleDateString('fr-FR')}`
+      : `${ticket.dateDebut.toLocaleDateString('fr-FR')}`;
+    y = drawField(doc, 'Validité', validite, y);
 
-    doc.moveDown(0.5);
-    doc.fontSize(7).font('Helvetica').text(`${new Date().toLocaleString('fr-FR')}`, { align: 'center' });
-    doc.text('Bon bain!', { align: 'center' });
+    drawSeparator(doc, y);
+    y += 8;
 
-    doc.end();
-    return new Promise((resolve) => {
-      doc.on('end', () => resolve(Buffer.concat(chunks)));
-    });
+    // Prix block
+    doc.rect(14, y, TICKET_WIDTH - 28, 28).fill(LIGHT_GRAY);
+    doc.fillColor(GRAY).fontSize(7).font('Helvetica').text('PRIX', 14, y + 4, { width: TICKET_WIDTH - 28, align: 'center' });
+    doc
+      .fillColor(DARK)
+      .fontSize(13)
+      .font('Helvetica-Bold')
+      .text(`${fmt(Number(ticket.prix))} FCFA`, 14, y + 12, {
+        width: TICKET_WIDTH - 28,
+        align: 'center',
+      });
+    y += 38;
+
+    // Message piscine
+    doc.fillColor(GOLD).fontSize(8).font('Helvetica-Bold').text('Bon bain !', 0, y, { align: 'center' });
+    y += 16;
+
+    drawFooter(doc, y + 4);
+    return finalize(doc, chunks);
   }
 }

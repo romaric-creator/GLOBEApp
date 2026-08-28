@@ -1,5 +1,6 @@
 import { WebSocketGateway, WebSocketServer } from '@nestjs/websockets';
 import { Server } from 'socket.io';
+import { PrismaService } from '../../prisma/prisma.service';
 
 export interface NotificationPayload {
   type: 'RESERVATION_EXPIREE' | 'CAISSE_ALERTE' | 'STOCK_ALERTE' | 'INFO';
@@ -14,19 +15,24 @@ export interface NotificationPayload {
   namespace: '/notifications',
 })
 export class NotificationsGateway {
+  constructor(private prisma: PrismaService) {}
+
   @WebSocketServer()
   server: Server;
 
-  /**
-   * Émet une notification à tous les clients connectés
-   */
-  emitNotification(payload: NotificationPayload) {
+  async emitNotification(payload: NotificationPayload) {
+    await this.prisma.notification.create({
+      data: {
+        type: payload.type,
+        titre: payload.titre,
+        message: payload.message,
+        data: payload.data ? JSON.parse(JSON.stringify(payload.data)) : undefined,
+      },
+    });
+
     this.server.emit('notification', payload);
   }
 
-  /**
-   * Notifie qu'une réservation hôtelière a expiré / le temps est écoulé
-   */
   notifierReservationExpiree(data: {
     reservationId: string;
     numeroChambre: string;
@@ -35,8 +41,8 @@ export class NotificationsGateway {
   }) {
     this.emitNotification({
       type: 'RESERVATION_EXPIREE',
-      titre: `⏰ Chambre ${data.numeroChambre} — Temps écoulé`,
-      message: `La réservation de ${data.clientNom} a expiré (départ prévu: ${data.heureDepart}). Veuillez procéder au check-out.`,
+      titre: `Chambre ${data.numeroChambre} — Temps ecoule`,
+      message: `La reservation de ${data.clientNom} a expire (depart prevu: ${data.heureDepart}). Veuillez proceder au check-out.`,
       data,
       createdAt: new Date(),
     });

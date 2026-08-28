@@ -4,9 +4,10 @@ import {
   Table, Button, Modal, Form, Select, InputNumber, Input,
   Tag, Space, App, Popconfirm, Card, Row, Col, Statistic,
 } from 'antd';
-import { PlusOutlined, MinusCircleOutlined, CoffeeOutlined, DollarOutlined, ClockCircleOutlined } from '@ant-design/icons';
+import { PlusOutlined, MinusCircleOutlined, CoffeeOutlined, DollarOutlined, ClockCircleOutlined, PrinterOutlined, AppstoreAddOutlined } from '@ant-design/icons';
 import { restaurantApi } from '../../api/restaurant';
 import type { Commande } from '../../api/restaurant';
+import { ticketsApi } from '../../api/caisse';
 import { produitsApi } from '../../api/produits';
 import type { Produit } from '../../api/produits';
 import { useAuthStore } from '../../store/auth';
@@ -23,9 +24,11 @@ export default function CommandesTab() {
   const queryClient = useQueryClient();
   const { user } = useAuthStore();
   const [modalOpen, setModalOpen] = useState(false);
+  const [ajouterLignesModal, setAjouterLignesModal] = useState<Commande | null>(null);
   const [filterStatut, setFilterStatut] = useState<string | undefined>(undefined);
   const [totalCommande, setTotalCommande] = useState(0);
   const [form] = Form.useForm();
+  const [ajouterForm] = Form.useForm();
 
   const { data: commandes, isLoading } = useQuery({
     queryKey: ['commandes-resto', filterStatut],
@@ -69,6 +72,18 @@ export default function CommandesTab() {
   const annulerMutation = useMutation({
     mutationFn: (id: string) => restaurantApi.annuler(id),
     onSuccess: () => { message.success('Commande annulee'); invalidateAll(); },
+    onError: (err: unknown) => message.error(getErrorMessage(err)),
+  });
+
+  const ajouterLignesMutation = useMutation({
+    mutationFn: ({ id, lignes }: { id: string; lignes: { produitId: string; quantite: number }[] }) =>
+      restaurantApi.ajouterLignes(id, lignes),
+    onSuccess: () => {
+      message.success('Articles ajoutes');
+      setAjouterLignesModal(null);
+      ajouterForm.resetFields();
+      invalidateAll();
+    },
     onError: (err: unknown) => message.error(getErrorMessage(err)),
   });
 
@@ -126,6 +141,7 @@ export default function CommandesTab() {
         <Space size="small">
           {r.statut === 'EN_PREPARATION' && (
             <>
+              <Button size="small" icon={<AppstoreAddOutlined />} onClick={() => setAjouterLignesModal(r)}>Ajouter</Button>
               <Popconfirm title="Terminer cette commande ?" description="La commande passera en attente d'encaissement." onConfirm={() => terminerMutation.mutate(r.id)} okText="Terminer" cancelText="Annuler">
                 <Button size="small" type="primary" loading={terminerMutation.isPending}>Terminer</Button>
               </Popconfirm>
@@ -138,6 +154,21 @@ export default function CommandesTab() {
             r.paiement
               ? <Tag color="default">Encaissee</Tag>
               : <Tag color="orange">A encaisser</Tag>
+          )}
+          {(r.statut === 'TERMINEE' || r.statut === 'EN_PREPARATION') && (
+            <Button
+              size="small"
+              icon={<PrinterOutlined />}
+              onClick={async () => {
+                try {
+                  const blob = await ticketsApi.imprimerCommande(r.id);
+                  const url = URL.createObjectURL(new Blob([blob], { type: 'application/pdf' }));
+                  window.open(url, '_blank');
+                } catch { message.error('Erreur impression'); }
+              }}
+            >
+              Ticket
+            </Button>
           )}
         </Space>
       ),
@@ -271,6 +302,60 @@ export default function CommandesTab() {
                             </span>
                           </div>
                         )}
+                      />
+                    </Form.Item>
+                    <Form.Item {...rest} name={[name, 'quantite']} initialValue={1} className="mb-0" style={{ width: 80 }}>
+                      <InputNumber min={1} />
+                    </Form.Item>
+                    {fields.length > 1 && (
+                      <Button type="text" danger icon={<MinusCircleOutlined />} onClick={() => remove(name)} />
+                    )}
+                  </div>
+                ))}
+                <Button type="dashed" onClick={() => add()} block icon={<PlusOutlined />}>
+                  Ajouter un produit
+                </Button>
+              </>
+            )}
+          </Form.List>
+        </Form>
+      </Modal>
+
+      {/* Modal ajouter articles a une commande existante */}
+      <Modal
+        title={`Ajouter des articles — ${ajouterLignesModal?.numero}`}
+        open={!!ajouterLignesModal}
+        onCancel={() => { setAjouterLignesModal(null); ajouterForm.resetFields(); }}
+        onOk={() => ajouterForm.submit()}
+        confirmLoading={ajouterLignesMutation.isPending}
+        okText="Ajouter"
+        width={500}
+      >
+        <Form
+          form={ajouterForm}
+          layout="vertical"
+          onFinish={(values) => {
+            if (!ajouterLignesModal) return;
+            ajouterLignesMutation.mutate({
+              id: ajouterLignesModal.id,
+              lignes: values.lignes.map((l: { produitId: string; quantite: number }) => ({
+                produitId: l.produitId,
+                quantite: l.quantite,
+              })),
+            });
+          }}
+        >
+          <Form.List name="lignes" initialValue={[{}]}>
+            {(fields, { add, remove }) => (
+              <>
+                {fields.map(({ key, name, ...rest }) => (
+                  <div key={key} className="flex gap-2 mb-2">
+                    <Form.Item {...rest} name={[name, 'produitId']} rules={[{ required: true, message: 'Requis' }]} className="flex-1 mb-0">
+                      <Select
+                        showSearch
+                        optionFilterProp="label"
+                        placeholder="Produit"
+                        options={produitOptions}
                       />
                     </Form.Item>
                     <Form.Item {...rest} name={[name, 'quantite']} initialValue={1} className="mb-0" style={{ width: 80 }}>

@@ -6,6 +6,7 @@ import {
 } from 'antd';
 import {
   UnlockOutlined, LockOutlined, DollarOutlined, HomeOutlined, ExclamationCircleOutlined,
+  WalletOutlined,
 } from '@ant-design/icons';
 import { caisseApi, MOYEN_OPTIONS } from '../../api/caisse';
 import type { Caisse, SessionCaisse, Paiement } from '../../api/caisse';
@@ -34,9 +35,13 @@ export default function CaisseHotelPage() {
   const [ouvrirModalOpen, setOuvrirModalOpen] = useState(false);
   const [fermerModalOpen, setFermerModalOpen] = useState(false);
   const [encaisserModal, setEncaisserModal] = useState<FactureSejour | null>(null);
+  const [mouvementModalOpen, setMouvementModalOpen] = useState(false);
+  const [trancheFacture, setTrancheFacture] = useState<FactureSejour | null>(null);
   const [fondInitialForm] = Form.useForm();
   const [fermerForm] = Form.useForm();
   const [encaisserForm] = Form.useForm();
+  const [mouvementForm] = Form.useForm();
+  const [trancheForm] = Form.useForm();
 
   const { data: caisses, isLoading: caisseLoading } = useQuery({
     queryKey: ['caisses'],
@@ -57,6 +62,12 @@ export default function CaisseHotelPage() {
     queryFn: () => axios.get<FactureSejour[]>('/hotel/factures').then((r) => r.data),
     enabled: !!session,
     refetchInterval: 15_000,
+  });
+
+  const { data: mouvements } = useQuery({
+    queryKey: ['mouvements-caisse', (session as SessionCaisse)?.id],
+    queryFn: () => caisseApi.getMouvements((session as SessionCaisse).id),
+    enabled: !!session,
   });
 
   const facturesImpayees = (factures || []).filter((f: FactureSejour) => !f.payee);
@@ -92,6 +103,37 @@ export default function CaisseHotelPage() {
     onError: (err: { response?: { data?: { message?: string } } }) => message.error(err.response?.data?.message || 'Une erreur s\'est produite. Veuillez réessayer.'),
   });
 
+  const mouvementMutation = useMutation({
+    mutationFn: (data: { type: string; montant: number; motif: string }) =>
+      caisseApi.ajouterMouvement((session as SessionCaisse).id, data),
+    onSuccess: () => {
+      message.success('Mouvement enregistre');
+      setMouvementModalOpen(false);
+      mouvementForm.resetFields();
+      invalidate();
+      queryClient.invalidateQueries({ queryKey: ['mouvements-caisse'] });
+    },
+    onError: (err: { response?: { data?: { message?: string } } }) => message.error(err.response?.data?.message || 'Erreur'),
+  });
+
+  const { data: trancheData, refetch: refetchTranches } = useQuery({
+    queryKey: ['tranches-facture', trancheFacture?.id],
+    queryFn: () => caisseApi.getTranches(trancheFacture!.id),
+    enabled: !!trancheFacture,
+  });
+
+  const trancheMutation = useMutation({
+    mutationFn: (data: { montant: number; moyen: string; notes?: string }) =>
+      caisseApi.enregistrerTranche(trancheFacture!.id, data),
+    onSuccess: () => {
+      message.success('Tranche enregistree');
+      trancheForm.resetFields();
+      refetchTranches();
+      invalidate();
+    },
+    onError: (err: { response?: { data?: { message?: string } } }) => message.error(err.response?.data?.message || 'Erreur'),
+  });
+
   const loading = caisseLoading || sessionLoading;
 
   if (loading) return <Skeleton active paragraph={{ rows: 6 }} />;
@@ -113,17 +155,33 @@ export default function CaisseHotelPage() {
       render: (r: number) => <span className="text-orange-600 font-medium">{Number(r).toLocaleString()} FCFA</span>,
     },
     {
-      title: 'Action',
+      title: 'Paye',
+      key: 'paye',
+      width: 120,
+      render: (_: unknown, r: FactureSejour) => `${Number(r.montantPaye).toLocaleString()} FCFA`,
+    },
+    {
+      title: 'Actions',
       key: 'action',
+      width: 200,
       render: (_: unknown, r: FactureSejour) => (
-        <Button
-          type="primary"
-          size="small"
-          icon={<DollarOutlined />}
-          onClick={() => { setEncaisserModal(r); encaisserForm.setFieldsValue({ montant: Number(r.reste), moyen: 'ESPECES' }); }}
-        >
-          Encaisser
-        </Button>
+        <Space size="small">
+          <Button
+            type="primary"
+            size="small"
+            icon={<DollarOutlined />}
+            onClick={() => { setEncaisserModal(r); encaisserForm.setFieldsValue({ montant: Number(r.reste), moyen: 'ESPECES' }); }}
+          >
+            Encaisser
+          </Button>
+          <Button
+            size="small"
+            icon={<WalletOutlined />}
+            onClick={() => setTrancheFacture(r)}
+          >
+            Tranches
+          </Button>
+        </Space>
       ),
     },
   ];
@@ -217,7 +275,7 @@ export default function CaisseHotelPage() {
             )}
           </Card>
 
-          <Card title="Paiements de la session" size="small">
+          <Card title="Paiements de la session" size="small" className="mb-4">
             <Table
               dataSource={(session as SessionCaisse).paiements || []}
               columns={paiementsColumns}
@@ -225,6 +283,39 @@ export default function CaisseHotelPage() {
               size="small"
               pagination={{ pageSize: 10 }}
             />
+          </Card>
+
+          <Card
+            title="Mouvements de caisse"
+            size="small"
+            extra={
+              <Button type="primary" size="small" icon={<WalletOutlined />} onClick={() => setMouvementModalOpen(true)}>
+                Nouveau mouvement
+              </Button>
+            }
+          >
+            {(!mouvements || mouvements.length === 0) ? (
+              <Empty description="Aucun mouvement pour cette session" />
+            ) : (
+              <Table
+                dataSource={mouvements}
+                rowKey="id"
+                size="small"
+                pagination={false}
+                columns={[
+                  {
+                    title: 'Type', dataIndex: 'type', key: 'type', width: 120,
+                    render: (t: string) => {
+                      const colors: Record<string, string> = { APPORT: 'green', RETRAIT: 'orange', DEPENSE: 'red' };
+                      return <Tag color={colors[t] || 'default'}>{t}</Tag>;
+                    },
+                  },
+                  { title: 'Montant', dataIndex: 'montant', key: 'montant', render: (m: number) => `${Number(m).toLocaleString()} FCFA` },
+                  { title: 'Motif', dataIndex: 'motif', key: 'motif' },
+                  { title: 'Heure', dataIndex: 'createdAt', key: 'heure', width: 80, render: (d: string) => new Date(d).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' }) },
+                ]}
+              />
+            )}
           </Card>
         </>
       )}
@@ -301,6 +392,103 @@ export default function CaisseHotelPage() {
             <Select options={MOYEN_OPTIONS} />
           </Form.Item>
         </Form>
+      </Modal>
+
+      {/* Modal mouvement de caisse */}
+      <Modal
+        title="Nouveau mouvement de caisse"
+        open={mouvementModalOpen}
+        onCancel={() => { setMouvementModalOpen(false); mouvementForm.resetFields(); }}
+        onOk={() => mouvementForm.submit()}
+        confirmLoading={mouvementMutation.isPending}
+        okText="Enregistrer"
+      >
+        <Form form={mouvementForm} layout="vertical" onFinish={(v) => mouvementMutation.mutate(v)}>
+          <Form.Item name="type" label="Type" rules={[{ required: true, message: 'Selectionnez le type' }]}>
+            <Select
+              options={[
+                { value: 'APPORT', label: 'Apport (entree de fonds)' },
+                { value: 'RETRAIT', label: 'Retrait' },
+                { value: 'DEPENSE', label: 'Depense cash' },
+              ]}
+            />
+          </Form.Item>
+          <Form.Item name="montant" label="Montant (FCFA)" rules={[{ required: true, message: 'Montant requis' }]}>
+            <InputNumber min={1} style={{ width: '100%' }} />
+          </Form.Item>
+          <Form.Item name="motif" label="Motif" rules={[{ required: true, message: 'Motif requis' }]}>
+            <Input.TextArea rows={2} placeholder="Raison du mouvement" />
+          </Form.Item>
+        </Form>
+      </Modal>
+
+      {/* Modal tranches de paiement */}
+      <Modal
+        title={`Tranches de paiement — Facture ${trancheFacture?.numero || ''}`}
+        open={!!trancheFacture}
+        onCancel={() => { setTrancheFacture(null); trancheForm.resetFields(); }}
+        footer={null}
+        width={600}
+      >
+        {trancheFacture && (
+          <>
+            <Descriptions size="small" className="mb-4" column={2}>
+              <Descriptions.Item label="Client">{trancheFacture.reservation.client.nom} {trancheFacture.reservation.client.prenom}</Descriptions.Item>
+              <Descriptions.Item label="Chambre">{trancheFacture.reservation.chambre.numero}</Descriptions.Item>
+              <Descriptions.Item label="Total">{Number(trancheFacture.total).toLocaleString()} FCFA</Descriptions.Item>
+              <Descriptions.Item label="Deja paye">
+                <span className="text-green-600 font-medium">{Number(trancheData?.montantPaye ?? trancheFacture.montantPaye).toLocaleString()} FCFA</span>
+              </Descriptions.Item>
+              <Descriptions.Item label="Reste">
+                <span className="text-orange-600 font-medium">{Number(trancheData?.reste ?? trancheFacture.reste).toLocaleString()} FCFA</span>
+              </Descriptions.Item>
+              <Descriptions.Item label="Statut">
+                <Tag color={(trancheData?.payee ?? trancheFacture.payee) ? 'green' : 'orange'}>
+                  {(trancheData?.payee ?? trancheFacture.payee) ? 'Soldee' : 'En cours'}
+                </Tag>
+              </Descriptions.Item>
+            </Descriptions>
+
+            {trancheData?.tranches?.length > 0 && (
+              <Table
+                dataSource={trancheData.tranches}
+                rowKey="id"
+                size="small"
+                pagination={false}
+                className="mb-4"
+                columns={[
+                  { title: 'Ref', dataIndex: 'reference', key: 'ref', width: 130 },
+                  { title: 'Montant', dataIndex: 'montant', key: 'montant', render: (m: number) => `${Number(m).toLocaleString()} FCFA` },
+                  { title: 'Moyen', dataIndex: 'moyen', key: 'moyen', render: (m: string) => <Tag>{m}</Tag> },
+                  { title: 'Date', dataIndex: 'createdAt', key: 'date', render: (d: string) => new Date(d).toLocaleString('fr-FR', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' }) },
+                  { title: 'Notes', dataIndex: 'notes', key: 'notes', render: (n: string | null) => n || '—' },
+                ]}
+              />
+            )}
+
+            {!(trancheData?.payee ?? trancheFacture.payee) && (
+              <>
+                <h4 className="text-sm font-medium mb-2">Ajouter une tranche</h4>
+                <Form form={trancheForm} layout="inline" onFinish={(v) => trancheMutation.mutate(v)} className="gap-2">
+                  <Form.Item name="montant" rules={[{ required: true, message: 'Requis' }]}>
+                    <InputNumber min={1} placeholder="Montant" style={{ width: 120 }} />
+                  </Form.Item>
+                  <Form.Item name="moyen" initialValue="ESPECES" rules={[{ required: true }]}>
+                    <Select options={MOYEN_OPTIONS} style={{ width: 140 }} />
+                  </Form.Item>
+                  <Form.Item name="notes">
+                    <Input placeholder="Notes (optionnel)" style={{ width: 140 }} />
+                  </Form.Item>
+                  <Form.Item>
+                    <Button type="primary" htmlType="submit" loading={trancheMutation.isPending}>
+                      Payer
+                    </Button>
+                  </Form.Item>
+                </Form>
+              </>
+            )}
+          </>
+        )}
       </Modal>
     </div>
   );

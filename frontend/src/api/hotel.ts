@@ -51,6 +51,8 @@ export const hotelApi = {
     dateArrivee: string;
     dateDepart: string;
     nbPersonnes: number;
+    heureArrivee?: string;
+    heureDepart?: string;
     notes?: string;
   }) => axios.post('/hotel/reservations', data).then((r) => r.data),
   confirmerReservation: (id: string) => axios.patch(`/hotel/reservations/${id}/confirmer`).then((r) => r.data),
