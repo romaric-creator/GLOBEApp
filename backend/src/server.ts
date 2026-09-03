@@ -30,8 +30,20 @@ async function getApp(): Promise<INestApplication> {
     .map((s) => s.trim())
     .filter(Boolean);
 
+  const allowedOrigins = [
+    'https://globe-manager-admin.vercel.app',
+    'https://globe-manager-dashboard.vercel.app',
+    ...extraOrigins,
+  ];
+
   nestApp.enableCors({
-    origin: extraOrigins.length ? extraOrigins : true,
+    origin: (origin, callback) => {
+      if (!origin || allowedOrigins.includes(origin)) {
+        callback(null, true);
+      } else {
+        callback(null, false);
+      }
+    },
     methods: ['GET', 'POST', 'PATCH', 'PUT', 'DELETE', 'OPTIONS'],
     credentials: true,
   });
