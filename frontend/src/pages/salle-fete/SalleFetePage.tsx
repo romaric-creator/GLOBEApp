@@ -253,11 +253,13 @@ function ReservationsTab() {
   const annulerMutation = useMutation({
     mutationFn: salleFeteApi.annuler,
     onSuccess: () => { message.success('Reservation annulee'); invalidateAll(); },
+    onError: (err: unknown) => message.error(getErrorMessage(err)),
   });
 
   const terminerMutation = useMutation({
     mutationFn: salleFeteApi.terminer,
     onSuccess: () => { message.success('Evenement termine'); invalidateAll(); },
+    onError: (err: unknown) => message.error(getErrorMessage(err)),
   });
 
   const columns = [
@@ -345,7 +347,7 @@ function ReservationsTab() {
       <Row gutter={16} className="mb-4">
         <Col span={8}>
           <Card size="small">
-            <Statistic title="A venir" value={stats?.reservationsAVenir || 0} prefix={<CalendarOutlined />} valueStyle={{ color: '#C9A84C' }} />
+            <Statistic title="A venir" value={stats?.reservationsAVenir || 0} prefix={<CalendarOutlined />} styles={{ content: { color: '#C9A84C' } }} />
           </Card>
         </Col>
         <Col span={8}>
@@ -355,7 +357,7 @@ function ReservationsTab() {
         </Col>
         <Col span={8}>
           <Card size="small">
-            <Statistic title="CA du mois" value={stats?.caMois || 0} suffix="FCFA" valueStyle={{ color: '#52c41a' }} />
+            <Statistic title="CA du mois" value={stats?.caMois || 0} suffix="FCFA" styles={{ content: { color: '#52c41a' } }} />
           </Card>
         </Col>
       </Row>
@@ -456,7 +458,22 @@ function ReservationsTab() {
             <Form.Item name="heureDebut" label="Debut" rules={[{ required: true }]} className="flex-1">
               <TimePicker format="HH:mm" className="w-full" minuteStep={15} />
             </Form.Item>
-            <Form.Item name="heureFin" label="Fin" rules={[{ required: true }]} className="flex-1">
+            <Form.Item
+              name="heureFin"
+              label="Fin"
+              dependencies={['heureDebut']}
+              rules={[
+                { required: true },
+                ({ getFieldValue }) => ({
+                  validator(_, value) {
+                    const debut = getFieldValue('heureDebut');
+                    if (!value || !debut || value.isAfter(debut)) return Promise.resolve();
+                    return Promise.reject(new Error("L'heure de fin doit etre apres le debut"));
+                  },
+                }),
+              ]}
+              className="flex-1"
+            >
               <TimePicker format="HH:mm" className="w-full" minuteStep={15} />
             </Form.Item>
           </div>
@@ -483,9 +500,10 @@ function ReservationsTab() {
 // ─────────────────────────────────────────────────────────
 export default function SalleFetePage() {
   return (
-    <div>
+    <div id="tour-salle-fete-page">
       <h2 className="text-xl font-semibold mb-4">Salle de fete</h2>
       <Tabs
+        id="tour-salle-fete-tabs"
         defaultActiveKey="reservations"
         items={[
           { key: 'reservations', label: 'Reservations', children: <ReservationsTab /> },

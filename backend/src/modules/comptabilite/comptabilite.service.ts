@@ -54,15 +54,21 @@ export class ComptabiliteService {
   // ─── Recettes par source ───────────────────────────────────
 
   private async getRecettesHotel(debut: Date, fin: Date) {
-    const result = await this.prisma.paiement.aggregate({
-      _sum: { montant: true },
-      where: {
-        sourceType: 'HOTEL_INVOICE',
-        statut: 'ENCAISSE',
-        createdAt: { gte: debut, lte: fin },
-      },
-    });
-    return Number(result._sum.montant ?? 0);
+    const [paiements, tranches] = await Promise.all([
+      this.prisma.paiement.aggregate({
+        _sum: { montant: true },
+        where: {
+          sourceType: 'HOTEL_INVOICE',
+          statut: 'ENCAISSE',
+          createdAt: { gte: debut, lte: fin },
+        },
+      }),
+      this.prisma.paiementTranche.aggregate({
+        _sum: { montant: true },
+        where: { createdAt: { gte: debut, lte: fin } },
+      }),
+    ]);
+    return Number(paiements._sum.montant ?? 0) + Number(tranches._sum.montant ?? 0);
   }
 
   private async getRecettesRestaurant(debut: Date, fin: Date) {
@@ -160,40 +166,33 @@ export class ComptabiliteService {
 
   async getHistoriqueMensuel() {
     const now = new Date();
-    const mois: {
-      label: string;
-      recettes: number;
-      depenses: number;
-      resultat: number;
-    }[] = [];
+    const indices = Array.from({ length: 12 }, (_, k) => 11 - k);
 
-    for (let i = 11; i >= 0; i--) {
-      const ref = new Date(now.getFullYear(), now.getMonth() - i, 1);
-      const debut = startOfMonth(ref);
-      const fin = endOfMonth(ref);
-      const label = ref.toLocaleDateString('fr-FR', {
-        month: 'short',
-        year: '2-digit',
-      });
+    const resultats = await Promise.all(
+      indices.map(async (i) => {
+        const ref = new Date(now.getFullYear(), now.getMonth() - i, 1);
+        const debut = startOfMonth(ref);
+        const fin = endOfMonth(ref);
+        const label = ref.toLocaleDateString('fr-FR', { month: 'short', year: '2-digit' });
 
-      const [hotel, restaurant, piscine, salle, depTotal] = await Promise.all([
-        this.getRecettesHotel(debut, fin),
-        this.getRecettesRestaurant(debut, fin),
-        this.getRecettesPiscine(debut, fin),
-        this.getRecettesSalle(debut, fin),
-        this.prisma.depense.aggregate({
-          _sum: { montant: true },
-          where: { date: { gte: debut, lte: fin } },
-        }),
-      ]);
+        const [hotel, restaurant, piscine, salle, depTotal] = await Promise.all([
+          this.getRecettesHotel(debut, fin),
+          this.getRecettesRestaurant(debut, fin),
+          this.getRecettesPiscine(debut, fin),
+          this.getRecettesSalle(debut, fin),
+          this.prisma.depense.aggregate({
+            _sum: { montant: true },
+            where: { date: { gte: debut, lte: fin } },
+          }),
+        ]);
 
-      const recettes = hotel + restaurant + piscine + salle;
-      const depenses = Number(depTotal._sum.montant ?? 0);
+        const recettes = hotel + restaurant + piscine + salle;
+        const depenses = Number(depTotal._sum.montant ?? 0);
+        return { label, recettes, depenses, resultat: recettes - depenses };
+      }),
+    );
 
-      mois.push({ label, recettes, depenses, resultat: recettes - depenses });
-    }
-
-    return mois;
+    return resultats;
   }
 
   // ─── Trésorerie consolidée ─────────────────────────────────

@@ -228,21 +228,108 @@ export class TicketsService {
     return finalize(doc, chunks);
   }
 
+  async genererRapportCloture(sessionId: string): Promise<Buffer> {
+    const session = await this.prisma.sessionCaisse.findUnique({
+      where: { id: sessionId },
+      include: {
+        caisse: true,
+        user: { select: { nom: true, prenom: true } },
+        mouvementsCaisse: true,
+        paiements: true,
+      },
+    });
+    if (!session) throw new NotFoundException('Session introuvable');
+
+    const nbMouvements = session.mouvementsCaisse.length;
+    const lineHeight = 16;
+    const height = 440 + nbMouvements * lineHeight;
+    const { doc, chunks } = buildDoc(height);
+
+    const typeLabel = session.caisse.type === 'HOTEL' ? 'Clôture Caisse Hôtel' : 'Clôture Caisse Restaurant';
+    let y = drawHeader(doc, typeLabel);
+
+    y += 8;
+    y = drawField(doc, 'Caisse', session.caisse.nom, y);
+    y = drawField(doc, 'Caissier', `${session.user.prenom} ${session.user.nom}`, y);
+
+    const fmt2 = (d: Date) => d.toLocaleString('fr-FR', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' });
+    y = drawField(doc, 'Ouverture', fmt2(session.ouvertureAt), y);
+    y = drawField(doc, 'Cloture', session.fermetureAt ? fmt2(session.fermetureAt) : '—', y);
+
+    drawSeparator(doc, y);
+    y += 8;
+
+    y = drawField(doc, 'Fond initial', `${fmt(Number(session.fondInitial))} FCFA`, y);
+    y = drawField(doc, 'Total theorique', `${fmt(Number(session.totalTheorique))} FCFA`, y);
+    y = drawField(doc, 'Total reel', `${fmt(Number(session.totalReel))} FCFA`, y);
+
+    const ecart = Number(session.ecart);
+    const ecartColor = ecart < 0 ? '#C0392B' : ecart > 0 ? '#27AE60' : DARK;
+    doc.fillColor(GRAY).fontSize(7).font('Helvetica').text('ECART', 14, y);
+    doc.fillColor(ecartColor).fontSize(9).font('Helvetica-Bold')
+      .text(`${ecart >= 0 ? '+' : ''}${fmt(ecart)} FCFA`, 14, y + 9, { width: TICKET_WIDTH - 28 });
+    y += 26;
+
+    if (session.mouvementsCaisse.length > 0) {
+      drawSeparator(doc, y);
+      y += 8;
+      doc.fillColor(GRAY).fontSize(7).font('Helvetica').text('MOUVEMENTS', 14, y);
+      y += 12;
+      for (const mv of session.mouvementsCaisse) {
+        const mvColor = mv.type === 'APPORT' ? '#27AE60' : '#C0392B';
+        doc.fillColor(mvColor).fontSize(7.5).font('Helvetica-Bold').text(mv.type, 14, y, { width: 60 });
+        doc.fillColor(DARK).fontSize(7.5).font('Helvetica').text(mv.motif, 74, y, { width: 80 });
+        doc.fillColor(DARK).fontSize(7.5).font('Helvetica-Bold')
+          .text(`${fmt(Number(mv.montant))} F`, TICKET_WIDTH - 55, y, { width: 41, align: 'right' });
+        y += lineHeight;
+      }
+    }
+
+    drawSeparator(doc, y);
+    y += 8;
+    doc.fillColor(GRAY).fontSize(7).font('Helvetica')
+      .text(`${session.paiements.length} paiement(s) enregistre(s)`, 0, y, { align: 'center' });
+    y += 14;
+
+    drawFooter(doc, y + 4);
+    return finalize(doc, chunks);
+  }
+
   async genererTicketPiscine(ticketId: string): Promise<Buffer> {
     const ticket = await this.prisma.ticketPiscine.findUnique({
       where: { id: ticketId },
-      include: { client: true },
+      include: {
+        client: true,
+        transactions: {
+          where: { type: { not: 'RETOUR' } },
+          include: { accessoire: { select: { nom: true } } },
+        },
+      },
     });
     if (!ticket) throw new NotFoundException('Ticket piscine introuvable');
 
-    const { doc, chunks } = buildDoc(340);
+    const lineHeight = 14;
+    const extrasHeight = ticket.transactions.length * lineHeight;
+    const { doc, chunks } = buildDoc(380 + extrasHeight);
     let y = drawHeader(doc, 'Ticket Piscine');
 
     y += 8;
+
+    if (ticket.code) {
+      doc.fillColor(DARK).rect(14, y, TICKET_WIDTH - 28, 20).fill();
+      doc.fillColor('#FFFFFF').fontSize(11).font('Helvetica-Bold')
+        .text(ticket.code, 0, y + 5, { align: 'center' });
+      y += 28;
+    }
+
     y = drawField(doc, "Type d'accès", ticket.type.replace(/_/g, ' '), y);
 
     if (ticket.client) {
       y = drawField(doc, 'Client', `${ticket.client.nom} ${ticket.client.prenom || ''}`, y);
+    }
+
+    if (ticket.emplacementNumero) {
+      y = drawField(doc, 'Emplacement', ticket.emplacementNumero, y);
     }
 
     drawSeparator(doc, y);
@@ -256,20 +343,37 @@ export class TicketsService {
     drawSeparator(doc, y);
     y += 8;
 
-    // Prix block
+    // Lignes : entrée
+    doc.fillColor(GRAY).fontSize(7).font('Helvetica').text('ARTICLE', 14, y);
+    doc.text('TOTAL', TICKET_WIDTH - 55, y, { width: 41, align: 'right' });
+    y += 11;
+    drawSeparator(doc, y);
+    y += 6;
+
+    doc.fillColor(DARK).fontSize(8.5).font('Helvetica');
+    doc.text(`1× Entrée ${ticket.type.replace(/_/g, ' ').toLowerCase()}`, 14, y, { width: 130 });
+    doc.text(`${fmt(Number(ticket.prix))}`, TICKET_WIDTH - 55, y, { width: 41, align: 'right' });
+    y += lineHeight;
+
+    for (const tx of ticket.transactions) {
+      doc.text(`${tx.quantite}× ${tx.accessoire.nom}`, 14, y, { width: 130 });
+      doc.text(`${fmt(Number(tx.total))}`, TICKET_WIDTH - 55, y, { width: 41, align: 'right' });
+      y += lineHeight;
+    }
+
+    y += 4;
+    drawSeparator(doc, y);
+    y += 8;
+
+    const totalGeneral = Number(ticket.prix) + ticket.transactions.reduce((s, t) => s + Number(t.total), 0);
+
+    // Total block
     doc.rect(14, y, TICKET_WIDTH - 28, 28).fill(LIGHT_GRAY);
-    doc.fillColor(GRAY).fontSize(7).font('Helvetica').text('PRIX', 14, y + 4, { width: TICKET_WIDTH - 28, align: 'center' });
-    doc
-      .fillColor(DARK)
-      .fontSize(13)
-      .font('Helvetica-Bold')
-      .text(`${fmt(Number(ticket.prix))} FCFA`, 14, y + 12, {
-        width: TICKET_WIDTH - 28,
-        align: 'center',
-      });
+    doc.fillColor(GRAY).fontSize(7).font('Helvetica').text('TOTAL', 14, y + 4, { width: TICKET_WIDTH - 28, align: 'center' });
+    doc.fillColor(DARK).fontSize(13).font('Helvetica-Bold')
+      .text(`${fmt(totalGeneral)} FCFA`, 14, y + 12, { width: TICKET_WIDTH - 28, align: 'center' });
     y += 38;
 
-    // Message piscine
     doc.fillColor(GOLD).fontSize(8).font('Helvetica-Bold').text('Bon bain !', 0, y, { align: 'center' });
     y += 16;
 

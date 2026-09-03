@@ -59,20 +59,24 @@ export class RapportsService {
     const debut = new Date(dateDebut);
     const fin = new Date(dateFin);
 
-    const [totalChambres, chambresOccupees] = await Promise.all([
+    const [totalChambres, distinctChambres] = await Promise.all([
       this.prisma.chambre.count(),
-      this.prisma.reservation.count({
+      // findMany avec distinct pour compter les chambres uniques, pas le nombre de sejours
+      this.prisma.reservation.findMany({
+        distinct: ['chambreId'],
         where: {
           statut: { in: ['EN_COURS', 'CONFIRMEE', 'TERMINEE'] },
           dateArrivee: { lte: fin },
           dateDepart: { gte: debut },
         },
+        select: { chambreId: true },
       }),
     ]);
+    const chambresOccupees = distinctChambres.length;
 
     const tauxOccupation =
       totalChambres > 0
-        ? Math.round((chambresOccupees / totalChambres) * 100 * 100) / 100
+        ? Math.min(100, Math.round((chambresOccupees / totalChambres) * 100 * 100) / 100)
         : 0;
 
     return {
@@ -173,6 +177,64 @@ export class RapportsService {
       });
     }
     return jours;
+  }
+
+  async getCAParJour(dateDebut: string, dateFin: string) {
+    const debut = new Date(dateDebut);
+    const fin = new Date(dateFin);
+    if (isNaN(debut.getTime()) || isNaN(fin.getTime())) return [];
+
+    const jours: { date: string; hotel: number; restaurant: number; total: number }[] = [];
+    const current = new Date(debut);
+    current.setHours(0, 0, 0, 0);
+
+    while (current <= fin) {
+      const dayStart = new Date(current);
+      const dayEnd = new Date(current);
+      dayEnd.setHours(23, 59, 59, 999);
+
+      const [hotel, restaurant] = await Promise.all([
+        this.prisma.reservation.aggregate({
+          _sum: { montantTotal: true },
+          where: { statut: 'TERMINEE', dateArrivee: { gte: dayStart, lte: dayEnd } },
+        }),
+        this.prisma.commandeTable.aggregate({
+          _sum: { total: true },
+          where: { statut: 'TERMINEE', createdAt: { gte: dayStart, lte: dayEnd } },
+        }),
+      ]);
+
+      const h = Number(hotel._sum.montantTotal) || 0;
+      const r = Number(restaurant._sum.total) || 0;
+      jours.push({ date: current.toISOString().slice(0, 10), hotel: h, restaurant: r, total: h + r });
+      current.setDate(current.getDate() + 1);
+    }
+    return jours;
+  }
+
+  async getCAParMois(annee: number) {
+    const mois: { date: string; hotel: number; restaurant: number; total: number }[] = [];
+    for (let m = 0; m < 12; m++) {
+      const debut = new Date(annee, m, 1);
+      const fin = new Date(annee, m + 1, 0, 23, 59, 59, 999);
+      if (debut > new Date()) break;
+
+      const [hotel, restaurant] = await Promise.all([
+        this.prisma.reservation.aggregate({
+          _sum: { montantTotal: true },
+          where: { statut: 'TERMINEE', dateArrivee: { gte: debut, lte: fin } },
+        }),
+        this.prisma.commandeTable.aggregate({
+          _sum: { total: true },
+          where: { statut: 'TERMINEE', createdAt: { gte: debut, lte: fin } },
+        }),
+      ]);
+
+      const h = Number(hotel._sum.montantTotal) || 0;
+      const r = Number(restaurant._sum.total) || 0;
+      mois.push({ date: debut.toISOString().slice(0, 10), hotel: h, restaurant: r, total: h + r });
+    }
+    return mois;
   }
 
   async getResumeMensuel(mois: number, annee: number) {

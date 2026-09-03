@@ -40,4 +40,15 @@ export class TicketsController {
     });
     res.end(pdf);
   }
+
+  @Get('cloture/:id')
+  async rapportCloture(@Param('id') id: string, @Res() res: Response) {
+    const pdf = await this.ticketsService.genererRapportCloture(id);
+    res.set({
+      'Content-Type': 'application/pdf',
+      'Content-Disposition': `inline; filename="cloture-${id}.pdf"`,
+      'Content-Length': pdf.length,
+    });
+    res.end(pdf);
+  }
 }

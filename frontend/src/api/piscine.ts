@@ -2,11 +2,13 @@ import axios from './axios';
 
 export interface TicketPiscine {
   id: string;
+  code: string | null;
   type: 'JOURNALIER' | 'ABONNEMENT_MENSUEL' | 'ABONNEMENT_ANNUEL';
   prix: number;
   dateDebut: string;
   dateFin: string | null;
   utilise: boolean;
+  emplacementNumero: string | null;
   createdAt: string;
   client: { nom: string; prenom: string } | null;
 }
@@ -67,7 +69,14 @@ export interface CreateTransactionDto {
   quantite: number;
   prixUnit: number;
   clientId?: string;
+  ticketPiscineId?: string;
   notes?: string;
+}
+
+export interface AccessoireCheckout {
+  accessoireId: string;
+  type: 'VENTE' | 'LOCATION';
+  quantite: number;
 }
 
 export const piscineApi = {
@@ -75,7 +84,9 @@ export const piscineApi = {
     axios.get<TicketPiscine[]>('/piscine/tickets', {
       params: { ...(type ? { type } : {}), ...(utilise ? { utilise } : {}) },
     }).then((r) => r.data),
-  createTicket: (data: { type: string; prix: number; dateDebut: string; dateFin?: string; clientId?: string }) =>
+  checkoutPiscine: (data: { type: string; prix: number; dateDebut: string; clientId?: string; accessoires?: AccessoireCheckout[] }) =>
+    axios.post<TicketPiscine>('/piscine/tickets/checkout', data).then((r) => r.data),
+  createTicket: (data: { type: string; prix: number; dateDebut: string; dateFin?: string; clientId?: string; emplacementNumero?: string }) =>
     axios.post('/piscine/tickets', data).then((r) => r.data),
   utiliserTicket: (id: string) =>
     axios.patch(`/piscine/tickets/${id}/utiliser`).then((r) => r.data),

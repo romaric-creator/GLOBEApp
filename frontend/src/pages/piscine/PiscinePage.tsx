@@ -9,9 +9,10 @@ export default function PiscinePage() {
   const activeTab = searchParams.get('tab') || 'tickets';
 
   return (
-    <div>
+    <div id="tour-piscine-page">
       <h2 className="text-xl font-semibold mb-4">Piscine & Loisirs</h2>
       <Tabs
+        id="tour-piscine-tabs"
         activeKey={activeTab}
         onChange={(key) => setSearchParams({ tab: key })}
         items={[

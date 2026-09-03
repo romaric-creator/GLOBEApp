@@ -9,6 +9,7 @@ import { ProduitsModule } from './modules/produits/produits.module';
 import { CaisseModule } from './modules/caisse/caisse.module';
 import { PersonnelModule } from './modules/personnel/personnel.module';
 import { HotelModule } from './modules/hotel/hotel.module';
+import { NotificationsModule } from './modules/notifications/notifications.module';
 import { RestaurantModule } from './modules/restaurant/restaurant.module';
 import { PiscineModule } from './modules/piscine/piscine.module';
 import { SalleFeteModule } from './modules/salle-fete/salle-fete.module';
@@ -29,6 +30,7 @@ import { TicketsModule } from './modules/tickets/tickets.module';
     ProduitsModule,
     CaisseModule,
     PersonnelModule,
+    NotificationsModule,
     HotelModule,
     RestaurantModule,
     PiscineModule,

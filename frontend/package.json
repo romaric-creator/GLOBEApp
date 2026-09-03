@@ -13,8 +13,8 @@
     "test:watch": "vitest",
     "test:coverage": "vitest run --coverage",
     "electron:dev": "concurrently \"vite\" \"wait-on http://localhost:3000 && electron .\"",
-    "electron:build": "tsc -b && vite build && cd ../backend && npm prune --omit=dev && cd ../frontend && electron-builder",
-    "desktop:build": "tsc -b && vite build && cd ../backend && npm prune --omit=dev && cd ../frontend && electron-builder"
+    "electron:build": "tsc -b && vite build && cd ../backend && npm prune --omit=dev && cd ../frontend && electron-builder --win",
+    "desktop:build": "tsc -b && vite build && cd ../backend && npm prune --omit=dev && cd ../frontend && electron-builder --win"
   },
   "dependencies": {
     "@ant-design/icons": "^6.3.2",
@@ -102,6 +102,7 @@
         "AppImage"
       ],
       "icon": "public/logo.png"
-    }
+    },
+    "publish": null
   }
 }

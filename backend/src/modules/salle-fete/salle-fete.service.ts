@@ -84,6 +84,10 @@ export class SalleFeteService {
   }
 
   async create(dto: CreateReservationSalleDto) {
+    if (dto.heureDebut >= dto.heureFin) {
+      throw new BadRequestException("L'heure de fin doit etre apres l'heure de debut");
+    }
+
     const dateEvent = new Date(dto.dateEvent);
 
     const conflit = await this.prisma.reservationSalle.findFirst({
@@ -176,7 +180,7 @@ export class SalleFeteService {
     const caMois = await this.prisma.reservationSalle.aggregate({
       where: {
         statut: { in: ['CONFIRMEE', 'TERMINEE'] },
-        createdAt: { gte: new Date(today.getFullYear(), today.getMonth(), 1) },
+        dateEvent: { gte: new Date(today.getFullYear(), today.getMonth(), 1) },
       },
       _sum: { montant: true },
     });

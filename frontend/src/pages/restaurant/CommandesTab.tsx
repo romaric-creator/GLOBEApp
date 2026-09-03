@@ -27,6 +27,7 @@ export default function CommandesTab() {
   const [ajouterLignesModal, setAjouterLignesModal] = useState<Commande | null>(null);
   const [filterStatut, setFilterStatut] = useState<string | undefined>(undefined);
   const [totalCommande, setTotalCommande] = useState(0);
+  const [terminingId, setTerminingId] = useState<string | null>(null);
   const [form] = Form.useForm();
   const [ajouterForm] = Form.useForm();
 
@@ -64,9 +65,9 @@ export default function CommandesTab() {
   });
 
   const terminerMutation = useMutation({
-    mutationFn: (id: string) => restaurantApi.terminer(id),
-    onSuccess: () => { message.success('Commande terminee'); invalidateAll(); },
-    onError: (err: unknown) => message.error(getErrorMessage(err)),
+    mutationFn: (id: string) => { setTerminingId(id); return restaurantApi.terminer(id); },
+    onSuccess: () => { setTerminingId(null); message.success('Commande terminee'); invalidateAll(); },
+    onError: (err: unknown) => { setTerminingId(null); message.error(getErrorMessage(err)); },
   });
 
   const annulerMutation = useMutation({
@@ -99,6 +100,18 @@ export default function CommandesTab() {
 
   const columns = [
     { title: 'N°', dataIndex: 'numero', key: 'numero', width: 160 },
+    {
+      title: 'Client / Table',
+      key: 'client',
+      width: 130,
+      render: (_: unknown, r: Commande) => (
+        <div>
+          {r.chambreNumero && <Tag color="blue" className="text-xs">Ch. {r.chambreNumero}</Tag>}
+          {r.clientNom && <div className="text-xs">{r.clientNom}</div>}
+          {!r.chambreNumero && !r.clientNom && <span className="text-slate-400 text-xs">Comptoir</span>}
+        </div>
+      ),
+    },
     {
       title: 'Articles',
       key: 'articles',
@@ -143,7 +156,7 @@ export default function CommandesTab() {
             <>
               <Button size="small" icon={<AppstoreAddOutlined />} onClick={() => setAjouterLignesModal(r)}>Ajouter</Button>
               <Popconfirm title="Terminer cette commande ?" description="La commande passera en attente d'encaissement." onConfirm={() => terminerMutation.mutate(r.id)} okText="Terminer" cancelText="Annuler">
-                <Button size="small" type="primary" loading={terminerMutation.isPending}>Terminer</Button>
+                <Button size="small" type="primary" loading={terminingId === r.id}>Terminer</Button>
               </Popconfirm>
               <Popconfirm title="Annuler cette commande ?" onConfirm={() => annulerMutation.mutate(r.id)} okButtonProps={{ danger: true }} okText="Annuler" cancelText="Non">
                 <Button size="small" danger>Annuler</Button>
@@ -184,7 +197,7 @@ export default function CommandesTab() {
               title="En preparation"
               value={stats?.commandesEnPreparation || 0}
               prefix={<ClockCircleOutlined />}
-              valueStyle={{ color: '#C9A84C' }}
+              styles={{ content: { color: '#C9A84C' } }}
             />
           </Card>
         </Col>
@@ -200,7 +213,7 @@ export default function CommandesTab() {
               value={stats?.caJour || 0}
               suffix="FCFA"
               prefix={<DollarOutlined />}
-              valueStyle={{ color: '#3f8600' }}
+              styles={{ content: { color: '#3f8600' } }}
             />
           </Card>
         </Col>
@@ -267,6 +280,8 @@ export default function CommandesTab() {
             createMutation.mutate({
               serveurId: user.id,
               notes: values.notes || undefined,
+              chambreNumero: values.chambreNumero || undefined,
+              clientNom: values.clientNom || undefined,
               lignes: values.lignes.map((l: { produitId: string; quantite: number; notes?: string }) => ({
                 produitId: l.produitId,
                 quantite: l.quantite,
@@ -275,6 +290,18 @@ export default function CommandesTab() {
             });
           }}
         >
+          <Row gutter={12}>
+            <Col span={10}>
+              <Form.Item name="chambreNumero" label="Chambre (si applicable)">
+                <Input placeholder="Ex: 204" maxLength={10} />
+              </Form.Item>
+            </Col>
+            <Col span={14}>
+              <Form.Item name="clientNom" label="Nom client (optionnel)">
+                <Input placeholder="Passant anonyme si vide" />
+              </Form.Item>
+            </Col>
+          </Row>
           <Form.Item name="notes" label="Notes (optionnel)">
             <Input placeholder="Instructions speciales..." />
           </Form.Item>

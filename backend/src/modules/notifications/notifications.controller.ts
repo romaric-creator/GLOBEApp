@@ -1,4 +1,13 @@
-import { Controller, Get, Post, Patch, Param, UseGuards, Query } from '@nestjs/common';
+import {
+  Controller,
+  Get,
+  Post,
+  Patch,
+  Delete,
+  Param,
+  UseGuards,
+  Query,
+} from '@nestjs/common';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { NotificationsGateway } from './notifications.gateway';
 import { PrismaService } from '../../prisma/prisma.service';
@@ -19,14 +28,7 @@ export class NotificationsController {
     });
   }
 
-  @Patch(':id/lire')
-  markRead(@Param('id') id: string) {
-    return this.prisma.notification.update({
-      where: { id },
-      data: { lu: true },
-    });
-  }
-
+  // lire-tout AVANT :id/lire pour eviter qu'Express capture "lire-tout" comme id
   @Patch('lire-tout')
   markAllRead() {
     return this.prisma.notification.updateMany({
@@ -35,14 +37,26 @@ export class NotificationsController {
     });
   }
 
+  @Patch(':id/lire')
+  markRead(@Param('id') id: string) {
+    return this.prisma.notification.update({
+      where: { id },
+      data: { lu: true },
+    });
+  }
+
+  @Delete('vider-tout')
+  deleteAll() {
+    return this.prisma.notification.deleteMany({});
+  }
+
   @Post('test')
   sendTest() {
-    this.notifications.emitNotification({
+    return this.notifications.emitNotification({
       type: 'INFO',
       titre: 'Test de notification',
       message: 'Les notifications fonctionnent correctement.',
       createdAt: new Date(),
     });
-    return { ok: true };
   }
 }

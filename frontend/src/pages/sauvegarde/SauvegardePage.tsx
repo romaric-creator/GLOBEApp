@@ -86,7 +86,7 @@ export default function SauvegardePage() {
   ];
 
   return (
-    <div>
+    <div id="tour-sauvegarde-page">
       <h2 className="text-xl font-semibold mb-4">Sauvegarde & Restauration</h2>
 
       <Row gutter={16} className="mb-4">

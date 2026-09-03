@@ -1,9 +1,25 @@
 import { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
-import { Card, Row, Col, Statistic, Table, DatePicker, Select, Tabs } from 'antd';
-import { TeamOutlined, HomeOutlined, RiseOutlined } from '@ant-design/icons';
+import { Card, Row, Col, Statistic, Table, DatePicker, Select, Tabs, Button, Tooltip } from 'antd';
+import { TeamOutlined, HomeOutlined, RiseOutlined, DownloadOutlined, PrinterOutlined } from '@ant-design/icons';
 import { rapportsApi } from '../../api/rapports';
 import dayjs from 'dayjs';
+
+function exportCSV(filename: string, rows: Record<string, unknown>[]) {
+  if (!rows || rows.length === 0) return;
+  const headers = Object.keys(rows[0]);
+  const csv = [
+    headers.join(';'),
+    ...rows.map((r) => headers.map((h) => String(r[h] ?? '')).join(';')),
+  ].join('\n');
+  const blob = new Blob(['﻿' + csv], { type: 'text/csv;charset=utf-8;' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = filename;
+  a.click();
+  URL.revokeObjectURL(url);
+}
 
 export default function RapportsPage() {
   const now = dayjs();
@@ -40,10 +56,10 @@ export default function RapportsPage() {
   const tabItems = [
     {
       key: 'ca',
-      label: 'Chiffre d\'affaires',
+      label: "Chiffre d'affaires",
       children: (
         <>
-          <div className="mb-4">
+          <div className="mb-4 flex gap-3 items-center">
             <DatePicker.RangePicker
               defaultValue={[dayjs(caDateDebut), dayjs(caDateFin)]}
               onChange={(dates) => {
@@ -53,13 +69,27 @@ export default function RapportsPage() {
                 }
               }}
             />
+            <Tooltip title="Exporter CSV">
+              <Button
+                icon={<DownloadOutlined />}
+                onClick={() => exportCSV('ca.csv', [
+                  { Module: 'Hotel', CA: ca?.hotel || 0 },
+                  { Module: 'Restaurant', CA: ca?.restaurant || 0 },
+                  { Module: 'Piscine', CA: ca?.piscine || 0 },
+                  { Module: 'Salle de fete', CA: ca?.salle_fete || 0 },
+                  { Module: 'Total', CA: ca?.total || 0 },
+                ])}
+              >
+                CSV
+              </Button>
+            </Tooltip>
           </div>
           <Row gutter={16}>
             <Col span={5}><Card><Statistic title="Hotel" value={ca?.hotel || 0} suffix="FCFA" prefix={<HomeOutlined />} /></Card></Col>
             <Col span={5}><Card><Statistic title="Restaurant" value={ca?.restaurant || 0} suffix="FCFA" /></Card></Col>
             <Col span={4}><Card><Statistic title="Piscine" value={ca?.piscine || 0} suffix="FCFA" /></Card></Col>
             <Col span={5}><Card><Statistic title="Salle de fete" value={ca?.salle_fete || 0} suffix="FCFA" /></Card></Col>
-            <Col span={5}><Card><Statistic title="Total" value={ca?.total || 0} suffix="FCFA" valueStyle={{ color: '#3f8600' }} prefix={<RiseOutlined />} /></Card></Col>
+            <Col span={5}><Card><Statistic title="Total" value={ca?.total || 0} suffix="FCFA" styles={{ content: { color: '#3f8600' } }} prefix={<RiseOutlined />} /></Card></Col>
           </Row>
         </>
       ),
@@ -76,7 +106,7 @@ export default function RapportsPage() {
             <Card><Statistic title="Occupees" value={occupation?.chambresOccupees || 0} /></Card>
           </Col>
           <Col span={8}>
-            <Card><Statistic title="Taux d'occupation" value={occupation?.tauxOccupation || 0} suffix="%" valueStyle={{ color: (occupation?.tauxOccupation || 0) > 70 ? '#3f8600' : '#cf1322' }} /></Card>
+            <Card><Statistic title="Taux d'occupation" value={occupation?.tauxOccupation || 0} suffix="%" styles={{ content: { color: (occupation?.tauxOccupation || 0) > 70 ? '#3f8600' : '#cf1322' } }} /></Card>
           </Col>
         </Row>
       ),
@@ -85,17 +115,33 @@ export default function RapportsPage() {
       key: 'produits',
       label: 'Top Produits',
       children: (
-        <Table
-          dataSource={topProduits || []}
-          columns={[
-            { title: '#', key: 'rank', width: 50, render: (_: unknown, __: unknown, i: number) => i + 1 },
-            { title: 'Produit', dataIndex: 'nom', key: 'nom' },
-            { title: 'Quantite vendue', dataIndex: 'quantiteVendue', key: 'quantiteVendue' },
-          ]}
-          rowKey="produitId"
-          size="small"
-          pagination={false}
-        />
+        <>
+          <div className="flex justify-end mb-3">
+            <Tooltip title="Exporter CSV">
+              <Button
+                icon={<DownloadOutlined />}
+                onClick={() => exportCSV('top-produits.csv', (topProduits || []).map((p, i) => ({
+                  Rang: i + 1,
+                  Produit: p.nom,
+                  'Quantite vendue': p.quantiteVendue,
+                })))}
+              >
+                CSV
+              </Button>
+            </Tooltip>
+          </div>
+          <Table
+            dataSource={topProduits || []}
+            columns={[
+              { title: '#', key: 'rank', width: 50, render: (_: unknown, __: unknown, i: number) => i + 1 },
+              { title: 'Produit', dataIndex: 'nom', key: 'nom' },
+              { title: 'Quantite vendue', dataIndex: 'quantiteVendue', key: 'quantiteVendue' },
+            ]}
+            rowKey="produitId"
+            size="small"
+            pagination={false}
+          />
+        </>
       ),
     },
     {
@@ -107,10 +153,10 @@ export default function RapportsPage() {
             <Card><Statistic title="Effectif total" value={personnel?.effectifTotal || 0} prefix={<TeamOutlined />} /></Card>
           </Col>
           <Col span={8}>
-            <Card><Statistic title="Presents aujourd'hui" value={personnel?.presentsAujourdhui || 0} valueStyle={{ color: '#3f8600' }} /></Card>
+            <Card><Statistic title="Presents aujourd'hui" value={personnel?.presentsAujourdhui || 0} styles={{ content: { color: '#3f8600' } }} /></Card>
           </Col>
           <Col span={8}>
-            <Card><Statistic title="En conge" value={personnel?.enConge || 0} valueStyle={{ color: '#faad14' }} /></Card>
+            <Card><Statistic title="En conge" value={personnel?.enConge || 0} styles={{ content: { color: '#faad14' } }} /></Card>
           </Col>
         </Row>
       ),
@@ -120,7 +166,7 @@ export default function RapportsPage() {
       label: 'Resume mensuel',
       children: (
         <>
-          <div className="mb-4 flex gap-3">
+          <div className="mb-4 flex gap-3 items-center">
             <Select
               value={mois}
               onChange={setMois}
@@ -139,10 +185,27 @@ export default function RapportsPage() {
                 label: `${now.year() - 2 + i}`,
               }))}
             />
+            <Tooltip title="Exporter CSV">
+              <Button
+                icon={<DownloadOutlined />}
+                onClick={() => exportCSV(`resume-${annee}-${mois}.csv`, resumeMensuel ? [{
+                  'CA Total': resumeMensuel.caTotal,
+                  'Depenses': resumeMensuel.depenses,
+                  'Benefice': resumeMensuel.benefice,
+                  'Nb Commandes': resumeMensuel.nbCommandes,
+                  'Reservations': resumeMensuel.nbReservations,
+                }] : [])}
+              >
+                CSV
+              </Button>
+            </Tooltip>
+            <Tooltip title="Imprimer cette page">
+              <Button icon={<PrinterOutlined />} onClick={() => window.print()}>Imprimer</Button>
+            </Tooltip>
           </div>
           <Row gutter={16}>
-            <Col span={5}><Card><Statistic title="CA Total" value={resumeMensuel?.caTotal || 0} suffix="FCFA" valueStyle={{ color: '#3f8600' }} /></Card></Col>
-            <Col span={5}><Card><Statistic title="Depenses" value={resumeMensuel?.depenses || 0} suffix="FCFA" valueStyle={{ color: '#cf1322' }} /></Card></Col>
+            <Col span={5}><Card><Statistic title="CA Total" value={resumeMensuel?.caTotal || 0} suffix="FCFA" styles={{ content: { color: '#3f8600' } }} /></Card></Col>
+            <Col span={5}><Card><Statistic title="Depenses" value={resumeMensuel?.depenses || 0} suffix="FCFA" styles={{ content: { color: '#cf1322' } }} /></Card></Col>
             <Col span={5}><Card><Statistic title="Benefice" value={resumeMensuel?.benefice || 0} suffix="FCFA" /></Card></Col>
             <Col span={5}><Card><Statistic title="Nb Commandes" value={resumeMensuel?.nbCommandes || 0} /></Card></Col>
             <Col span={4}><Card><Statistic title="Reservations" value={resumeMensuel?.nbReservations || 0} /></Card></Col>
@@ -153,9 +216,15 @@ export default function RapportsPage() {
   ];
 
   return (
-    <div>
-      <h2 className="text-xl font-semibold mb-4">Rapports & Statistiques</h2>
-      <Tabs items={tabItems} />
+    <div id="tour-rapports-page">
+      <div className="flex items-center justify-between mb-4">
+        <div>
+          <h2 className="text-xl font-semibold m-0">Rapports & Statistiques</h2>
+          <p className="text-slate-400 text-sm m-0">KPIs agregees en lecture seule — Pour les recettes detaillees, depenses et tresorerie : voir Comptabilite</p>
+        </div>
+        <Button icon={<PrinterOutlined />} onClick={() => window.print()}>Imprimer</Button>
+      </div>
+      <Tabs id="tour-rapports-tabs" items={tabItems} />
     </div>
   );
 }

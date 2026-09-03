@@ -616,10 +616,7 @@ function TabSync({ isAdmin }: { isAdmin: boolean }) {
                   <Statistic
                     title="En attente"
                     value={syncStatus.nbEnAttente}
-                    valueStyle={{
-                      color: syncStatus.nbEnAttente > 0 ? '#C9A84C' : '#52c41a',
-                      fontSize: 22,
-                    }}
+                    styles={{ content: { color: syncStatus.nbEnAttente > 0 ? '#C9A84C' : '#52c41a', fontSize: 22 } }}
                   />
                 </Col>
                 <Col span={12}>
@@ -633,7 +630,7 @@ function TabSync({ isAdmin }: { isAdmin: boolean }) {
                           })
                         : 'Jamais'
                     }
-                    valueStyle={{ fontSize: 13 }}
+                    styles={{ content: { fontSize: 13 } }}
                   />
                 </Col>
               </Row>
@@ -1372,7 +1369,7 @@ function TabAbout() {
 
 export default function ParametresPage() {
   const { user } = useAuthStore();
-  const isAdmin = user?.role === 'admin';
+  const isAdmin = user?.role?.toLowerCase() === 'admin';
   const userId = user?.id ?? '';
 
   const tabItems = [
@@ -1426,9 +1423,10 @@ export default function ParametresPage() {
   ];
 
   return (
-    <div>
+    <div id="tour-parametres-page">
       <h2 className="text-xl font-semibold mb-4">Paramètres</h2>
       <Tabs
+        id="tour-parametres-tabs"
         items={tabItems}
         destroyInactiveTabPane={false}
         tabBarStyle={{ overflowX: 'auto', flexWrap: 'nowrap' }}

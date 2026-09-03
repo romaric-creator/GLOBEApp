@@ -37,6 +37,10 @@ export class CreateChambreDto {
   @IsOptional()
   prixJournee?: number;
 
+  @IsString()
+  @IsOptional()
+  description?: string;
+
   @IsInt()
   @Min(1)
   capacite: number;
@@ -65,6 +69,10 @@ export class UpdateChambreDto {
   @Min(0)
   @IsOptional()
   prixJournee?: number;
+
+  @IsString()
+  @IsOptional()
+  description?: string;
 
   @IsInt()
   @Min(1)

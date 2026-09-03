@@ -1,6 +1,7 @@
 import { Form, Input, Button, App } from "antd";
 import { LockOutlined, MailOutlined } from "@ant-design/icons";
 import { useNavigate } from "react-router-dom";
+import { useQueryClient } from "@tanstack/react-query";
 import { authApi } from "../../api/auth";
 import type { LoginDto } from "../../api/auth";
 import { getErrorMessage } from "../../api/errors";
@@ -10,6 +11,7 @@ export default function LoginPage() {
   const navigate = useNavigate();
   const { setUser } = useAuthStore();
   const { message } = App.useApp();
+  const queryClient = useQueryClient();
   const [form] = Form.useForm();
 
   const onFinish = async (values: LoginDto) => {
@@ -17,6 +19,7 @@ export default function LoginPage() {
       const { data } = await authApi.login(values);
       localStorage.setItem("accessToken", data.accessToken);
       localStorage.setItem("refreshToken", data.refreshToken);
+      queryClient.removeQueries({ queryKey: ['profile'] });
       setUser(data.user);
       navigate("/dashboard");
     } catch (error) {

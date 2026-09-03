@@ -11,7 +11,7 @@ import {
 } from '@nestjs/common';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { PiscineService } from './piscine.service';
-import { CreateTicketPiscineDto } from './dto/create-ticket.dto';
+import { CheckoutPiscineDto, CreateTicketPiscineDto } from './dto/create-ticket.dto';
 import { CreateAbonnementDto } from './dto/create-abonnement.dto';
 import {
   CreateAccessoireDto,
@@ -33,6 +33,11 @@ export class PiscineController {
       type || undefined,
       utilise || undefined,
     );
+  }
+
+  @Post('tickets/checkout')
+  checkoutPiscine(@Body() dto: CheckoutPiscineDto) {
+    return this.piscineService.checkoutPiscine(dto);
   }
 
   @Post('tickets')

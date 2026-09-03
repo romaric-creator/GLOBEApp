@@ -2,15 +2,15 @@ import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import {
   Table, Button, Modal, Form, Input, Select, InputNumber,
-  Tag, Card, Row, Col, Statistic, App, Popconfirm, Space, Tabs, Badge,
+  Tag, Card, Row, Col, Statistic, App, Popconfirm, Space, Tabs, Badge, Alert,
 } from 'antd';
 import {
   PlusOutlined, EditOutlined, DeleteOutlined,
-  ShoppingCartOutlined, ToolOutlined,
+  ShoppingCartOutlined, ToolOutlined, RollbackOutlined,
 } from '@ant-design/icons';
 import { piscineApi } from '../../api/piscine';
 import { clientsApi } from '../../api/clients';
-import type { AccessoirePiscine, TransactionAccessoire } from '../../api/piscine';
+import type { AccessoirePiscine, TransactionAccessoire, TicketPiscine } from '../../api/piscine';
 import type { Client } from '../../api/clients';
 import { getErrorMessage } from '../../api/errors';
 
@@ -37,8 +37,11 @@ export default function AccessoiresTab() {
   const queryClient = useQueryClient();
   const [modalOpen, setModalOpen] = useState(false);
   const [txModalOpen, setTxModalOpen] = useState(false);
+  const [txSuccess, setTxSuccess] = useState<{ nom: string; type: string; total: number } | null>(null);
   const [editingAcc, setEditingAcc] = useState<AccessoirePiscine | null>(null);
   const [selectedAcc, setSelectedAcc] = useState<AccessoirePiscine | null>(null);
+  const [txQte, setTxQte] = useState(1);
+  const [txPrix, setTxPrix] = useState(0);
   const [form] = Form.useForm();
   const [txForm] = Form.useForm();
 
@@ -55,6 +58,16 @@ export default function AccessoiresTab() {
   const { data: clients } = useQuery({
     queryKey: ['clients'],
     queryFn: () => clientsApi.findAll().then((r) => r.data),
+  });
+
+  const { data: ticketsJour } = useQuery({
+    queryKey: ['tickets-piscine-jour'],
+    queryFn: () => piscineApi.getTickets(undefined, 'false'),
+    select: (data: TicketPiscine[]) => data.filter((t) => {
+      const d = new Date(t.dateDebut);
+      const today = new Date();
+      return d.toDateString() === today.toDateString();
+    }),
   });
 
   const createMutation = useMutation({
@@ -89,9 +102,13 @@ export default function AccessoiresTab() {
 
   const txMutation = useMutation({
     mutationFn: piscineApi.createTransaction,
-    onSuccess: () => {
-      message.success('Transaction enregistree');
-      closeTxModal();
+    onSuccess: (_, vars) => {
+      const total = (vars.quantite || 1) * (vars.prixUnit || 0);
+      const typeLabel = vars.type === 'RETOUR' ? 'Retour' : vars.type === 'LOCATION' ? 'Location' : 'Vente';
+      setTxSuccess({ nom: selectedAcc?.nom || '', type: typeLabel, total });
+      txForm.resetFields();
+      setTxQte(1);
+      setTxPrix(0);
       queryClient.invalidateQueries({ queryKey: ['accessoires-piscine'] });
       queryClient.invalidateQueries({ queryKey: ['transactions-accessoire'] });
     },
@@ -107,6 +124,9 @@ export default function AccessoiresTab() {
   const closeTxModal = () => {
     setTxModalOpen(false);
     setSelectedAcc(null);
+    setTxSuccess(null);
+    setTxQte(1);
+    setTxPrix(0);
     txForm.resetFields();
   };
 
@@ -116,20 +136,31 @@ export default function AccessoiresTab() {
     setModalOpen(true);
   };
 
-  const openTransaction = (acc: AccessoirePiscine) => {
+  const openTransaction = (acc: AccessoirePiscine, forceType?: 'VENTE' | 'LOCATION' | 'RETOUR') => {
     setSelectedAcc(acc);
+    setTxSuccess(null);
     txForm.setFieldValue('accessoireId', acc.id);
-    txForm.setFieldValue('quantite', 1);
-    if (acc.type === 'VENTE') {
-      txForm.setFieldValue('type', 'VENTE');
-      txForm.setFieldValue('prixUnit', acc.prixVente);
+    const defaultQte = 1;
+    txForm.setFieldValue('quantite', defaultQte);
+    let defaultType: string;
+    let defaultPrix: number;
+    if (forceType) {
+      defaultType = forceType;
+      defaultPrix = forceType === 'LOCATION' ? (acc.prixLocation ?? 0) : forceType === 'RETOUR' ? 0 : (acc.prixVente ?? 0);
+    } else if (acc.type === 'VENTE') {
+      defaultType = 'VENTE';
+      defaultPrix = acc.prixVente ?? 0;
     } else if (acc.type === 'LOCATION') {
-      txForm.setFieldValue('type', 'LOCATION');
-      txForm.setFieldValue('prixUnit', acc.prixLocation);
+      defaultType = 'LOCATION';
+      defaultPrix = acc.prixLocation ?? 0;
     } else {
-      txForm.setFieldValue('type', 'VENTE');
-      txForm.setFieldValue('prixUnit', acc.prixVente);
+      defaultType = 'VENTE';
+      defaultPrix = acc.prixVente ?? 0;
     }
+    txForm.setFieldValue('type', defaultType);
+    txForm.setFieldValue('prixUnit', defaultPrix);
+    setTxQte(defaultQte);
+    setTxPrix(defaultPrix);
     setTxModalOpen(true);
   };
 
@@ -192,13 +223,11 @@ export default function AccessoiresTab() {
       render: (_: unknown, record: AccessoirePiscine) => (
         <Space>
           <Button
-            type="primary"
             size="small"
-            icon={<ShoppingCartOutlined />}
-            onClick={() => openTransaction(record)}
-            disabled={record.stock === 0}
+            icon={<RollbackOutlined />}
+            onClick={() => openTransaction(record, 'RETOUR')}
           >
-            Vendre/Louer
+            Retour
           </Button>
           <Button type="link" icon={<EditOutlined />} onClick={() => openEdit(record)} />
           <Popconfirm title="Desactiver cet accessoire ?" onConfirm={() => deleteMutation.mutate(record.id)}>
@@ -253,7 +282,7 @@ export default function AccessoiresTab() {
             <Statistic
               title="Stock bas"
               value={stockBas}
-              valueStyle={{ color: stockBas > 0 ? '#faad14' : '#52c41a' }}
+              styles={{ content: { color: stockBas > 0 ? '#faad14' : '#52c41a' } }}
             />
           </Card>
         </Col>
@@ -264,7 +293,7 @@ export default function AccessoiresTab() {
         </Col>
         <Col span={6}>
           <Card size="small">
-            <Statistic title="CA Total" value={totalCA} suffix="F" valueStyle={{ color: '#C9A84C' }} />
+            <Statistic title="CA Total" value={totalCA} suffix="F" styles={{ content: { color: '#C9A84C' } }} />
           </Card>
         </Col>
       </Row>
@@ -365,54 +394,112 @@ export default function AccessoiresTab() {
         title={`Vente / Location : ${selectedAcc?.nom}`}
         open={txModalOpen}
         onCancel={closeTxModal}
-        onOk={() => txForm.submit()}
+        onOk={txSuccess ? closeTxModal : () => txForm.submit()}
+        okText={txSuccess ? 'Fermer' : 'Enregistrer'}
+        cancelButtonProps={txSuccess ? { style: { display: 'none' } } : {}}
         confirmLoading={txMutation.isPending}
-        okText="Enregistrer"
       >
-        <Form
-          form={txForm}
-          layout="vertical"
-          onFinish={(values) => txMutation.mutate(values)}
-        >
-          <Form.Item name="accessoireId" hidden>
-            <Input />
-          </Form.Item>
-          <Form.Item name="type" label="Type d'operation" rules={[{ required: true }]}>
-            <Select
-              options={[
-                { value: 'VENTE', label: 'Vente', disabled: selectedAcc?.type === 'LOCATION' },
-                { value: 'LOCATION', label: 'Location', disabled: selectedAcc?.type === 'VENTE' },
-                { value: 'RETOUR', label: 'Retour en stock' },
-              ]}
-              onChange={(val) => {
-                if (val === 'VENTE') txForm.setFieldValue('prixUnit', selectedAcc?.prixVente);
-                if (val === 'LOCATION') txForm.setFieldValue('prixUnit', selectedAcc?.prixLocation);
-                if (val === 'RETOUR') txForm.setFieldValue('prixUnit', 0);
-              }}
-            />
-          </Form.Item>
-          <Form.Item name="quantite" label="Quantite" rules={[{ required: true }]}>
-            <InputNumber min={1} max={selectedAcc?.stock || 999} className="w-full" />
-          </Form.Item>
-          <Form.Item name="prixUnit" label="Prix unitaire (FCFA)" rules={[{ required: true }]}>
-            <InputNumber min={0} className="w-full" />
-          </Form.Item>
-          <Form.Item name="clientId" label="Client (optionnel)">
-            <Select
-              showSearch
-              allowClear
-              placeholder="Selectionner un client..."
-              optionFilterProp="label"
-              options={(clients || []).map((c: Client) => ({
-                value: c.id,
-                label: `${c.nom} ${c.prenom || ''}`.trim(),
-              }))}
-            />
-          </Form.Item>
-          <Form.Item name="notes" label="Notes">
-            <Input.TextArea rows={2} />
-          </Form.Item>
-        </Form>
+        {txSuccess ? (
+          <Alert
+            type="success"
+            showIcon
+            message="Transaction enregistree avec succes"
+            description={
+              <div className="mt-1 space-y-1 text-sm">
+                <div><strong>Article :</strong> {txSuccess.nom}</div>
+                <div><strong>Type :</strong> {txSuccess.type}</div>
+                {txSuccess.type !== 'Retour' && (
+                  <div><strong>Total encaisse :</strong> {txSuccess.total.toLocaleString()} FCFA</div>
+                )}
+              </div>
+            }
+          />
+        ) : (
+          <Form
+            form={txForm}
+            layout="vertical"
+            onFinish={(values) => txMutation.mutate(values)}
+          >
+            <Form.Item name="accessoireId" hidden>
+              <Input />
+            </Form.Item>
+            <Form.Item name="type" label="Type d'operation" rules={[{ required: true }]}>
+              <Select
+                options={[
+                  { value: 'VENTE', label: 'Vente', disabled: selectedAcc?.type === 'LOCATION' },
+                  { value: 'LOCATION', label: 'Location', disabled: selectedAcc?.type === 'VENTE' },
+                  { value: 'RETOUR', label: 'Retour en stock' },
+                ]}
+                onChange={(val) => {
+                  let prix = 0;
+                  if (val === 'VENTE') prix = selectedAcc?.prixVente ?? 0;
+                  if (val === 'LOCATION') prix = selectedAcc?.prixLocation ?? 0;
+                  txForm.setFieldValue('prixUnit', prix);
+                  setTxPrix(prix);
+                }}
+              />
+            </Form.Item>
+            <Row gutter={12}>
+              <Col span={12}>
+                <Form.Item name="quantite" label="Quantite" rules={[{ required: true }]}>
+                  <InputNumber
+                    min={1}
+                    max={selectedAcc?.stock || 999}
+                    className="w-full"
+                    onChange={(v) => setTxQte(v ?? 1)}
+                  />
+                </Form.Item>
+              </Col>
+              <Col span={12}>
+                <Form.Item name="prixUnit" label="Prix unitaire (FCFA)" rules={[{ required: true }]}>
+                  <InputNumber
+                    min={0}
+                    className="w-full"
+                    onChange={(v) => setTxPrix(v ?? 0)}
+                  />
+                </Form.Item>
+              </Col>
+            </Row>
+
+            {/* Total en temps réel */}
+            {txQte > 0 && txPrix > 0 && (
+              <div className="mb-3 p-3 rounded-lg bg-slate-50 border border-slate-200 flex justify-between items-center">
+                <span className="text-sm text-slate-600">Total a encaisser</span>
+                <span className="font-semibold text-lg" style={{ color: '#C9A84C' }}>
+                  {(txQte * txPrix).toLocaleString()} FCFA
+                </span>
+              </div>
+            )}
+
+            <Form.Item name="ticketPiscineId" label="Lier au ticket d'entree (optionnel)">
+              <Select
+                allowClear
+                placeholder="Ticket du jour..."
+                options={(ticketsJour || []).map((t: TicketPiscine) => ({
+                  value: t.id,
+                  label: t.code
+                    ? `${t.code}${t.client ? ` — ${t.client.nom}` : ''}${t.emplacementNumero ? ` (${t.emplacementNumero})` : ''}`
+                    : `Ticket ${t.type.replace(/_/g, ' ')}${t.client ? ` — ${t.client.nom}` : ''}`,
+                }))}
+              />
+            </Form.Item>
+            <Form.Item name="clientId" label="Client (optionnel)">
+              <Select
+                showSearch
+                allowClear
+                placeholder="Passant anonyme si vide..."
+                optionFilterProp="label"
+                options={(clients || []).map((c: Client) => ({
+                  value: c.id,
+                  label: `${c.nom} ${c.prenom || ''}`.trim(),
+                }))}
+              />
+            </Form.Item>
+            <Form.Item name="notes" label="Notes">
+              <Input.TextArea rows={2} />
+            </Form.Item>
+          </Form>
+        )}
       </Modal>
     </>
   );

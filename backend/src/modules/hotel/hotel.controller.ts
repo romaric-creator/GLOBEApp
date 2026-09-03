@@ -83,6 +83,11 @@ export class HotelController {
   }
 
   // Factures
+  @Get('reservations/:id/facture')
+  getFactureByReservation(@Param('id') id: string) {
+    return this.hotelService.findFactureByReservation(id);
+  }
+
   @Get('factures')
   findAllFactures(@Query('payee') payee?: string) {
     if (payee === 'true') return this.hotelService.findAllFactures(true);

@@ -35,6 +35,11 @@ export default function NotificationCenter() {
     api.patch('/notifications/lire-tout').catch(() => {});
   };
 
+  const handleClear = () => {
+    clear();
+    api.delete('/notifications/vider-tout').catch(() => {});
+  };
+
   const content = (
     <div style={{ width: 360, maxHeight: 420, overflow: 'auto' }}>
       {items.length === 0 ? (
@@ -49,7 +54,7 @@ export default function NotificationCenter() {
                   Tout lire
                 </Button>
               )}
-              <Button size="small" type="link" danger icon={<DeleteOutlined />} onClick={clear}>
+              <Button size="small" type="link" danger icon={<DeleteOutlined />} onClick={handleClear}>
                 Vider
               </Button>
             </div>

@@ -519,6 +519,7 @@ model Chambre {
   prixNuit    Decimal       @db.Decimal(10, 2)
   prixSieste  Decimal?      @db.Decimal(10, 2)
   prixJournee Decimal?      @db.Decimal(10, 2)
+  description String?       @db.VarChar(100)
   etage       Int?
   capacite    Int           @default(2)
   createdAt   DateTime      @default(now())
@@ -539,7 +540,7 @@ enum StatutReservation {
 enum TypeReservation {
   NUIT
   SIESTE
-  JOURNEE
+  SIESTE_PROLONGEE
 }
 
 model Reservation {
@@ -623,16 +624,18 @@ enum StatutCommande {
 }
 
 model CommandeTable {
-  id          String         @id @default(uuid()) @db.VarChar(36)
-  numero      String         @unique
-  statut      StatutCommande @default(EN_PREPARATION)
-  total       Decimal        @db.Decimal(10, 2) @default(0)
-  notes       String?
-  createdAt   DateTime       @default(now())
-  completedAt DateTime?
-  cancelledAt DateTime?
-  syncStatus  SyncStatus     @default(PENDING)
-  syncedAt    DateTime?
+  id            String         @id @default(uuid()) @db.VarChar(36)
+  numero        String         @unique
+  statut        StatutCommande @default(EN_PREPARATION)
+  total         Decimal        @db.Decimal(10, 2) @default(0)
+  notes         String?
+  chambreNumero String?        @db.VarChar(10)
+  clientNom     String?        @db.VarChar(100)
+  createdAt     DateTime       @default(now())
+  completedAt   DateTime?
+  cancelledAt   DateTime?
+  syncStatus    SyncStatus     @default(PENDING)
+  syncedAt      DateTime?
 
   serveurId String @db.VarChar(36)
   serveur   User   @relation(fields: [serveurId], references: [id])
@@ -671,16 +674,20 @@ enum TypeTicketPiscine {
 }
 
 model TicketPiscine {
-  id        String            @id @default(uuid()) @db.VarChar(36)
-  type      TypeTicketPiscine
-  prix      Decimal           @db.Decimal(10, 2)
-  dateDebut DateTime          @db.Date
-  dateFin   DateTime?         @db.Date
-  utilise   Boolean           @default(false)
-  createdAt DateTime          @default(now())
+  id                String            @id @default(uuid()) @db.VarChar(36)
+  code              String?           @unique @db.VarChar(20)
+  type              TypeTicketPiscine
+  prix              Decimal           @db.Decimal(10, 2)
+  dateDebut         DateTime          @db.Date
+  dateFin           DateTime?         @db.Date
+  utilise           Boolean           @default(false)
+  emplacementNumero String?           @db.VarChar(50)
+  createdAt         DateTime          @default(now())
 
   clientId String? @db.VarChar(36)
   client   Client? @relation(fields: [clientId], references: [id])
+
+  transactions TransactionAccessoire[]
 
   @@map("tickets_piscine")
 }
@@ -744,6 +751,10 @@ model TransactionAccessoire {
   clientId String? @db.VarChar(36)
   client   Client? @relation(fields: [clientId], references: [id])
 
+  ticketPiscineId String?        @db.VarChar(36)
+  ticketPiscine   TicketPiscine? @relation(fields: [ticketPiscineId], references: [id])
+
+  @@index([ticketPiscineId])
   @@map("transactions_accessoire")
 }
 

@@ -77,7 +77,12 @@ export class PersonnelService {
 
   async findPointages(date?: string, employeId?: string) {
     const where: Record<string, unknown> = {};
-    if (date) where.date = new Date(date);
+    if (date) {
+      where.date = {
+        gte: new Date(`${date}T00:00:00.000Z`),
+        lte: new Date(`${date}T23:59:59.999Z`),
+      };
+    }
     if (employeId) where.employeId = employeId;
 
     return this.prisma.pointage.findMany({
@@ -139,8 +144,10 @@ export class PersonnelService {
   }
 
   async getPresencesJour() {
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
+    // Utiliser la date UTC pour correspondre au format de stockage (new Date("YYYY-MM-DD") = UTC midnight)
+    const todayStr = new Date().toISOString().split('T')[0];
+    const todayStart = new Date(`${todayStr}T00:00:00.000Z`);
+    const todayEnd = new Date(`${todayStr}T23:59:59.999Z`);
 
     const employes = await this.prisma.employe.findMany({
       where: { actif: true },
@@ -148,7 +155,7 @@ export class PersonnelService {
     });
 
     const pointages = await this.prisma.pointage.findMany({
-      where: { date: today },
+      where: { date: { gte: todayStart, lte: todayEnd } },
       select: { employeId: true, heureArrivee: true, heureDepart: true },
     });
 

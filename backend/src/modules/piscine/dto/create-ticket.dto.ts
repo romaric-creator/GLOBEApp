@@ -1,11 +1,16 @@
 import {
+  IsArray,
   IsDateString,
   IsEnum,
+  IsInt,
   IsNumber,
   IsOptional,
+  IsString,
   IsUUID,
   Min,
+  ValidateNested,
 } from 'class-validator';
+import { Type } from 'class-transformer';
 
 export enum TypeTicketDto {
   JOURNALIER = 'JOURNALIER',
@@ -31,4 +36,28 @@ export class CreateTicketPiscineDto {
   @IsUUID()
   @IsOptional()
   clientId?: string;
+
+  @IsString()
+  @IsOptional()
+  emplacementNumero?: string;
+}
+
+export class AccessoireCheckoutDto {
+  @IsString()
+  accessoireId: string;
+
+  @IsEnum(['VENTE', 'LOCATION'])
+  type: 'VENTE' | 'LOCATION';
+
+  @IsInt()
+  @Min(1)
+  quantite: number;
+}
+
+export class CheckoutPiscineDto extends CreateTicketPiscineDto {
+  @IsArray()
+  @ValidateNested({ each: true })
+  @Type(() => AccessoireCheckoutDto)
+  @IsOptional()
+  accessoires?: AccessoireCheckoutDto[];
 }

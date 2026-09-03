@@ -19,6 +19,8 @@ export class LigneCommandeDto {
 export class CreateCommandeDto {
   @IsUUID() serveurId: string;
   @IsString() @IsOptional() notes?: string;
+  @IsString() @IsOptional() chambreNumero?: string;
+  @IsString() @IsOptional() clientNom?: string;
   @IsArray()
   @ValidateNested({ each: true })
   @Type(() => LigneCommandeDto)

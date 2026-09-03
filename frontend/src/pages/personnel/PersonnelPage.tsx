@@ -5,9 +5,10 @@ import CongesTab from './CongesTab';
 
 export default function PersonnelPage() {
   return (
-    <div>
+    <div id="tour-personnel-page">
       <h1 className="text-2xl font-bold mb-4">Personnel</h1>
       <Tabs
+        id="tour-personnel-tabs"
         defaultActiveKey="employes"
         items={[
           { key: 'employes', label: 'Employes', children: <EmployesTab /> },

@@ -53,34 +53,50 @@ async function main() {
     },
   });
 
-  // Chambres
+  // Chambres (tarifs officiels)
   const chambres = [
-    { numero: 'C 101', type: 'STANDARD', prixNuit: 15000, etage: 1, capacite: 2 },
-    { numero: 'C 102', type: 'STANDARD', prixNuit: 15000, etage: 1, capacite: 2 },
-    { numero: 'C 103', type: 'STANDARD', prixNuit: 15000, etage: 1, capacite: 2 },
-    { numero: 'C 104', type: 'STANDARD', prixNuit: 15000, etage: 1, capacite: 2 },
-    { numero: 'C 105', type: 'STANDARD', prixNuit: 15000, etage: 1, capacite: 2 },
-    { numero: 'C 106', type: 'STANDARD', prixNuit: 15000, etage: 1, capacite: 2 },
-    { numero: 'C 108', type: 'JUNIOR', prixNuit: 20000, etage: 1, capacite: 2 },
-    { numero: 'C 109', type: 'JUNIOR', prixNuit: 20000, etage: 1, capacite: 2 },
-    { numero: 'C 107', type: 'JUNIOR_PLUS', prixNuit: 25000, etage: 1, capacite: 3 },
-    { numero: 'C 110', type: 'JUNIOR_PLUS', prixNuit: 25000, etage: 1, capacite: 3 },
-    { numero: 'C 202', type: 'JUNIOR_PLUS', prixNuit: 25000, etage: 2, capacite: 3 },
-    { numero: 'C 201', type: 'SENIOR', prixNuit: 35000, etage: 2, capacite: 4 },
-    { numero: 'S 111', type: 'STUDIO', prixNuit: 20000, etage: 1, capacite: 2 },
-    { numero: 'S 204', type: 'STUDIO', prixNuit: 25000, etage: 2, capacite: 2 },
-    { numero: 'S 205', type: 'STUDIO', prixNuit: 25000, etage: 2, capacite: 2 },
-    { numero: 'S 206', type: 'STUDIO', prixNuit: 28000, etage: 2, capacite: 3 },
-    { numero: 'A 203', type: 'APPARTEMENT', prixNuit: 40000, etage: 2, capacite: 4 },
-    { numero: 'A 306', type: 'APPARTEMENT', prixNuit: 40000, etage: 3, capacite: 4 },
-  ] as const;
+    // Chambre Standard (ventilée) — étage 1
+    { numero: 'C 101', type: 'STANDARD', description: 'Standard - ventilée', prixSieste: 3000, prixJournee: 5000, prixNuit: 10000, etage: 1, capacite: 2 },
+    { numero: 'C 102', type: 'STANDARD', description: 'Standard - ventilée', prixSieste: 3000, prixJournee: 5000, prixNuit: 10000, etage: 1, capacite: 2 },
+    { numero: 'C 103', type: 'STANDARD', description: 'Standard - ventilée', prixSieste: 3000, prixJournee: 5000, prixNuit: 10000, etage: 1, capacite: 2 },
+    { numero: 'C 104', type: 'STANDARD', description: 'Standard - ventilée', prixSieste: 3000, prixJournee: 5000, prixNuit: 10000, etage: 1, capacite: 2 },
+    { numero: 'C 105', type: 'STANDARD', description: 'Standard - ventilée', prixSieste: 3000, prixJournee: 5000, prixNuit: 10000, etage: 1, capacite: 2 },
+    { numero: 'C 106', type: 'STANDARD', description: 'Standard - ventilée', prixSieste: 3000, prixJournee: 5000, prixNuit: 10000, etage: 1, capacite: 2 },
+    // Chambre Junior (climatisée) — étages 1 et 3
+    { numero: 'C 108', type: 'JUNIOR', description: 'Junior - climatisée', prixSieste: 5000, prixJournee: 7000, prixNuit: 10000, etage: 1, capacite: 2 },
+    { numero: 'C 109', type: 'JUNIOR', description: 'Junior - climatisée', prixSieste: 5000, prixJournee: 7000, prixNuit: 10000, etage: 1, capacite: 2 },
+    { numero: 'C 302', type: 'JUNIOR', description: 'Junior - climatisée', prixSieste: 5000, prixJournee: 7000, prixNuit: 10000, etage: 3, capacite: 2 },
+    { numero: 'C 303', type: 'JUNIOR', description: 'Junior - climatisée', prixSieste: 5000, prixJournee: 7000, prixNuit: 10000, etage: 3, capacite: 2 },
+    // Chambre Junior Plus (spacieux) — étages 1 et 2
+    { numero: 'C 107', type: 'JUNIOR_PLUS', description: 'Junior Plus - spacieux', prixSieste: 5000, prixJournee: 8000, prixNuit: 12000, etage: 1, capacite: 2 },
+    { numero: 'C 110', type: 'JUNIOR_PLUS', description: 'Junior Plus - spacieux', prixSieste: 5000, prixJournee: 8000, prixNuit: 12000, etage: 1, capacite: 2 },
+    { numero: 'C 201', type: 'JUNIOR_PLUS', description: 'Junior Plus - spacieux', prixSieste: 5000, prixJournee: 8000, prixNuit: 12000, etage: 2, capacite: 2 },
+    { numero: 'C 202', type: 'JUNIOR_PLUS', description: 'Junior Plus - spacieux', prixSieste: 5000, prixJournee: 8000, prixNuit: 12000, etage: 2, capacite: 2 },
+    // Chambre Sénior (meublée) — étage 3
+    { numero: 'C 301', type: 'SENIOR', description: 'Sénior - meublée', prixSieste: 5000, prixJournee: 10000, prixNuit: 13000, etage: 3, capacite: 2 },
+    { numero: 'C 305', type: 'SENIOR', description: 'Sénior - meublée', prixSieste: 5000, prixJournee: 10000, prixNuit: 13000, etage: 3, capacite: 2 },
+    // Studio Standard (normal) — étage 1
+    { numero: 'S 111', type: 'STUDIO', description: 'Studio Standard - normal', prixSieste: 7000, prixJournee: 10000, prixNuit: 13000, etage: 1, capacite: 2 },
+    // Studio Junior (spacieux) — étages 2 et 3
+    { numero: 'S 204', type: 'STUDIO', description: 'Studio Junior - spacieux', prixSieste: 7000, prixJournee: 10000, prixNuit: 13000, etage: 2, capacite: 2 },
+    { numero: 'S 205', type: 'STUDIO', description: 'Studio Junior - spacieux', prixSieste: 7000, prixJournee: 10000, prixNuit: 13000, etage: 2, capacite: 2 },
+    { numero: 'S 304', type: 'STUDIO', description: 'Studio Junior - spacieux', prixSieste: 7000, prixJournee: 10000, prixNuit: 13000, etage: 3, capacite: 2 },
+    // Studio Junior Plus (cuisine) — étage 2
+    { numero: 'S 206', type: 'STUDIO', description: 'Studio Junior Plus - cuisine', prixSieste: 7000, prixJournee: 10000, prixNuit: 15000, etage: 2, capacite: 3 },
+    // Appartement Normal (complet) — étages 2 et 3
+    { numero: 'A 203', type: 'APPARTEMENT', description: 'Appartement - complet', prixSieste: null, prixJournee: 25000, prixNuit: 30000, etage: 2, capacite: 4 },
+    { numero: 'A 306', type: 'APPARTEMENT', description: 'Appartement - complet', prixSieste: null, prixJournee: 25000, prixNuit: 30000, etage: 3, capacite: 4 },
+  ];
 
   for (const ch of chambres) {
     await prisma.chambre.create({
       data: {
         numero: ch.numero,
-        type: ch.type,
+        type: ch.type as never,
+        description: ch.description,
         prixNuit: ch.prixNuit,
+        prixSieste: ch.prixSieste ?? null,
+        prixJournee: ch.prixJournee,
         etage: ch.etage,
         capacite: ch.capacite,
         statut: 'DISPONIBLE',
@@ -307,7 +323,7 @@ async function main() {
   }
 
   console.log('Seed OK — admin@residence.local / admin123');
-  console.log(`  18 chambres créées`);
+  console.log(`  23 chambres créées`);
   console.log(`  ${produitsRestaurant.length} produits restaurant (6 catégories)`);
   console.log(`  ${produitsBoissons.length} boissons (11 catégories)`);
   console.log(`  1 type de salle de fête`);

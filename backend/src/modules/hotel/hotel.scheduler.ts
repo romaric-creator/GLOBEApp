@@ -1,7 +1,7 @@
 import { Injectable } from '@nestjs/common';
 import { Cron, CronExpression } from '@nestjs/schedule';
 import { PrismaService } from '../../prisma/prisma.service';
-import { NotificationsGateway } from './notifications.gateway';
+import { NotificationsGateway } from '../notifications/notifications.gateway';
 
 @Injectable()
 export class HotelScheduler {
@@ -15,6 +15,7 @@ export class HotelScheduler {
     const now = new Date();
     const today = now.toISOString().split('T')[0];
     const heureActuelle = `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`;
+    const since24h = new Date(Date.now() - 24 * 60 * 60 * 1000);
 
     const reservations = await this.prisma.reservation.findMany({
       where: { statut: 'EN_COURS' },
@@ -32,7 +33,18 @@ export class HotelScheduler {
         dateDepart < today ||
         (dateDepart === today && heureActuelle >= heureDepart);
 
-      if (estExpiree) {
+      if (!estExpiree) continue;
+
+      // Deduplication : ne pas reenvoyer si une notif existe deja dans les 24h pour cette reservation
+      const dejaNotifiee = await this.prisma.notification.findFirst({
+        where: {
+          type: 'RESERVATION_EXPIREE',
+          createdAt: { gte: since24h },
+          data: { path: '$.reservationId', equals: reservation.id },
+        },
+      });
+
+      if (!dejaNotifiee) {
         this.notifications.notifierReservationExpiree({
           reservationId: reservation.id,
           numeroChambre: reservation.chambre.numero,

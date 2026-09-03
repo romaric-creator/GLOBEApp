@@ -114,7 +114,7 @@ export default function EmployesTab() {
       <Modal
         title={editingId ? 'Modifier employe' : 'Nouvel employe'}
         open={modalOpen}
-        onCancel={() => setModalOpen(false)}
+        onCancel={() => { setModalOpen(false); setEditingId(null); form.resetFields(); }}
         onOk={() => form.submit()}
         confirmLoading={createMutation.isPending}
       >

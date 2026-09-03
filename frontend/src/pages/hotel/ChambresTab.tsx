@@ -79,7 +79,11 @@ export default function ChambresTab() {
 
   const openEdit = (chambre: Chambre) => {
     setEditingChambre(chambre);
-    form.setFieldsValue(chambre);
+    form.setFieldsValue({
+      ...chambre,
+      prixSieste: chambre.prixSieste ?? undefined,
+      prixJournee: chambre.prixJournee ?? undefined,
+    });
     setModalOpen(true);
   };
 
@@ -90,13 +94,13 @@ export default function ChambresTab() {
           <Card size="small"><Statistic title="Total" value={stats?.total || 0} prefix={<HomeOutlined />} /></Card>
         </Col>
         <Col span={5}>
-          <Card size="small"><Statistic title="Disponibles" value={stats?.disponibles || 0} prefix={<CheckCircleOutlined />} valueStyle={{ color: '#52c41a' }} /></Card>
+          <Card size="small"><Statistic title="Disponibles" value={stats?.disponibles || 0} prefix={<CheckCircleOutlined />} styles={{ content: { color: '#52c41a' } }} /></Card>
         </Col>
         <Col span={5}>
-          <Card size="small"><Statistic title="Occupees" value={stats?.occupees || 0} prefix={<CloseCircleOutlined />} valueStyle={{ color: '#ff4d4f' }} /></Card>
+          <Card size="small"><Statistic title="Occupees" value={stats?.occupees || 0} prefix={<CloseCircleOutlined />} styles={{ content: { color: '#ff4d4f' } }} /></Card>
         </Col>
         <Col span={5}>
-          <Card size="small"><Statistic title="Maintenance" value={stats?.maintenance || 0} prefix={<ToolOutlined />} valueStyle={{ color: '#faad14' }} /></Card>
+          <Card size="small"><Statistic title="Maintenance" value={stats?.maintenance || 0} prefix={<ToolOutlined />} styles={{ content: { color: '#faad14' } }} /></Card>
         </Col>
         <Col span={4}>
           <Card size="small"><Statistic title="Taux" value={stats?.tauxOccupation || 0} suffix="%" /></Card>
@@ -127,7 +131,11 @@ export default function ChambresTab() {
         <Row gutter={[12, 12]}>
           {(chambres || []).map((chambre) => (
             <Col key={chambre.id} xs={12} sm={8} md={6} lg={4}>
-              <Tooltip title={`${Number(chambre.prixNuit).toLocaleString()} FCFA/nuit`}>
+              <Tooltip title={[
+                `${Number(chambre.prixNuit).toLocaleString()} FCFA/nuit`,
+                chambre.prixSieste ? `${Number(chambre.prixSieste).toLocaleString()} FCFA/sieste` : null,
+                chambre.prixJournee ? `${Number(chambre.prixJournee).toLocaleString()} FCFA/journee` : null,
+              ].filter(Boolean).join(' · ')}>
                 <Card
                   size="small"
                   className={`border-2 cursor-pointer transition-all hover:shadow-md ${STATUT_BG[chambre.statut] || ''}`}
@@ -136,7 +144,32 @@ export default function ChambresTab() {
                   <div className="text-center">
                     <div className="text-lg font-bold">{chambre.numero}</div>
                     <Tag color={TYPE_COLORS[chambre.type]} className="mt-1">{chambre.type}</Tag>
+                    {chambre.description && (
+                      <div className="text-xs text-slate-400 mt-1 leading-tight">{chambre.description}</div>
+                    )}
                     <div className="text-xs text-slate-500 mt-1">{chambre.capacite} pers.</div>
+                    {chambre.statut === 'DISPONIBLE' && (
+                      <Tooltip title="Mettre en maintenance">
+                        <Button
+                          type="link"
+                          size="small"
+                          icon={<ToolOutlined />}
+                          className="mt-1 text-orange-400"
+                          onClick={(e) => { e.stopPropagation(); updateMutation.mutate({ id: chambre.id, data: { statut: 'MAINTENANCE' } }); }}
+                        />
+                      </Tooltip>
+                    )}
+                    {chambre.statut === 'MAINTENANCE' && (
+                      <Tooltip title="Marquer disponible">
+                        <Button
+                          type="link"
+                          size="small"
+                          icon={<CheckCircleOutlined />}
+                          className="mt-1 text-green-500"
+                          onClick={(e) => { e.stopPropagation(); updateMutation.mutate({ id: chambre.id, data: { statut: 'DISPONIBLE' } }); }}
+                        />
+                      </Tooltip>
+                    )}
                   </div>
                 </Card>
               </Tooltip>
@@ -185,11 +218,20 @@ export default function ChambresTab() {
               { value: 'APPARTEMENT', label: 'Appartement' },
             ]} />
           </Form.Item>
+          <Form.Item name="description" label="Description" extra="Ex: ventilée, climatisée, avec cuisine...">
+            <Input placeholder="Optionnel" />
+          </Form.Item>
           <Form.Item name="capacite" label="Nombre de personnes max" rules={[{ required: true }]}>
             <InputNumber min={1} max={10} className="w-full" />
           </Form.Item>
           <Form.Item name="prixNuit" label="Prix par nuit (FCFA)" rules={[{ required: true }]}>
             <InputNumber min={0} className="w-full" />
+          </Form.Item>
+          <Form.Item name="prixSieste" label="Prix sieste (FCFA)" extra="Laisser vide si la chambre ne propose pas ce tarif">
+            <InputNumber min={0} className="w-full" placeholder="Optionnel" />
+          </Form.Item>
+          <Form.Item name="prixJournee" label="Prix journee (FCFA)" extra="Laisser vide si la chambre ne propose pas ce tarif">
+            <InputNumber min={0} className="w-full" placeholder="Optionnel" />
           </Form.Item>
           {editingChambre && (
             <Form.Item name="statut" label="Statut">

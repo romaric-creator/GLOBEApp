@@ -19,6 +19,7 @@ export interface SessionCaisse {
   fermetureAt: string | null;
   caisse?: Caisse;
   paiements?: Paiement[];
+  totalTranches?: number;
 }
 
 export interface Paiement {
@@ -97,4 +98,6 @@ export const ticketsApi = {
     axios.get(`/tickets/commande/${id}`, { responseType: 'blob' }).then((r) => r.data),
   imprimerPiscine: (id: string) =>
     axios.get(`/tickets/piscine/${id}`, { responseType: 'blob' }).then((r) => r.data),
+  imprimerCloture: (sessionId: string) =>
+    axios.get(`/tickets/cloture/${sessionId}`, { responseType: 'blob' }).then((r) => r.data),
 };

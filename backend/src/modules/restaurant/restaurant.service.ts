@@ -108,6 +108,8 @@ export class RestaurantService {
           numero,
           serveurId: dto.serveurId,
           notes: dto.notes || null,
+          chambreNumero: dto.chambreNumero || null,
+          clientNom: dto.clientNom || null,
           total,
           lignes: { create: lignesData },
         },
@@ -152,33 +154,41 @@ export class RestaurantService {
       );
     }
     const produitIds = dto.lignes.map((l) => l.produitId);
-    const produits = await this.prisma.produit.findMany({
+    const existCheck = await this.prisma.produit.count({
       where: { id: { in: produitIds }, actif: true },
     });
-    if (produits.length !== new Set(produitIds).size)
+    if (existCheck !== new Set(produitIds).size)
       throw new NotFoundException('Un ou plusieurs produits introuvables');
-    const produitMap = new Map(produits.map((p) => [p.id, p]));
-    for (const ligne of dto.lignes) {
-      const produit = produitMap.get(ligne.produitId)!;
-      if (produit.stockActuel < ligne.quantite)
-        throw new BadRequestException(
-          `Stock insuffisant pour "${produit.nom}"`,
-        );
-    }
-    let ajout = 0;
-    const lignesData = dto.lignes.map((l) => {
-      const produit = produitMap.get(l.produitId)!;
-      const prixUnitaire = Number(produit.prixVente);
-      ajout += prixUnitaire * l.quantite;
-      return {
-        commandeId,
-        produitId: l.produitId,
-        quantite: l.quantite,
-        prixUnitaire,
-        notes: l.notes || null,
-      };
-    });
+
     return this.prisma.$transaction(async (tx) => {
+      // Relire le stock dans la transaction pour éviter les race conditions
+      const freshProduits = await tx.produit.findMany({
+        where: { id: { in: produitIds } },
+      });
+      const produitMap = new Map(freshProduits.map((p) => [p.id, p]));
+
+      for (const ligne of dto.lignes) {
+        const produit = produitMap.get(ligne.produitId)!;
+        if (produit.stockActuel < ligne.quantite)
+          throw new BadRequestException(
+            `Stock insuffisant pour "${produit.nom}"`,
+          );
+      }
+
+      let ajout = 0;
+      const lignesData = dto.lignes.map((l) => {
+        const produit = produitMap.get(l.produitId)!;
+        const prixUnitaire = Number(produit.prixVente);
+        ajout += prixUnitaire * l.quantite;
+        return {
+          commandeId,
+          produitId: l.produitId,
+          quantite: l.quantite,
+          prixUnitaire,
+          notes: l.notes || null,
+        };
+      });
+
       await tx.ligneCommande.createMany({ data: lignesData });
       for (const ligne of dto.lignes) {
         await tx.produit.update({

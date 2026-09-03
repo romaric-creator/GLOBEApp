@@ -2,32 +2,17 @@ import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import {
   Card, Button, Modal, Form, Input, InputNumber, Select, Table, Tag,
-  Row, Col, Statistic, Space, App, Empty, Descriptions, Popconfirm, Skeleton,
+  Row, Col, Statistic, Space, App, Empty, Descriptions, Popconfirm, Skeleton, Collapse,
 } from 'antd';
 import {
   UnlockOutlined, LockOutlined, DollarOutlined, HomeOutlined, ExclamationCircleOutlined,
-  WalletOutlined,
+  WalletOutlined, PrinterOutlined, HistoryOutlined,
 } from '@ant-design/icons';
-import { caisseApi, MOYEN_OPTIONS } from '../../api/caisse';
+import { caisseApi, ticketsApi, MOYEN_OPTIONS } from '../../api/caisse';
 import type { Caisse, SessionCaisse, Paiement } from '../../api/caisse';
-import axios from '../../api/axios';
-
-interface FactureSejour {
-  id: string;
-  numero: string;
-  montantNuitee: number;
-  montantExtras: number;
-  total: number;
-  montantPaye: number;
-  reste: number;
-  payee: boolean;
-  reservation: {
-    client: { nom: string; prenom: string };
-    chambre: { numero: string };
-    dateArrivee: string;
-    dateDepart: string;
-  };
-}
+import { hotelApi } from '../../api/hotel';
+import type { FactureSejour } from '../../api/hotel';
+import { getErrorMessage } from '../../api/errors';
 
 export default function CaisseHotelPage() {
   const { message } = App.useApp();
@@ -37,11 +22,14 @@ export default function CaisseHotelPage() {
   const [encaisserModal, setEncaisserModal] = useState<FactureSejour | null>(null);
   const [mouvementModalOpen, setMouvementModalOpen] = useState(false);
   const [trancheFacture, setTrancheFacture] = useState<FactureSejour | null>(null);
+  const [closedSessionId, setClosedSessionId] = useState<string | null>(null);
   const [fondInitialForm] = Form.useForm();
   const [fermerForm] = Form.useForm();
   const [encaisserForm] = Form.useForm();
   const [mouvementForm] = Form.useForm();
   const [trancheForm] = Form.useForm();
+  const [montantRecu, setMontantRecu] = useState(0);
+  const [moyenEnc, setMoyenEnc] = useState('ESPECES');
 
   const { data: caisses, isLoading: caisseLoading } = useQuery({
     queryKey: ['caisses'],
@@ -59,7 +47,7 @@ export default function CaisseHotelPage() {
 
   const { data: factures } = useQuery({
     queryKey: ['factures-hotel'],
-    queryFn: () => axios.get<FactureSejour[]>('/hotel/factures').then((r) => r.data),
+    queryFn: () => hotelApi.getFactures(),
     enabled: !!session,
     refetchInterval: 15_000,
   });
@@ -71,36 +59,45 @@ export default function CaisseHotelPage() {
   });
 
   const facturesImpayees = (factures || []).filter((f: FactureSejour) => !f.payee);
+  const facturesReglees = (factures || []).filter((f: FactureSejour) => f.payee);
 
-  const totalEncaisse = ((session as SessionCaisse)?.paiements || []).reduce(
+  const totalEncaissePaiements = ((session as SessionCaisse)?.paiements || []).reduce(
     (s: number, p: Paiement) => s + Number(p.montant),
     0,
   );
+  const totalEncaisse = totalEncaissePaiements + ((session as SessionCaisse)?.totalTranches ?? 0);
 
   const invalidate = () => {
     queryClient.invalidateQueries({ queryKey: ['session-active-hotel'] });
     queryClient.invalidateQueries({ queryKey: ['factures-hotel'] });
     queryClient.invalidateQueries({ queryKey: ['caisses'] });
+    queryClient.invalidateQueries({ queryKey: ['mouvements-caisse'] });
   };
 
   const ouvrirMutation = useMutation({
     mutationFn: (fondInitial: number) => caisseApi.ouvrirSession(caisse!.id, fondInitial),
-    onSuccess: () => { message.success('Caisse ouverte'); setOuvrirModalOpen(false); fondInitialForm.resetFields(); invalidate(); },
-    onError: (err: { response?: { data?: { message?: string } } }) => message.error(err.response?.data?.message || 'Une erreur s\'est produite. Veuillez réessayer.'),
+    onSuccess: () => { setClosedSessionId(null); message.success('Caisse ouverte'); setOuvrirModalOpen(false); fondInitialForm.resetFields(); invalidate(); },
+    onError: (err: unknown) => message.error(getErrorMessage(err)),
   });
 
   const fermerMutation = useMutation({
     mutationFn: ({ totalReel, notes }: { totalReel: number; notes?: string }) =>
       caisseApi.fermerSession((session as SessionCaisse).id, totalReel, notes),
-    onSuccess: () => { message.success('Caisse cloturee'); setFermerModalOpen(false); fermerForm.resetFields(); invalidate(); },
-    onError: (err: { response?: { data?: { message?: string } } }) => message.error(err.response?.data?.message || 'Une erreur s\'est produite. Veuillez réessayer.'),
+    onSuccess: () => {
+      setClosedSessionId((session as SessionCaisse)?.id ?? null);
+      message.success('Caisse cloturee');
+      setFermerModalOpen(false);
+      fermerForm.resetFields();
+      invalidate();
+    },
+    onError: (err: unknown) => message.error(getErrorMessage(err)),
   });
 
   const encaisserMutation = useMutation({
     mutationFn: (data: { factureId: string; montant: number; moyen: string }) =>
       caisseApi.encaisserHotel({ ...data, sessionId: (session as SessionCaisse).id }),
     onSuccess: () => { message.success('Paiement enregistre'); setEncaisserModal(null); encaisserForm.resetFields(); invalidate(); },
-    onError: (err: { response?: { data?: { message?: string } } }) => message.error(err.response?.data?.message || 'Une erreur s\'est produite. Veuillez réessayer.'),
+    onError: (err: unknown) => message.error(getErrorMessage(err)),
   });
 
   const mouvementMutation = useMutation({
@@ -113,13 +110,14 @@ export default function CaisseHotelPage() {
       invalidate();
       queryClient.invalidateQueries({ queryKey: ['mouvements-caisse'] });
     },
-    onError: (err: { response?: { data?: { message?: string } } }) => message.error(err.response?.data?.message || 'Erreur'),
+    onError: (err: unknown) => message.error(getErrorMessage(err)),
   });
 
   const { data: trancheData, refetch: refetchTranches } = useQuery({
     queryKey: ['tranches-facture', trancheFacture?.id],
     queryFn: () => caisseApi.getTranches(trancheFacture!.id),
     enabled: !!trancheFacture,
+    retry: false,
   });
 
   const trancheMutation = useMutation({
@@ -131,7 +129,7 @@ export default function CaisseHotelPage() {
       refetchTranches();
       invalidate();
     },
-    onError: (err: { response?: { data?: { message?: string } } }) => message.error(err.response?.data?.message || 'Erreur'),
+    onError: (err: unknown) => message.error(getErrorMessage(err)),
   });
 
   const loading = caisseLoading || sessionLoading;
@@ -170,7 +168,7 @@ export default function CaisseHotelPage() {
             type="primary"
             size="small"
             icon={<DollarOutlined />}
-            onClick={() => { setEncaisserModal(r); encaisserForm.setFieldsValue({ montant: Number(r.reste), moyen: 'ESPECES' }); }}
+            onClick={() => { setEncaisserModal(r); encaisserForm.setFieldsValue({ montant: Number(r.reste), moyen: 'ESPECES' }); setMontantRecu(0); setMoyenEnc('ESPECES'); }}
           >
             Encaisser
           </Button>
@@ -182,6 +180,31 @@ export default function CaisseHotelPage() {
             Tranches
           </Button>
         </Space>
+      ),
+    },
+  ];
+
+  const facturesRegleesColumns = [
+    { title: 'N° Facture', dataIndex: 'numero', key: 'numero', width: 140 },
+    {
+      title: 'Client',
+      key: 'client',
+      render: (_: unknown, r: FactureSejour) => `${r.reservation.client.nom} ${r.reservation.client.prenom}`,
+    },
+    { title: 'Chambre', key: 'chambre', render: (_: unknown, r: FactureSejour) => r.reservation.chambre.numero, width: 80 },
+    { title: 'Total regle', dataIndex: 'total', key: 'total', render: (t: number) => <span className="text-green-600 font-medium">{Number(t).toLocaleString()} FCFA</span> },
+    {
+      title: 'Actions',
+      key: 'action',
+      width: 140,
+      render: (_: unknown, r: FactureSejour) => (
+        <Button
+          size="small"
+          icon={<HistoryOutlined />}
+          onClick={() => setTrancheFacture(r)}
+        >
+          Voir paiements
+        </Button>
       ),
     },
   ];
@@ -234,29 +257,51 @@ export default function CaisseHotelPage() {
       </div>
 
       {!session ? (
-        <Empty description="La caisse est fermee. Ouvrez une session pour commencer." />
+        <div className="text-center">
+          <Empty description="La caisse est fermee. Ouvrez une session pour commencer." />
+          {closedSessionId && (
+            <Button
+              className="mt-4"
+              icon={<PrinterOutlined />}
+              onClick={async () => {
+                try {
+                  const blob = await ticketsApi.imprimerCloture(closedSessionId);
+                  const url = URL.createObjectURL(new Blob([blob], { type: 'application/pdf' }));
+                  window.open(url, '_blank');
+                } catch { message.error('Erreur lors de l\'impression'); }
+              }}
+            >
+              Imprimer rapport de cloture
+            </Button>
+          )}
+        </div>
       ) : (
         <>
           <Row gutter={16} className="mb-6">
-            <Col span={8}>
+            <Col span={6}>
               <Card size="small">
                 <Statistic title="Fond initial" value={Number((session as SessionCaisse).fondInitial)} suffix="FCFA" prefix={<HomeOutlined />} />
               </Card>
             </Col>
-            <Col span={8}>
+            <Col span={6}>
               <Card size="small">
                 <Statistic
                   title="Total encaisse"
                   value={totalEncaisse}
                   suffix="FCFA"
-                  valueStyle={{ color: '#3f8600' }}
+                  styles={{ content: { color: '#3f8600' } }}
                   prefix={<DollarOutlined />}
                 />
               </Card>
             </Col>
-            <Col span={8}>
+            <Col span={6}>
               <Card size="small">
-                <Statistic title="Factures impayees" value={facturesImpayees.length} valueStyle={{ color: '#cf1322' }} />
+                <Statistic title="Factures impayees" value={facturesImpayees.length} styles={{ content: { color: '#cf1322' } }} />
+              </Card>
+            </Col>
+            <Col span={6}>
+              <Card size="small">
+                <Statistic title="Solde en caisse" value={Number((session as SessionCaisse).fondInitial) + totalEncaisse} suffix="FCFA" styles={{ content: { color: '#C9A84C' } }} />
               </Card>
             </Col>
           </Row>
@@ -274,6 +319,26 @@ export default function CaisseHotelPage() {
               />
             )}
           </Card>
+
+          {facturesReglees.length > 0 && (
+            <Collapse
+              className="mb-4"
+              ghost
+              items={[{
+                key: 'reglees',
+                label: <span className="font-medium text-sm">Factures reglees ({facturesReglees.length})</span>,
+                children: (
+                  <Table
+                    dataSource={facturesReglees}
+                    columns={facturesRegleesColumns}
+                    rowKey="id"
+                    size="small"
+                    pagination={{ pageSize: 5 }}
+                  />
+                ),
+              }]}
+            />
+          )}
 
           <Card title="Paiements de la session" size="small" className="mb-4">
             <Table
@@ -364,7 +429,7 @@ export default function CaisseHotelPage() {
       <Modal
         title={`Encaisser facture ${encaisserModal?.numero}`}
         open={!!encaisserModal}
-        onCancel={() => { setEncaisserModal(null); encaisserForm.resetFields(); }}
+        onCancel={() => { setEncaisserModal(null); encaisserForm.resetFields(); setMontantRecu(0); setMoyenEnc('ESPECES'); }}
         onOk={() => encaisserForm.submit()}
         confirmLoading={encaisserMutation.isPending}
         okText="Encaisser"
@@ -385,12 +450,30 @@ export default function CaisseHotelPage() {
             encaisserMutation.mutate({ factureId: encaisserModal.id, montant: v.montant, moyen: v.moyen });
           }}
         >
-          <Form.Item name="montant" label="Montant (FCFA)" rules={[{ required: true }]}>
-            <InputNumber min={0} style={{ width: '100%' }} />
+          <Form.Item name="montant" label="Montant a encaisser (FCFA)" rules={[{ required: true }, { type: 'number', min: 1, message: 'Le montant doit etre superieur a 0' }]}>
+            <InputNumber min={1} style={{ width: '100%' }} />
           </Form.Item>
           <Form.Item name="moyen" label="Moyen de paiement" initialValue="ESPECES" rules={[{ required: true }]}>
-            <Select options={MOYEN_OPTIONS} />
+            <Select options={MOYEN_OPTIONS} onChange={(v) => { setMoyenEnc(v); setMontantRecu(0); }} />
           </Form.Item>
+          {moyenEnc === 'ESPECES' && (
+            <>
+              <Form.Item label="Recu du client (FCFA)">
+                <InputNumber
+                  min={0}
+                  style={{ width: '100%' }}
+                  value={montantRecu}
+                  onChange={(v) => setMontantRecu(Number(v) || 0)}
+                />
+              </Form.Item>
+              {montantRecu > 0 && encaisserModal && (() => {
+                const rendu = montantRecu - Number(encaisserModal.reste);
+                return rendu >= 0
+                  ? <div className="text-green-600 font-semibold text-base mb-2">Rendu : {rendu.toLocaleString()} FCFA</div>
+                  : <div className="text-red-500 font-semibold text-base mb-2">Insuffisant : {Math.abs(rendu).toLocaleString()} FCFA</div>;
+              })()}
+            </>
+          )}
         </Form>
       </Modal>
 
@@ -449,7 +532,8 @@ export default function CaisseHotelPage() {
               </Descriptions.Item>
             </Descriptions>
 
-            {trancheData?.tranches?.length > 0 && (
+            <h4 className="text-sm font-medium mb-2">Historique des paiements</h4>
+            {trancheData?.tranches?.length > 0 ? (
               <Table
                 dataSource={trancheData.tranches}
                 rowKey="id"
@@ -464,9 +548,11 @@ export default function CaisseHotelPage() {
                   { title: 'Notes', dataIndex: 'notes', key: 'notes', render: (n: string | null) => n || '—' },
                 ]}
               />
+            ) : (
+              <Empty description="Aucun paiement enregistre pour l'instant" image={Empty.PRESENTED_IMAGE_SIMPLE} className="mb-4" />
             )}
 
-            {!(trancheData?.payee ?? trancheFacture.payee) && (
+            {!(trancheData?.payee ?? trancheFacture.payee) && Number(trancheData?.reste ?? trancheFacture.reste) > 0 && (
               <>
                 <h4 className="text-sm font-medium mb-2">Ajouter une tranche</h4>
                 <Form form={trancheForm} layout="inline" onFinish={(v) => trancheMutation.mutate(v)} className="gap-2">

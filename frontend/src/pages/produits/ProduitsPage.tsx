@@ -367,7 +367,7 @@ export default function ProduitsPage() {
             <Statistic
               title="En alerte stock"
               value={alerteCount}
-              valueStyle={alerteCount > 0 ? { color: '#ff4d4f' } : undefined}
+              styles={alerteCount > 0 ? { content: { color: '#ff4d4f' } } : undefined}
               prefix={alerteCount > 0 ? <WarningOutlined /> : undefined}
             />
           </Card>
@@ -429,9 +429,11 @@ export default function ProduitsPage() {
             </Form.Item>
           </div>
           <div className="grid grid-cols-3 gap-4">
-            <Form.Item name="stockActuel" label="Stock initial">
-              <InputNumber min={0} className="w-full" />
-            </Form.Item>
+            {!editingProduit && (
+              <Form.Item name="stockActuel" label="Stock initial">
+                <InputNumber min={0} className="w-full" />
+              </Form.Item>
+            )}
             <Form.Item name="seuilAlerte" label="Seuil alerte">
               <InputNumber min={0} className="w-full" />
             </Form.Item>

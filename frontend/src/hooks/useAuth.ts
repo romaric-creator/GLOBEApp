@@ -13,6 +13,7 @@ export function useAuth() {
     queryFn: () => authApi.profile().then((r) => r.data),
     enabled: isAuthenticated,
     retry: false,
+    staleTime: 0,
   });
 
   useEffect(() => {

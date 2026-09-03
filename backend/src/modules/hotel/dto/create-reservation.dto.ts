@@ -20,8 +20,10 @@ export class CreateReservationDto {
   @IsDateString()
   dateArrivee: string;
 
+  // Calculé automatiquement pour NUIT (lendemain 12h) et SIESTE_PROLONGEE (arrivée+8h)
   @IsDateString()
-  dateDepart: string;
+  @IsOptional()
+  dateDepart?: string;
 
   @IsOptional()
   @IsEnum(TypeReservation)

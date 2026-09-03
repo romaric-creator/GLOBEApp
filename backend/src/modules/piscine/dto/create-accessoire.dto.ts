@@ -59,5 +59,9 @@ export class CreateTransactionDto {
 
   @IsString()
   @IsOptional()
+  ticketPiscineId?: string;
+
+  @IsString()
+  @IsOptional()
   notes?: string;
 }

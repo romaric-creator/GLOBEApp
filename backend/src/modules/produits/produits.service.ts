@@ -4,6 +4,7 @@ import {
   BadRequestException,
 } from '@nestjs/common';
 import { PrismaService } from '../../prisma/prisma.service';
+import { NotificationsGateway } from '../notifications/notifications.gateway';
 import { CreateProduitDto } from './dto/create-produit.dto';
 import { UpdateProduitDto } from './dto/update-produit.dto';
 import { CreateCategorieDto } from './dto/create-categorie.dto';
@@ -11,7 +12,10 @@ import { CreateMouvementDto } from './dto/create-mouvement.dto';
 
 @Injectable()
 export class ProduitsService {
-  constructor(private prisma: PrismaService) {}
+  constructor(
+    private prisma: PrismaService,
+    private notifications: NotificationsGateway,
+  ) {}
 
   // --- Categories ---
 
@@ -77,9 +81,11 @@ export class ProduitsService {
 
   async updateProduit(id: string, dto: UpdateProduitDto) {
     await this.findOneProduit(id);
+    // stockActuel ne peut pas être modifié directement — passer par un mouvement de stock
+    const { stockActuel: _ignored, ...safeData } = dto as UpdateProduitDto & { stockActuel?: number };
     return this.prisma.produit.update({
       where: { id },
-      data: dto,
+      data: safeData,
       include: { categorie: true },
     });
   }
@@ -125,7 +131,7 @@ export class ProduitsService {
               : { decrement: Math.abs(dto.quantite) }
             : undefined;
 
-    const [mouvement] = await this.prisma.$transaction([
+    const [mouvement, updatedProduit] = await this.prisma.$transaction([
       this.prisma.mouvementStock.create({ data: dto }),
       ...(stockUpdate
         ? [
@@ -140,7 +146,23 @@ export class ProduitsService {
               data: { stockActuel: dto.quantite },
             }),
           ]),
-    ]);
+    ]) as [Awaited<ReturnType<typeof this.prisma.mouvementStock.create>>, Awaited<ReturnType<typeof this.prisma.produit.update>>];
+
+    // Alerte si le stock passe sous le seuil (hors entrées de stock)
+    if (dto.type !== 'ENTREE' && updatedProduit.stockActuel <= updatedProduit.seuilAlerte) {
+      this.notifications.emitNotification({
+        type: 'STOCK_ALERTE',
+        titre: `Stock bas — ${updatedProduit.nom}`,
+        message: `Le stock de "${updatedProduit.nom}" est a ${updatedProduit.stockActuel} ${updatedProduit.unite} (seuil: ${updatedProduit.seuilAlerte}).`,
+        data: {
+          produitId: updatedProduit.id,
+          nom: updatedProduit.nom,
+          stockActuel: updatedProduit.stockActuel,
+          seuilAlerte: updatedProduit.seuilAlerte,
+        },
+        createdAt: new Date(),
+      });
+    }
 
     return mouvement;
   }

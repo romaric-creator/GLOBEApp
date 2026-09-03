@@ -55,7 +55,7 @@ export default function BossDashboardPage() {
 
   return (
     <Spin spinning={loading}>
-      <div className="max-w-md mx-auto px-3 py-4 space-y-3">
+      <div id="tour-boss-dashboard" className="max-w-md mx-auto px-3 py-4 space-y-3">
         {/* Header */}
         <div className="text-center mb-4">
           <h1 className="text-lg font-bold m-0" style={{ color: '#C9A84C' }}>GLOBE Residence</h1>
@@ -70,7 +70,7 @@ export default function BossDashboardPage() {
               value={ca?.total || 0}
               prefix={<DollarOutlined />}
               suffix="FCFA"
-              valueStyle={{ fontSize: 18, color: '#3f8600' }}
+              styles={{ content: { fontSize: 18, color: '#3f8600' } }}
             />
           </div>
           <div className="flex gap-4 mt-2 text-xs text-slate-500">
@@ -87,7 +87,7 @@ export default function BossDashboardPage() {
               value={hotelStats?.tauxOccupation || 0}
               suffix="%"
               prefix={<HomeOutlined />}
-              valueStyle={{ fontSize: 18 }}
+              styles={{ content: { fontSize: 18 } }}
             />
             <div className="text-right text-xs space-y-1">
               <div><Badge color="#52c41a" text={`${hotelStats?.occupees || 0} occupees`} /></div>
@@ -112,7 +112,7 @@ export default function BossDashboardPage() {
               value={restoStats?.caJour || 0}
               prefix={<CoffeeOutlined />}
               suffix="FCFA"
-              valueStyle={{ fontSize: 16, color: '#fa8c16' }}
+              styles={{ content: { fontSize: 16, color: '#fa8c16' } }}
             />
             <div className="text-right text-xs">
               <div>{restoStats?.commandesEnPreparation || 0} en prep.</div>

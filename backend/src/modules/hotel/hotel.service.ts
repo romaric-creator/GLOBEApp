@@ -52,6 +52,7 @@ export class HotelService {
         prixNuit: dto.prixNuit,
         prixSieste: dto.prixSieste ?? null,
         prixJournee: dto.prixJournee ?? null,
+        description: dto.description ?? null,
         capacite: dto.capacite,
         etage: dto.etage ?? null,
       },
@@ -126,13 +127,48 @@ export class HotelService {
 
     const typeReservation = dto.typeReservation ?? 'NUIT';
     const dateArrivee = new Date(dto.dateArrivee);
-    const dateDepart = new Date(dto.dateDepart);
 
-    // Validation des heures pour sieste/journée
-    if (typeReservation !== 'NUIT') {
+    // ── Règles métier par type ────────────────────────────────────────────────
+
+    let heureArrivee: string | null = dto.heureArrivee ?? null;
+    let heureDepart: string | null = null;
+    let dateDepart: Date;
+
+    if (typeReservation === 'NUIT') {
+      // Nuitée : départ fixé au lendemain 12h00
+      dateDepart = new Date(dateArrivee);
+      dateDepart.setDate(dateDepart.getDate() + 1);
+      heureDepart = '12:00';
+
+    } else if (typeReservation === 'SIESTE_PROLONGEE') {
+      // Sieste prolongée : arrivée >= 22h00, durée 8h glissantes
+      if (!heureArrivee) {
+        throw new BadRequestException('heureArrivee est obligatoire pour une sieste prolongée');
+      }
+      const [hh] = heureArrivee.split(':').map(Number);
+      if (hh < 22) {
+        throw new BadRequestException(
+          'La sieste prolongée est réservée aux arrivées à partir de 22h00',
+        );
+      }
+      // Calcul départ : arrivée + 8h
+      const departTotalMinutes = hh * 60 + (parseInt(heureArrivee.split(':')[1]) || 0) + 8 * 60;
+      const departH = Math.floor(departTotalMinutes / 60) % 24;
+      const departM = departTotalMinutes % 60;
+      heureDepart = `${String(departH).padStart(2, '0')}:${String(departM).padStart(2, '0')}`;
+      // Si départ dépasse minuit → lendemain
+      if (departTotalMinutes >= 24 * 60) {
+        dateDepart = new Date(dateArrivee);
+        dateDepart.setDate(dateDepart.getDate() + 1);
+      } else {
+        dateDepart = new Date(dateArrivee);
+      }
+
+    } else {
+      // Sieste (journée) : même jour, heureArrivee + heureDepart obligatoires
       if (!dto.heureArrivee || !dto.heureDepart) {
         throw new BadRequestException(
-          'heureArrivee et heureDepart sont obligatoires pour les réservations sieste/journée',
+          'heureArrivee et heureDepart sont obligatoires pour une sieste',
         );
       }
       if (dto.heureArrivee >= dto.heureDepart) {
@@ -140,15 +176,11 @@ export class HotelService {
           "L'heure de départ doit être après l'heure d'arrivée",
         );
       }
+      heureDepart = dto.heureDepart;
+      dateDepart = new Date(dateArrivee);
     }
 
-    if (typeReservation === 'NUIT' && dateDepart <= dateArrivee) {
-      throw new BadRequestException(
-        "La date de depart doit etre apres la date d'arrivee",
-      );
-    }
-
-    // Calcul du montant selon le type
+    // ── Calcul du montant ─────────────────────────────────────────────────────
     let montantTotal: number;
     if (typeReservation === 'SIESTE') {
       if (!chambre.prixSieste) {
@@ -157,18 +189,15 @@ export class HotelService {
         );
       }
       montantTotal = Number(chambre.prixSieste);
-    } else if (typeReservation === 'JOURNEE') {
+    } else if (typeReservation === 'SIESTE_PROLONGEE') {
       if (!chambre.prixJournee) {
         throw new BadRequestException(
-          'Cette chambre ne propose pas de tarif journée',
+          'Cette chambre ne propose pas de tarif sieste prolongée',
         );
       }
       montantTotal = Number(chambre.prixJournee);
     } else {
-      const nbNuits = Math.ceil(
-        (dateDepart.getTime() - dateArrivee.getTime()) / (1000 * 60 * 60 * 24),
-      );
-      montantTotal = Number(chambre.prixNuit) * nbNuits;
+      montantTotal = Number(chambre.prixNuit);
     }
 
     return this.prisma.$transaction(async (tx) => {
@@ -217,8 +246,8 @@ export class HotelService {
           typeReservation,
           dateArrivee,
           dateDepart,
-          heureArrivee: dto.heureArrivee ?? null,
-          heureDepart: dto.heureDepart ?? null,
+          heureArrivee: heureArrivee ?? null,
+          heureDepart: heureDepart ?? null,
           nbPersonnes: dto.nbPersonnes,
           montantTotal,
           notes: dto.notes || null,
@@ -354,29 +383,37 @@ export class HotelService {
       );
     }
 
-    if (!force) {
-      const facture = await this.prisma.factureSejour.findUnique({
-        where: { reservationId: id },
-      });
-      if (facture && Number(facture.reste) > 0) {
-        throw new BadRequestException(
-          `Solde impaye de ${Number(facture.reste).toLocaleString()} FCFA. Encaissez avant le check-out ou forcez le depart.`,
-        );
-      }
-    }
-
-    await this.prisma.chambre.update({
-      where: { id: reservation.chambreId },
-      data: { statut: 'DISPONIBLE' },
+    const facture = await this.prisma.factureSejour.findUnique({
+      where: { reservationId: id },
     });
 
-    return this.prisma.reservation.update({
-      where: { id },
-      data: { statut: 'TERMINEE' },
-      include: {
-        chambre: { select: { numero: true, type: true } },
-        client: { select: { nom: true, prenom: true } },
-      },
+    if (!force && facture && Number(facture.reste) > 0) {
+      throw new BadRequestException(
+        `Solde impaye de ${Number(facture.reste).toLocaleString()} FCFA. Encaissez avant le check-out ou forcez le depart.`,
+      );
+    }
+
+    return this.prisma.$transaction(async (tx) => {
+      await tx.chambre.update({
+        where: { id: reservation.chambreId },
+        data: { statut: 'DISPONIBLE' },
+      });
+
+      if (force && facture && Number(facture.reste) > 0) {
+        await tx.factureSejour.update({
+          where: { id: facture.id },
+          data: { reste: 0, payee: true },
+        });
+      }
+
+      return tx.reservation.update({
+        where: { id },
+        data: { statut: 'TERMINEE' },
+        include: {
+          chambre: { select: { numero: true, type: true } },
+          client: { select: { nom: true, prenom: true } },
+        },
+      });
     });
   }
 
@@ -413,10 +450,27 @@ export class HotelService {
           },
         },
         paiement: true,
+        tranches: { orderBy: { createdAt: 'asc' } },
       },
     });
     if (!facture) throw new NotFoundException('Facture introuvable');
     return facture;
+  }
+
+  async findFactureByReservation(reservationId: string) {
+    return this.prisma.factureSejour.findUnique({
+      where: { reservationId },
+      include: {
+        paiement: true,
+        tranches: { orderBy: { createdAt: 'asc' } },
+        reservation: {
+          include: {
+            client: { select: { nom: true, prenom: true, telephone: true } },
+            chambre: { select: { numero: true, type: true } },
+          },
+        },
+      },
+    });
   }
 
   // ========================

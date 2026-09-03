@@ -6,9 +6,9 @@ import {
 } from 'antd';
 import {
   UnlockOutlined, LockOutlined, DollarOutlined, ShoppingOutlined, ExclamationCircleOutlined,
-  SwapOutlined,
+  SwapOutlined, PrinterOutlined,
 } from '@ant-design/icons';
-import { caisseApi, MOYEN_OPTIONS } from '../../api/caisse';
+import { caisseApi, ticketsApi, MOYEN_OPTIONS } from '../../api/caisse';
 import type { Caisse, SessionCaisse, Paiement } from '../../api/caisse';
 import { restaurantApi } from '../../api/restaurant';
 import type { Commande } from '../../api/restaurant';
@@ -21,10 +21,13 @@ export default function CaisseRestaurantPage() {
   const [fermerModalOpen, setFermerModalOpen] = useState(false);
   const [encaisserModal, setEncaisserModal] = useState<Commande | null>(null);
   const [mouvementModalOpen, setMouvementModalOpen] = useState(false);
+  const [closedSessionId, setClosedSessionId] = useState<string | null>(null);
   const [fondInitialForm] = Form.useForm();
   const [fermerForm] = Form.useForm();
   const [encaisserForm] = Form.useForm();
   const [mouvementForm] = Form.useForm();
+  const [montantRecu, setMontantRecu] = useState(0);
+  const [moyenEnc, setMoyenEnc] = useState('ESPECES');
 
   const { data: caisses, isLoading: caisseLoading } = useQuery({
     queryKey: ['caisses'],
@@ -58,18 +61,25 @@ export default function CaisseRestaurantPage() {
     queryClient.invalidateQueries({ queryKey: ['session-active-resto'] });
     queryClient.invalidateQueries({ queryKey: ['commandes-terminee'] });
     queryClient.invalidateQueries({ queryKey: ['caisses'] });
+    queryClient.invalidateQueries({ queryKey: ['mouvements-resto'] });
   };
 
   const ouvrirMutation = useMutation({
     mutationFn: (fondInitial: number) => caisseApi.ouvrirSession(caisse!.id, fondInitial),
-    onSuccess: () => { message.success('Caisse ouverte'); setOuvrirModalOpen(false); fondInitialForm.resetFields(); invalidate(); },
+    onSuccess: () => { setClosedSessionId(null); message.success('Caisse ouverte'); setOuvrirModalOpen(false); fondInitialForm.resetFields(); invalidate(); },
     onError: (err: unknown) => message.error(getErrorMessage(err)),
   });
 
   const fermerMutation = useMutation({
     mutationFn: ({ totalReel, notes }: { totalReel: number; notes?: string }) =>
       caisseApi.fermerSession((session as SessionCaisse).id, totalReel, notes),
-    onSuccess: () => { message.success('Caisse cloturee'); setFermerModalOpen(false); fermerForm.resetFields(); invalidate(); },
+    onSuccess: () => {
+      setClosedSessionId((session as SessionCaisse)?.id ?? null);
+      message.success('Caisse cloturee');
+      setFermerModalOpen(false);
+      fermerForm.resetFields();
+      invalidate();
+    },
     onError: (err: unknown) => message.error(getErrorMessage(err)),
   });
 
@@ -120,6 +130,17 @@ export default function CaisseRestaurantPage() {
     { title: 'N°', dataIndex: 'numero', key: 'numero', width: 160 },
     { title: 'Total', dataIndex: 'total', key: 'total', render: (t: number) => `${Number(t).toLocaleString()} FCFA` },
     {
+      title: 'Articles',
+      key: 'articles',
+      render: (_: unknown, r: Commande) => (
+        <div className="flex flex-wrap gap-1">
+          {(r.lignes || []).map((l) => (
+            <Tag key={l.id} color="gold">{l.quantite}x {l.produit.nom}</Tag>
+          ))}
+        </div>
+      ),
+    },
+    {
       title: 'Heure',
       dataIndex: 'createdAt',
       key: 'heure',
@@ -133,7 +154,7 @@ export default function CaisseRestaurantPage() {
           type="primary"
           size="small"
           icon={<DollarOutlined />}
-          onClick={() => { setEncaisserModal(r); encaisserForm.setFieldsValue({ montant: Number(r.total), moyen: 'ESPECES' }); }}
+          onClick={() => { setEncaisserModal(r); encaisserForm.setFieldsValue({ montant: Number(r.total), moyen: 'ESPECES' }); setMontantRecu(0); setMoyenEnc('ESPECES'); }}
         >
           Encaisser
         </Button>
@@ -175,34 +196,56 @@ export default function CaisseRestaurantPage() {
       </div>
 
       {!session ? (
-        <Empty description="La caisse est fermee. Ouvrez une session pour commencer." />
+        <div className="text-center">
+          <Empty description="La caisse est fermee. Ouvrez une session pour commencer." />
+          {closedSessionId && (
+            <Button
+              className="mt-4"
+              icon={<PrinterOutlined />}
+              onClick={async () => {
+                try {
+                  const blob = await ticketsApi.imprimerCloture(closedSessionId);
+                  const url = URL.createObjectURL(new Blob([blob], { type: 'application/pdf' }));
+                  window.open(url, '_blank');
+                } catch { message.error('Erreur lors de l\'impression'); }
+              }}
+            >
+              Imprimer rapport de cloture
+            </Button>
+          )}
+        </div>
       ) : (
         <>
           <Row gutter={16} className="mb-6">
-            <Col span={8}>
+            <Col span={6}>
               <Card size="small">
                 <Statistic title="Fond initial" value={Number((session as SessionCaisse).fondInitial)} suffix="FCFA" />
               </Card>
             </Col>
-            <Col span={8}>
+            <Col span={6}>
               <Card size="small">
                 <Statistic
                   title="Total encaisse"
                   value={totalEncaisse}
                   suffix="FCFA"
-                  valueStyle={{ color: '#3f8600' }}
+                  styles={{ content: { color: '#3f8600' } }}
                   prefix={<DollarOutlined />}
                 />
               </Card>
             </Col>
-            <Col span={8}>
+            <Col span={6}>
               <Card size="small">
                 <Statistic
                   title="A encaisser"
                   value={commandesAEncaisser.length}
                   prefix={<ShoppingOutlined />}
-                  valueStyle={{ color: commandesAEncaisser.length > 0 ? '#cf1322' : '#3f8600' }}
+                  styles={{ content: { color: commandesAEncaisser.length > 0 ? '#cf1322' : '#3f8600' } }}
                 />
+              </Card>
+            </Col>
+            <Col span={6}>
+              <Card size="small">
+                <Statistic title="Solde en caisse" value={Number((session as SessionCaisse).fondInitial) + totalEncaisse} suffix="FCFA" styles={{ content: { color: '#C9A84C' } }} />
               </Card>
             </Col>
           </Row>
@@ -301,7 +344,7 @@ export default function CaisseRestaurantPage() {
       <Modal
         title={`Encaisser commande ${encaisserModal?.numero}`}
         open={!!encaisserModal}
-        onCancel={() => { setEncaisserModal(null); encaisserForm.resetFields(); }}
+        onCancel={() => { setEncaisserModal(null); encaisserForm.resetFields(); setMontantRecu(0); setMoyenEnc('ESPECES'); }}
         onOk={() => encaisserForm.submit()}
         confirmLoading={encaisserMutation.isPending}
         okText="Encaisser"
@@ -329,12 +372,30 @@ export default function CaisseRestaurantPage() {
             encaisserMutation.mutate({ commandeId: encaisserModal.id, montant: v.montant, moyen: v.moyen });
           }}
         >
-          <Form.Item name="montant" label="Montant recu (FCFA)" rules={[{ required: true }]}>
+          <Form.Item name="montant" label="Montant a encaisser (FCFA)" rules={[{ required: true }]}>
             <InputNumber min={0} style={{ width: '100%' }} />
           </Form.Item>
           <Form.Item name="moyen" label="Moyen de paiement" initialValue="ESPECES" rules={[{ required: true }]}>
-            <Select options={MOYEN_OPTIONS} />
+            <Select options={MOYEN_OPTIONS} onChange={(v) => { setMoyenEnc(v); setMontantRecu(0); }} />
           </Form.Item>
+          {moyenEnc === 'ESPECES' && (
+            <>
+              <Form.Item label="Recu du client (FCFA)">
+                <InputNumber
+                  min={0}
+                  style={{ width: '100%' }}
+                  value={montantRecu}
+                  onChange={(v) => setMontantRecu(Number(v) || 0)}
+                />
+              </Form.Item>
+              {montantRecu > 0 && encaisserModal && (() => {
+                const rendu = montantRecu - Number(encaisserModal.total);
+                return rendu >= 0
+                  ? <div className="text-green-600 font-semibold text-base mb-2">Rendu : {rendu.toLocaleString()} FCFA</div>
+                  : <div className="text-red-500 font-semibold text-base mb-2">Insuffisant : {Math.abs(rendu).toLocaleString()} FCFA</div>;
+              })()}
+            </>
+          )}
         </Form>
       </Modal>
 

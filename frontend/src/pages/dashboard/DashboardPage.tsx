@@ -163,6 +163,12 @@ export default function DashboardPage() {
     enabled: isServeur || isManager || isCaissier,
   });
 
+  const { data: caHotelJour } = useQuery({
+    queryKey: ['dashboard-ca-hotel-jour', today],
+    queryFn: () => rapportsApi.getChiffreAffaires(today, today),
+    enabled: isCaissier,
+  });
+
   const alertesProduits = produits?.filter((p: { actif: boolean; stockActuel: number; seuilAlerte: number }) => p.actif && p.stockActuel <= p.seuilAlerte) || [];
 
   const quickActions = getQuickActions(role);
@@ -211,7 +217,7 @@ export default function DashboardPage() {
                     value={ca?.total || 0}
                     prefix={<DollarOutlined />}
                     suffix="FCFA"
-                    valueStyle={{ color: '#3f8600', fontSize: 18 }}
+                    styles={{ content: { color: '#3f8600', fontSize: 18 } }}
                   />
                   <div className="mt-1 text-xs text-slate-400">
                     vs mois précédent
@@ -227,7 +233,7 @@ export default function DashboardPage() {
                       value={hotelStats?.tauxOccupation || 0}
                       suffix="%"
                       prefix={<HomeOutlined />}
-                      valueStyle={{ fontSize: 18 }}
+                      styles={{ content: { fontSize: 18 } }}
                     />
                     <div className="text-xs text-slate-400 text-right mt-1">
                       <div>{hotelStats?.occupees || 0} occupées</div>
@@ -249,7 +255,7 @@ export default function DashboardPage() {
                     title="Clients"
                     value={clients?.length || 0}
                     prefix={<TeamOutlined />}
-                    valueStyle={{ fontSize: 18 }}
+                    styles={{ content: { fontSize: 18 } }}
                   />
                   <div className="mt-1 text-xs text-slate-400">
                     {hotelStats?.reservationsAVenir || 0} réservations à venir
@@ -262,7 +268,7 @@ export default function DashboardPage() {
                     title="Personnel présent"
                     value={personnel?.presentsAujourdhui || 0}
                     prefix={<ScheduleOutlined />}
-                    valueStyle={{ fontSize: 18 }}
+                    styles={{ content: { fontSize: 18 } }}
                     suffix={`/ ${personnel?.effectifTotal || 0}`}
                   />
                   <div className="mt-1 text-xs">
@@ -277,22 +283,22 @@ export default function DashboardPage() {
             <Row gutter={[12, 12]} className="mt-3">
               <Col xs={12} sm={6}>
                 <Card size="small">
-                  <Statistic title="CA Hôtel" value={ca?.hotel || 0} suffix="FCFA" valueStyle={{ fontSize: 15, color: '#C9A84C' }} prefix={<HomeOutlined />} />
+                  <Statistic title="CA Hôtel" value={ca?.hotel || 0} suffix="FCFA" styles={{ content: { fontSize: 15, color: '#C9A84C' } }} prefix={<HomeOutlined />} />
                 </Card>
               </Col>
               <Col xs={12} sm={6}>
                 <Card size="small">
-                  <Statistic title="CA Restaurant" value={ca?.restaurant || 0} suffix="FCFA" valueStyle={{ fontSize: 15, color: '#fa8c16' }} prefix={<CoffeeOutlined />} />
+                  <Statistic title="CA Restaurant" value={ca?.restaurant || 0} suffix="FCFA" styles={{ content: { fontSize: 15, color: '#fa8c16' } }} prefix={<CoffeeOutlined />} />
                 </Card>
               </Col>
               <Col xs={12} sm={6}>
                 <Card size="small">
-                  <Statistic title="Commandes en cours" value={restoStats?.commandesEnPreparation || 0} valueStyle={{ fontSize: 15, color: '#C9A84C' }} prefix={<CoffeeOutlined />} />
+                  <Statistic title="Commandes en cours" value={restoStats?.commandesEnPreparation || 0} styles={{ content: { fontSize: 15, color: '#C9A84C' } }} prefix={<CoffeeOutlined />} />
                 </Card>
               </Col>
               <Col xs={12} sm={6}>
                 <Card size="small">
-                  <Statistic title="CA resto aujourd'hui" value={restoStats?.caJour || 0} suffix="FCFA" valueStyle={{ fontSize: 15, color: '#3f8600' }} />
+                  <Statistic title="CA resto aujourd'hui" value={restoStats?.caJour || 0} suffix="FCFA" styles={{ content: { fontSize: 15, color: '#3f8600' } }} />
                 </Card>
               </Col>
             </Row>
@@ -375,7 +381,7 @@ export default function DashboardPage() {
                         <Statistic
                           title="Commandes aujourd'hui"
                           value={restoStats?.commandesAujourdHui || 0}
-                          valueStyle={{ fontSize: 22 }}
+                          styles={{ content: { fontSize: 22 } }}
                         />
                       </Col>
                       <Col span={12}>
@@ -387,7 +393,7 @@ export default function DashboardPage() {
                               : 0
                           }
                           suffix="FCFA"
-                          valueStyle={{ fontSize: 22, color: '#3f8600' }}
+                          styles={{ content: { fontSize: 22, color: '#3f8600' } }}
                         />
                       </Col>
                       <Col span={24}>
@@ -418,8 +424,8 @@ export default function DashboardPage() {
             <Row gutter={[12, 12]}>
               <Col xs={24} sm={8}>
                 <Card hoverable onClick={() => navigate('/caisse-hotel')} className="cursor-pointer" size="small">
-                  <Statistic title="Caisse Hôtel" value={0} prefix={<DollarOutlined />} suffix="FCFA" />
-                  <div className="mt-1 text-xs text-slate-400">Cliquer pour ouvrir</div>
+                  <Statistic title="Caisse Hôtel" value={caHotelJour?.hotel || 0} prefix={<DollarOutlined />} suffix="FCFA" />
+                  <div className="mt-1 text-xs text-slate-400">CA hôtel du jour</div>
                 </Card>
               </Col>
               <Col xs={24} sm={8}>
@@ -438,22 +444,22 @@ export default function DashboardPage() {
             <Row gutter={[12, 12]} className="mt-3">
               <Col xs={12} sm={6}>
                 <Card size="small">
-                  <Statistic title="Commandes en cours" value={restoStats?.commandesEnPreparation || 0} valueStyle={{ color: '#C9A84C' }} />
+                  <Statistic title="Commandes en cours" value={restoStats?.commandesEnPreparation || 0} styles={{ content: { color: '#C9A84C' } }} />
                 </Card>
               </Col>
               <Col xs={12} sm={6}>
                 <Card size="small">
-                  <Statistic title="Séjours en cours" value={hotelStats?.reservationsEnCours || 0} valueStyle={{ color: '#52c41a' }} />
+                  <Statistic title="Séjours en cours" value={hotelStats?.reservationsEnCours || 0} styles={{ content: { color: '#52c41a' } }} />
                 </Card>
               </Col>
               <Col xs={12} sm={6}>
                 <Card size="small">
-                  <Statistic title="Réservations à venir" value={hotelStats?.reservationsAVenir || 0} valueStyle={{ color: '#fa8c16' }} />
+                  <Statistic title="Réservations à venir" value={hotelStats?.reservationsAVenir || 0} styles={{ content: { color: '#fa8c16' } }} />
                 </Card>
               </Col>
               <Col xs={12} sm={6}>
                 <Card size="small">
-                  <Statistic title="Chambres libres" value={hotelStats?.disponibles || 0} valueStyle={{ color: '#3f8600' }} />
+                  <Statistic title="Chambres libres" value={hotelStats?.disponibles || 0} styles={{ content: { color: '#3f8600' } }} />
                 </Card>
               </Col>
             </Row>
@@ -469,7 +475,7 @@ export default function DashboardPage() {
                   title="En préparation"
                   value={restoStats?.commandesEnPreparation || 0}
                   prefix={<CoffeeOutlined />}
-                  valueStyle={{ color: '#C9A84C', fontSize: 28 }}
+                  styles={{ content: { color: '#C9A84C', fontSize: 28 } }}
                 />
               </Card>
             </Col>
@@ -479,7 +485,7 @@ export default function DashboardPage() {
                   title="Commandes aujourd'hui"
                   value={restoStats?.commandesAujourdHui || 0}
                   prefix={<ShoppingOutlined />}
-                  valueStyle={{ fontSize: 28 }}
+                  styles={{ content: { fontSize: 28 } }}
                 />
               </Card>
             </Col>
@@ -490,7 +496,7 @@ export default function DashboardPage() {
                   value={restoStats?.caJour || 0}
                   suffix="FCFA"
                   prefix={<DollarOutlined />}
-                  valueStyle={{ color: '#3f8600', fontSize: 20 }}
+                  styles={{ content: { color: '#3f8600', fontSize: 20 } }}
                 />
                 <div className="mt-1 text-xs text-slate-400">
                   Ticket moyen :{' '}

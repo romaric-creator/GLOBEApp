@@ -5,11 +5,17 @@ import {
 } from '@nestjs/common';
 import { MoyenPaiement, Prisma, TypeMouvementCaisse } from '@prisma/client';
 import { PrismaService } from '../../prisma/prisma.service';
+import { NotificationsGateway } from '../notifications/notifications.gateway';
 import { CreateMouvementCaisseDto } from './dto/create-mouvement-caisse.dto';
+
+const ECART_SEUIL_ALERTE = 5000;
 
 @Injectable()
 export class CaisseService {
-  constructor(private prisma: PrismaService) {}
+  constructor(
+    private prisma: PrismaService,
+    private notifications: NotificationsGateway,
+  ) {}
 
   async getCaisses() {
     return this.prisma.caisse.findMany({
@@ -44,13 +50,13 @@ export class CaisseService {
   async fermerSession(sessionId: string, totalReel: number, notes?: string) {
     const session = await this.prisma.sessionCaisse.findUnique({
       where: { id: sessionId },
-      include: { paiements: true, mouvementsCaisse: true },
+      include: { paiements: true, mouvementsCaisse: true, caisse: true },
     });
     if (!session) throw new NotFoundException('Session introuvable');
     if (session.statut === 'FERMEE')
       throw new BadRequestException('Cette session est deja fermee');
 
-    // Calcul théorique : fond initial + paiements encaissés + apports - retraits - dépenses
+    // Calcul théorique : fond initial + paiements encaissés + tranches + apports - retraits - dépenses
     const totalPaiements = session.paiements
       .filter((p) => p.statut === 'ENCAISSE')
       .reduce((s, p) => s + Number(p.montant), 0);
@@ -61,8 +67,28 @@ export class CaisseService {
       return s;
     }, 0);
 
-    const totalTheorique = Number(session.fondInitial) + totalPaiements + totalMouvements;
+    // Pour la caisse hôtel, inclure les paiements par tranches effectués pendant la session
+    let totalTranches = 0;
+    if (session.caisse.type === 'HOTEL') {
+      const trancheAgg = await this.prisma.paiementTranche.aggregate({
+        _sum: { montant: true },
+        where: { createdAt: { gte: session.ouvertureAt } },
+      });
+      totalTranches = Number(trancheAgg._sum.montant ?? 0);
+    }
+
+    const totalTheorique = Number(session.fondInitial) + totalPaiements + totalMouvements + totalTranches;
     const ecart = totalReel - totalTheorique;
+
+    if (Math.abs(ecart) >= ECART_SEUIL_ALERTE) {
+      this.notifications.emitNotification({
+        type: 'CAISSE_ALERTE',
+        titre: `Ecart de caisse — ${session.caisse.nom}`,
+        message: `La session de ${session.caisse.nom} presente un ecart de ${ecart > 0 ? '+' : ''}${ecart.toLocaleString('fr-FR')} FCFA (theorique: ${totalTheorique.toLocaleString('fr-FR')}, reel: ${totalReel.toLocaleString('fr-FR')}).`,
+        data: { sessionId: session.id, ecart, totalTheorique, totalReel },
+        createdAt: new Date(),
+      });
+    }
 
     return this.prisma.sessionCaisse.update({
       where: { id: sessionId },
@@ -78,7 +104,7 @@ export class CaisseService {
   }
 
   async getSessionActive(caisseId: string) {
-    return this.prisma.sessionCaisse.findFirst({
+    const session = await this.prisma.sessionCaisse.findFirst({
       where: { caisseId, statut: 'OUVERTE' },
       orderBy: { ouvertureAt: 'desc' },
       include: {
@@ -86,6 +112,18 @@ export class CaisseService {
         caisse: true,
       },
     });
+
+    if (!session) return null;
+
+    if (session.caisse.type === 'HOTEL') {
+      const trancheAgg = await this.prisma.paiementTranche.aggregate({
+        _sum: { montant: true },
+        where: { createdAt: { gte: session.ouvertureAt } },
+      });
+      return { ...session, totalTranches: Number(trancheAgg._sum.montant ?? 0) };
+    }
+
+    return session;
   }
 
   private async generateReference(
@@ -137,6 +175,12 @@ export class CaisseService {
       });
       if (!facture) throw new NotFoundException('Facture introuvable');
       if (facture.payee) throw new BadRequestException('Facture deja payee');
+      if (montant <= 0) throw new BadRequestException('Le montant doit etre superieur a 0');
+      if (montant > Number(facture.reste)) {
+        throw new BadRequestException(
+          `Montant depasse le reste du (reste: ${Number(facture.reste).toLocaleString()} FCFA)`,
+        );
+      }
 
       const nouvMontantPaye = Number(facture.montantPaye) + montant;
       const payee = nouvMontantPaye >= Number(facture.total);

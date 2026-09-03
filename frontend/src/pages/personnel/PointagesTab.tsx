@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { Table, Button, Modal, Form, Select, DatePicker, TimePicker, Tag, Card, Row, Col, Statistic, Alert, App } from 'antd';
+import { Table, Button, Modal, Form, Select, DatePicker, TimePicker, Tag, Card, Row, Col, Statistic, Alert, App, Divider } from 'antd';
 import { PlusOutlined, CheckCircleOutlined, CloseCircleOutlined, ToolOutlined } from '@ant-design/icons';
 import { personnelApi } from '../../api/personnel';
 import type { Pointage, Presence } from '../../api/personnel';
@@ -63,14 +63,14 @@ export default function PointagesTab() {
       dataIndex: 'heureArrivee',
       key: 'arrivee',
       width: 80,
-      render: (h: string | null) => h ? new Date(h).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' }) : '-',
+      render: (h: string | null) => h ? new Date(h).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit', timeZone: 'UTC' }) : '-',
     },
     {
       title: 'Depart',
       dataIndex: 'heureDepart',
       key: 'depart',
       width: 80,
-      render: (h: string | null) => h ? new Date(h).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' }) : '-',
+      render: (h: string | null) => h ? new Date(h).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit', timeZone: 'UTC' }) : '-',
     },
     {
       title: 'Methode',
@@ -95,12 +95,12 @@ export default function PointagesTab() {
       <Row gutter={16} className="mb-4">
         <Col span={6}>
           <Card>
-            <Statistic title="Presents aujourd'hui" value={nbPresents} prefix={<CheckCircleOutlined />} valueStyle={{ color: '#52c41a' }} />
+            <Statistic title="Presents aujourd'hui" value={nbPresents} prefix={<CheckCircleOutlined />} styles={{ content: { color: '#52c41a' } }} />
           </Card>
         </Col>
         <Col span={6}>
           <Card>
-            <Statistic title="Absents" value={nbAbsents} prefix={<CloseCircleOutlined />} valueStyle={{ color: '#ff4d4f' }} />
+            <Statistic title="Absents" value={nbAbsents} prefix={<CloseCircleOutlined />} styles={{ content: { color: '#ff4d4f' } }} />
           </Card>
         </Col>
         <Col span={12}>
@@ -132,6 +132,42 @@ export default function PointagesTab() {
         loading={isLoading}
         size="small"
       />
+
+      {(() => {
+        const heuresPointage = (p: Pointage): number => {
+          if (!p.heureArrivee || !p.heureDepart) return 0;
+          const debut = new Date(p.heureArrivee);
+          const fin = new Date(p.heureDepart);
+          return Math.max(0, (fin.getTime() - debut.getTime()) / 3600000);
+        };
+        const recap: Record<string, { nom: string; jours: number; totalHeures: number }> = {};
+        (pointages || []).forEach((p: Pointage) => {
+          const key = p.employe.matricule;
+          if (!recap[key]) recap[key] = { nom: `${p.employe.nom} ${p.employe.prenom}`, jours: 0, totalHeures: 0 };
+          const h = heuresPointage(p);
+          recap[key].jours += 1;
+          recap[key].totalHeures += h;
+        });
+        const rows = Object.entries(recap).map(([id, v]) => ({ id, ...v }));
+        if (rows.length === 0) return null;
+        return (
+          <>
+            <Divider orientation="left">Recapitulatif des heures ({selectedDate || 'Toutes periodes'})</Divider>
+            <Table
+              dataSource={rows}
+              rowKey="id"
+              size="small"
+              pagination={false}
+              columns={[
+                { title: 'Employe', dataIndex: 'nom', key: 'nom' },
+                { title: 'Nb jours', dataIndex: 'jours', key: 'jours', width: 90 },
+                { title: 'Total heures', dataIndex: 'totalHeures', key: 'heures', width: 120, render: (h: number) => `${h.toFixed(1)}h` },
+                { title: 'Moy / jour', key: 'moy', width: 100, render: (_: unknown, r: { jours: number; totalHeures: number }) => r.jours > 0 ? `${(r.totalHeures / r.jours).toFixed(1)}h` : '-' },
+              ]}
+            />
+          </>
+        );
+      })()}
 
       <Modal
         title="Enregistrer un pointage"

@@ -38,6 +38,19 @@ export class RapportsController {
     return this.rapportsService.getCA7Jours();
   }
 
+  @Get('ca-par-jour')
+  getCAParJour(
+    @Query('dateDebut') dateDebut: string,
+    @Query('dateFin') dateFin: string,
+  ) {
+    return this.rapportsService.getCAParJour(dateDebut, dateFin);
+  }
+
+  @Get('ca-par-mois')
+  getCAParMois(@Query('annee') annee: string) {
+    return this.rapportsService.getCAParMois(parseInt(annee));
+  }
+
   @Get('resume-mensuel')
   getResumeMensuel(@Query('mois') mois: string, @Query('annee') annee: string) {
     return this.rapportsService.getResumeMensuel(

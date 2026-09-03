@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { Table, Button, Modal, Form, Select, DatePicker, Input, Tag, Space, App } from 'antd';
+import { Table, Button, Modal, Form, Select, DatePicker, Input, Tag, Space, App, Divider } from 'antd';
 import { PlusOutlined, CheckOutlined, CloseOutlined } from '@ant-design/icons';
 import { personnelApi } from '../../api/personnel';
 import type { Conge } from '../../api/personnel';
@@ -54,6 +54,7 @@ export default function CongesTab() {
       message.success('Conge approuve');
       queryClient.invalidateQueries({ queryKey: ['conges'] });
     },
+    onError: (err: unknown) => message.error(getErrorMessage(err)),
   });
 
   const refuserMutation = useMutation({
@@ -62,6 +63,7 @@ export default function CongesTab() {
       message.success('Conge refuse');
       queryClient.invalidateQueries({ queryKey: ['conges'] });
     },
+    onError: (err: unknown) => message.error(getErrorMessage(err)),
   });
 
   const columns = [
@@ -90,6 +92,17 @@ export default function CongesTab() {
       key: 'fin',
       width: 110,
       render: (d: string) => new Date(d).toLocaleDateString('fr-FR'),
+    },
+    {
+      title: 'Duree',
+      key: 'duree',
+      width: 80,
+      render: (_: unknown, r: Conge) => {
+        const debut = new Date(r.dateDebut);
+        const fin = new Date(r.dateFin);
+        const jours = Math.round((fin.getTime() - debut.getTime()) / (1000 * 60 * 60 * 24)) + 1;
+        return `${jours}j`;
+      },
     },
     { title: 'Motif', dataIndex: 'motif', key: 'motif', render: (m: string | null) => m || '-' },
     {
@@ -128,6 +141,35 @@ export default function CongesTab() {
         loading={isLoading}
         size="small"
       />
+
+      {(() => {
+        const annee = new Date().getFullYear();
+        const approuves = (conges || []).filter((c: Conge) => c.statut === 'APPROUVE' && new Date(c.dateDebut).getFullYear() === annee);
+        if (approuves.length === 0) return null;
+        const recap: Record<string, { nom: string; jours: number }> = {};
+        approuves.forEach((c: Conge) => {
+          const key = c.employe.matricule;
+          if (!recap[key]) recap[key] = { nom: `${c.employe.nom} ${c.employe.prenom}`, jours: 0 };
+          const d = Math.round((new Date(c.dateFin).getTime() - new Date(c.dateDebut).getTime()) / (1000 * 60 * 60 * 24)) + 1;
+          recap[key].jours += d;
+        });
+        const rows = Object.entries(recap).map(([id, v]) => ({ id, ...v }));
+        return (
+          <>
+            <Divider orientation="left" plain>Conges approuves par employe ({annee})</Divider>
+            <Table
+              dataSource={rows}
+              rowKey="id"
+              size="small"
+              pagination={false}
+              columns={[
+                { title: 'Employe', dataIndex: 'nom', key: 'nom' },
+                { title: 'Jours pris', dataIndex: 'jours', key: 'jours', width: 110, render: (j: number) => `${j}j` },
+              ]}
+            />
+          </>
+        );
+      })()}
 
       <Modal
         title="Demande de conge"

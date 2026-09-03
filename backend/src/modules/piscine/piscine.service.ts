@@ -4,7 +4,7 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 import { PrismaService } from '../../prisma/prisma.service';
-import { CreateTicketPiscineDto } from './dto/create-ticket.dto';
+import { CheckoutPiscineDto, CreateTicketPiscineDto } from './dto/create-ticket.dto';
 import { CreateAbonnementDto } from './dto/create-abonnement.dto';
 import {
   CreateAccessoireDto,
@@ -32,6 +32,16 @@ export class PiscineService {
     });
   }
 
+  private async generateTicketCode(): Promise<string> {
+    const last = await this.prisma.ticketPiscine.findFirst({
+      where: { code: { not: null } },
+      orderBy: { createdAt: 'desc' },
+      select: { code: true },
+    });
+    const lastNum = last?.code ? parseInt(last.code.replace('PSC-', '')) || 0 : 0;
+    return `PSC-${String(lastNum + 1).padStart(4, '0')}`;
+  }
+
   async createTicket(dto: CreateTicketPiscineDto) {
     const dateDebut = new Date(dto.dateDebut);
     let dateFin: Date | null = null;
@@ -39,7 +49,9 @@ export class PiscineService {
     if (dto.dateFin) {
       dateFin = new Date(dto.dateFin);
     } else if (String(dto.type) === 'JOURNALIER') {
-      dateFin = dateDebut;
+      // Fin de journée en heure locale (pas minuit UTC)
+      const [y, m, d] = dto.dateDebut.split('-').map(Number);
+      dateFin = new Date(y, m - 1, d, 23, 59, 59, 999);
     } else if (String(dto.type) === 'ABONNEMENT_MENSUEL') {
       dateFin = new Date(dateDebut);
       dateFin.setMonth(dateFin.getMonth() + 1);
@@ -48,15 +60,90 @@ export class PiscineService {
       dateFin.setFullYear(dateFin.getFullYear() + 1);
     }
 
+    const code = await this.generateTicketCode();
+
     return this.prisma.ticketPiscine.create({
       data: {
+        code,
         type: dto.type,
         prix: dto.prix,
         dateDebut,
         dateFin,
         clientId: dto.clientId || null,
+        emplacementNumero: dto.emplacementNumero || null,
       },
       include: { client: { select: { nom: true, prenom: true } } },
+    });
+  }
+
+  async checkoutPiscine(dto: CheckoutPiscineDto) {
+    const dateDebut = new Date(dto.dateDebut);
+    let dateFin: Date | null = null;
+
+    if (dto.dateFin) {
+      dateFin = new Date(dto.dateFin);
+    } else if (String(dto.type) === 'JOURNALIER') {
+      const [y, m, d] = dto.dateDebut.split('-').map(Number);
+      dateFin = new Date(y, m - 1, d, 23, 59, 59, 999);
+    } else if (String(dto.type) === 'ABONNEMENT_MENSUEL') {
+      dateFin = new Date(dateDebut);
+      dateFin.setMonth(dateFin.getMonth() + 1);
+    } else if (String(dto.type) === 'ABONNEMENT_ANNUEL') {
+      dateFin = new Date(dateDebut);
+      dateFin.setFullYear(dateFin.getFullYear() + 1);
+    }
+
+    const code = await this.generateTicketCode();
+    const accessoires = dto.accessoires || [];
+
+    return this.prisma.$transaction(async (tx) => {
+      const ticket = await tx.ticketPiscine.create({
+        data: {
+          code,
+          type: dto.type,
+          prix: dto.prix,
+          dateDebut,
+          dateFin,
+          clientId: dto.clientId || null,
+        },
+      });
+
+      for (const acc of accessoires) {
+        const accessoire = await tx.accessoirePiscine.findUnique({ where: { id: acc.accessoireId } });
+        if (!accessoire) throw new NotFoundException(`Accessoire introuvable: ${acc.accessoireId}`);
+        if (accessoire.stock < acc.quantite) {
+          throw new BadRequestException(`Stock insuffisant pour "${accessoire.nom}"`);
+        }
+
+        const prixUnit = acc.type === 'LOCATION'
+          ? Number(accessoire.prixLocation ?? accessoire.prixVente)
+          : Number(accessoire.prixVente);
+
+        await tx.accessoirePiscine.update({
+          where: { id: acc.accessoireId },
+          data: { stock: { decrement: acc.quantite } },
+        });
+
+        await tx.transactionAccessoire.create({
+          data: {
+            type: acc.type,
+            quantite: acc.quantite,
+            prixUnit,
+            total: acc.quantite * prixUnit,
+            accessoireId: acc.accessoireId,
+            clientId: dto.clientId || null,
+            ticketPiscineId: ticket.id,
+          },
+        });
+      }
+
+      return tx.ticketPiscine.findUnique({
+        where: { id: ticket.id },
+        include: {
+          client: { select: { nom: true, prenom: true } },
+          transactions: { include: { accessoire: { select: { nom: true } } } },
+        },
+      });
     });
   }
 
@@ -85,8 +172,6 @@ export class PiscineService {
   // ========================
 
   async findAllAbonnements(actif?: string) {
-    await this.expireAbonnements();
-
     const where: Record<string, unknown> = {};
     if (actif === 'true') where.actif = true;
     if (actif === 'false') where.actif = false;
@@ -205,7 +290,13 @@ export class PiscineService {
       throw new BadRequestException('Stock insuffisant');
     }
 
-    const total = dto.quantite * dto.prixUnit;
+    // Utiliser le prix réel de l'accessoire (pas le prix envoyé par le client)
+    const prixUnit =
+      dto.type === 'LOCATION'
+        ? Number(acc.prixLocation ?? acc.prixVente)
+        : Number(acc.prixVente);
+
+    const total = dto.quantite * prixUnit;
     const stockDelta = dto.type === 'RETOUR' ? dto.quantite : -dto.quantite;
 
     return this.prisma.$transaction(async (tx) => {
@@ -217,11 +308,12 @@ export class PiscineService {
         data: {
           type: dto.type,
           quantite: dto.quantite,
-          prixUnit: dto.prixUnit,
+          prixUnit,
           total,
           notes: dto.notes,
           accessoireId: dto.accessoireId,
           clientId: dto.clientId || null,
+          ticketPiscineId: dto.ticketPiscineId || null,
         },
         include: {
           accessoire: { select: { nom: true } },

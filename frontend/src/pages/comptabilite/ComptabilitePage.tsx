@@ -111,7 +111,9 @@ export default function ComptabilitePage() {
   const invalidate = () => {
     qc.invalidateQueries({ queryKey: ['compta-tb'] });
     qc.invalidateQueries({ queryKey: ['compta-historique'] });
+    qc.invalidateQueries({ queryKey: ['compta-tresorerie'] });
     qc.invalidateQueries({ queryKey: ['depenses'] });
+    qc.invalidateQueries({ queryKey: ['recettes-detail'] });
   };
 
   const createMutation = useMutation({
@@ -215,7 +217,7 @@ export default function ComptabilitePage() {
                   value={totalRec}
                   suffix="FCFA"
                   loading={tbLoading}
-                  valueStyle={{ color: '#3f8600' }}
+                  styles={{ content: { color: '#3f8600' } }}
                   prefix={<ArrowUpOutlined />}
                   formatter={(v) => Number(v).toLocaleString('fr-FR')}
                 />
@@ -228,7 +230,7 @@ export default function ComptabilitePage() {
                   value={totalDep}
                   suffix="FCFA"
                   loading={tbLoading}
-                  valueStyle={{ color: '#cf1322' }}
+                  styles={{ content: { color: '#cf1322' } }}
                   prefix={<ArrowDownOutlined />}
                   formatter={(v) => Number(v).toLocaleString('fr-FR')}
                 />
@@ -241,7 +243,7 @@ export default function ComptabilitePage() {
                   value={Math.abs(resultat)}
                   suffix="FCFA"
                   loading={tbLoading}
-                  valueStyle={{ color: resultat >= 0 ? '#3f8600' : '#cf1322' }}
+                  styles={{ content: { color: resultat >= 0 ? '#3f8600' : '#cf1322' } }}
                   prefix={resultat >= 0 ? <ArrowUpOutlined /> : <ArrowDownOutlined />}
                   formatter={(v) => `${resultat < 0 ? '-' : '+'}${Number(v).toLocaleString('fr-FR')}`}
                 />
@@ -315,7 +317,7 @@ export default function ComptabilitePage() {
               value={tresorerie?.total ?? 0}
               suffix="FCFA"
               prefix={<DollarOutlined />}
-              valueStyle={{ color: '#C9A84C', fontSize: 24 }}
+              styles={{ content: { color: '#C9A84C', fontSize: 24 } }}
               formatter={(v) => Number(v).toLocaleString('fr-FR')}
             />
           </Card>
@@ -386,7 +388,7 @@ export default function ComptabilitePage() {
           (recettes.salle || []).forEach((r: any) => items.push({
             key: r.id,
             source: 'Salle',
-            montant: Number(r.montantTotal),
+            montant: Number(r.montant),
             detail: `${r.client?.nom || ''} — ${r.type?.nom || ''}`,
             moyen: '-',
             date: r.dateEvent,
@@ -498,11 +500,11 @@ export default function ComptabilitePage() {
       <div className="flex items-center justify-between mb-5">
         <div>
           <h2 className="text-xl font-semibold m-0">Comptabilité</h2>
-          <p className="text-slate-400 text-sm m-0">Recettes réelles · Dépenses · Trésorerie</p>
+          <p className="text-slate-400 text-sm m-0">Gestion financiere : recettes reelles par paiement, saisie des depenses, tresorerie en temps reel — Les KPIs agrégés sont dans Rapports</p>
         </div>
       </div>
 
-      <Tabs items={tabs} />
+      <Tabs id="tour-comptabilite-tabs" items={tabs} />
 
       {/* Modal nouvelle dépense */}
       <Modal
