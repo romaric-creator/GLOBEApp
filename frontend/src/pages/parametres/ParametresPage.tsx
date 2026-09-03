@@ -338,6 +338,32 @@ function TabSync({ isAdmin }: { isAdmin: boolean }) {
     queryFn: () => syncApi.getLogs(20).then((r) => r.data),
   });
 
+  const initSchemaMutation = useMutation({
+    mutationFn: () => syncApi.initSchema().then((r) => r.data),
+    onSuccess: (data) => {
+      if (data.ok) {
+        message.success('Schéma appliqué sur la base distante.');
+      } else {
+        message.error(`Échec : ${data.message}`);
+      }
+    },
+    onError: () => message.error('Impossible d\'initialiser le schéma.'),
+  });
+
+  const backupMutation = useMutation({
+    mutationFn: () => syncApi.backupAll().then((r) => r.data),
+    onSuccess: (data) => {
+      queryClient.invalidateQueries({ queryKey: ['sync-status'] });
+      queryClient.invalidateQueries({ queryKey: ['sync-logs'] });
+      if (data.ok) {
+        message.success(`Sauvegarde complète : ${data.nbEnvois} enregistrement(s) copiés.`);
+      } else {
+        message.error(`Sauvegarde échouée : ${data.erreur}`);
+      }
+    },
+    onError: () => message.error('Impossible de lancer la sauvegarde.'),
+  });
+
   const syncMutation = useMutation({
     mutationFn: () => syncApi.push().then((r) => r.data),
     onSuccess: (data) => {
@@ -557,17 +583,39 @@ function TabSync({ isAdmin }: { isAdmin: boolean }) {
                 </div>
               )}
               <Divider style={{ margin: '10px 0' }} />
-              <Button
-                type="primary"
-                size="middle"
-                icon={<SyncOutlined spin={syncMutation.isPending} />}
-                loading={syncMutation.isPending}
-                onClick={() => syncMutation.mutate()}
-                disabled={syncStatus.nbEnAttente === 0}
-              >
-                Synchroniser maintenant
-                {syncStatus.nbEnAttente > 0 && ` (${syncStatus.nbEnAttente})`}
-              </Button>
+              <Space wrap>
+                <Button
+                  type="primary"
+                  size="middle"
+                  icon={<SyncOutlined spin={syncMutation.isPending} />}
+                  loading={syncMutation.isPending}
+                  onClick={() => syncMutation.mutate()}
+                  disabled={syncStatus.nbEnAttente === 0}
+                >
+                  Synchroniser maintenant
+                  {syncStatus.nbEnAttente > 0 && ` (${syncStatus.nbEnAttente})`}
+                </Button>
+                {isAdmin && (
+                  <>
+                    <Button
+                      size="middle"
+                      icon={<CloudOutlined />}
+                      loading={initSchemaMutation.isPending}
+                      onClick={() => initSchemaMutation.mutate()}
+                    >
+                      Initialiser le schéma distant
+                    </Button>
+                    <Button
+                      size="middle"
+                      icon={<SyncOutlined />}
+                      loading={backupMutation.isPending}
+                      onClick={() => backupMutation.mutate()}
+                    >
+                      Sauvegarder toutes les tables
+                    </Button>
+                  </>
+                )}
+              </Space>
             </>
           ) : (
             <Alert

@@ -33,4 +33,8 @@ export const syncApi = {
     api.get<{ connectionUrl: string }>('/sync/remote-config'),
   saveRemoteConfig: (connectionUrl: string) =>
     api.post<{ ok: boolean }>('/sync/remote-config', { connectionUrl }),
+  initSchema: () =>
+    api.post<{ ok: boolean; message: string }>('/sync/init-schema'),
+  backupAll: () =>
+    api.post<{ ok: boolean; nbEnvois: number; erreur?: string }>('/sync/backup'),
 };

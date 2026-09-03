@@ -55,4 +55,16 @@ export class SyncController {
     const url = await this.syncService.getRemoteConfigUrl();
     return { connectionUrl: url ?? '' };
   }
+
+  @UseGuards(JwtAuthGuard)
+  @Post('init-schema')
+  async initSchema() {
+    return this.syncService.pushSchemaToRemote();
+  }
+
+  @UseGuards(JwtAuthGuard)
+  @Post('backup')
+  async backup() {
+    return this.syncService.backupAll();
+  }
 }
