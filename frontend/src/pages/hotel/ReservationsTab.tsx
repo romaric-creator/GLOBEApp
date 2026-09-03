@@ -162,15 +162,6 @@ export default function ReservationsTab() {
     return `${Number(c.prixNuit).toLocaleString()} FCFA/nuit`;
   };
 
-  // Calcul heure de départ pour sieste prolongée (arrivée + 8h)
-  const calcDepartSiesteProlongee = (heureArrivee: string): string => {
-    const [hh, mm] = heureArrivee.split(':').map(Number);
-    const totalMins = hh * 60 + mm + 8 * 60;
-    const dh = Math.floor(totalMins / 60) % 24;
-    const dm = totalMins % 60;
-    return `${String(dh).padStart(2, '0')}:${String(dm).padStart(2, '0')}`;
-  };
-
   const columns = [
     {
       title: 'Type',
@@ -523,7 +514,7 @@ export default function ReservationsTab() {
                   {factureData.payee ? 'Reglee' : 'En attente'}
                 </Tag>
               </Descriptions.Item>
-              <Descriptions.Item label="Total">{Number(factureData.montantTotal).toLocaleString()} FCFA</Descriptions.Item>
+              <Descriptions.Item label="Total">{Number(factureData.total).toLocaleString()} FCFA</Descriptions.Item>
               <Descriptions.Item label="Paye">{Number(factureData.montantPaye).toLocaleString()} FCFA</Descriptions.Item>
               <Descriptions.Item label="Reste" span={2}>
                 <span className={Number(factureData.reste) > 0 ? 'text-red-500 font-semibold' : 'text-green-600 font-semibold'}>
@@ -534,7 +525,7 @@ export default function ReservationsTab() {
 
             {factureData.paiement && (
               <>
-                <Divider orientation="left" plain>Paiement unique</Divider>
+                <Divider titlePlacement="left" plain>Paiement unique</Divider>
                 <Descriptions size="small" column={2}>
                   <Descriptions.Item label="Montant">{Number(factureData.paiement.montant).toLocaleString()} FCFA</Descriptions.Item>
                   <Descriptions.Item label="Moyen">{MOYEN_LABELS[factureData.paiement.moyen] ?? factureData.paiement.moyen}</Descriptions.Item>
@@ -545,7 +536,7 @@ export default function ReservationsTab() {
 
             {factureData.tranches && factureData.tranches.length > 0 && (
               <>
-                <Divider orientation="left" plain>Paiements par tranches ({factureData.tranches.length})</Divider>
+                <Divider titlePlacement="left" plain>Paiements par tranches ({factureData.tranches.length})</Divider>
                 <Table
                   size="small"
                   pagination={false}

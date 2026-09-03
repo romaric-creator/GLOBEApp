@@ -14,7 +14,7 @@ interface NotificationsState {
   items: AppNotification[];
   loaded: boolean;
   setItems: (items: AppNotification[]) => void;
-  add: (notif: Omit<AppNotification, 'lu'> & { id?: string }) => void;
+  add: (notif: Omit<AppNotification, 'lu' | 'id'> & { id?: string }) => void;
   markRead: (id: string) => void;
   markAllRead: () => void;
   clear: () => void;

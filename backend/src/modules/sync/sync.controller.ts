@@ -27,16 +27,32 @@ export class SyncController {
   @UseGuards(JwtAuthGuard)
   @Post('test-connection')
   async testConnection(@Body() body: any) {
-    const creds =
-      body?.host
-        ? {
-            host: body.host as string,
-            port: Number(body.port) || 3306,
-            user: body.user as string,
-            password: (body.password as string) || '',
-            database: body.database as string,
-          }
-        : undefined;
+    if (body?.connectionUrl) {
+      return this.syncService.testConnection({ connectionUrl: body.connectionUrl as string });
+    }
+    const creds = body?.host
+      ? {
+          host: body.host as string,
+          port: Number(body.port) || 3306,
+          user: body.user as string,
+          password: (body.password as string) || '',
+          database: body.database as string,
+        }
+      : undefined;
     return this.syncService.testConnection(creds);
+  }
+
+  @UseGuards(JwtAuthGuard)
+  @Post('remote-config')
+  async saveRemoteConfig(@Body() body: { connectionUrl: string }) {
+    await this.syncService.saveRemoteConfig(body.connectionUrl);
+    return { ok: true };
+  }
+
+  @UseGuards(JwtAuthGuard)
+  @Get('remote-config')
+  async getRemoteConfig() {
+    const url = await this.syncService.getRemoteConfigUrl();
+    return { connectionUrl: url ?? '' };
   }
 }

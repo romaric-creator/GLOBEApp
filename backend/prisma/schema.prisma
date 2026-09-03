@@ -965,3 +965,11 @@ model Notification {
   @@index([lu])
   @@map("notifications")
 }
+
+model AppConfig {
+  key       String   @id @db.VarChar(100)
+  value     String   @db.Text
+  updatedAt DateTime @updatedAt
+
+  @@map("app_config")
+}

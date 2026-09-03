@@ -274,7 +274,7 @@ export default function TicketsTab() {
             />
           </Form.Item>
 
-          <Divider orientation="left" orientationMargin={0} className="text-sm">
+          <Divider titlePlacement="left" className="text-sm">
             Accessoires (optionnel)
           </Divider>
 

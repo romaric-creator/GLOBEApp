@@ -3,7 +3,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { Table, Tag, Button, Modal, Form, InputNumber, Select, Input, Descriptions, App, Space } from 'antd';
 import { DollarOutlined, HistoryOutlined } from '@ant-design/icons';
 import { hotelApi } from '../../api/hotel';
-import type { FactureSejourSejour } from '../../api/hotel';
+import type { FactureSejour } from '../../api/hotel';
 import { caisseApi, MOYEN_OPTIONS } from '../../api/caisse';
 
 
@@ -15,7 +15,7 @@ export default function FactureSejoursTab() {
 
   const { data: factures, isLoading } = useQuery({
     queryKey: ['hotel-factures'],
-    queryFn: () => hotelApi.getFactureSejours(),
+    queryFn: () => hotelApi.getFactures(),
   });
 
   const { data: tranches, refetch: refetchTranches } = useQuery({

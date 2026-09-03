@@ -152,7 +152,7 @@ export default function PointagesTab() {
         if (rows.length === 0) return null;
         return (
           <>
-            <Divider orientation="left">Recapitulatif des heures ({selectedDate || 'Toutes periodes'})</Divider>
+            <Divider titlePlacement="left">Recapitulatif des heures ({selectedDate || 'Toutes periodes'})</Divider>
             <Table
               dataSource={rows}
               rowKey="id"

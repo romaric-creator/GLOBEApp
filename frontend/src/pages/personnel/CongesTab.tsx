@@ -156,7 +156,7 @@ export default function CongesTab() {
         const rows = Object.entries(recap).map(([id, v]) => ({ id, ...v }));
         return (
           <>
-            <Divider orientation="left" plain>Conges approuves par employe ({annee})</Divider>
+            <Divider titlePlacement="left" plain>Conges approuves par employe ({annee})</Divider>
             <Table
               dataSource={rows}
               rowKey="id"

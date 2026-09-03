@@ -20,7 +20,20 @@ export class SyncService {
     await this.sync();
   }
 
-  private getRemoteConfig(): { host: string; port: number; user: string; password: string; database: string } | null {
+  private parseConnectionUrl(url: string): { host: string; port: number; user: string; password: string; database: string } {
+    const parsed = new URL(url.replace(/^mysql:\/\//, 'http://'));
+    return {
+      host: parsed.hostname,
+      port: parsed.port ? parseInt(parsed.port, 10) : 3306,
+      user: decodeURIComponent(parsed.username),
+      password: decodeURIComponent(parsed.password),
+      database: parsed.pathname.replace(/^\//, '').split('?')[0],
+    };
+  }
+
+  private getRemoteConfigFromEnv(): { host: string; port: number; user: string; password: string; database: string } | null {
+    const url = this.config.get<string>('REMOTE_DB_URL');
+    if (url) return this.parseConnectionUrl(url);
     const host = this.config.get<string>('REMOTE_DB_HOST');
     const user = this.config.get<string>('REMOTE_DB_USER');
     const database = this.config.get<string>('REMOTE_DB_NAME');
@@ -34,8 +47,31 @@ export class SyncService {
     };
   }
 
+  private async getRemoteConfig(): Promise<{ host: string; port: number; user: string; password: string; database: string } | null> {
+    const fromEnv = this.getRemoteConfigFromEnv();
+    if (fromEnv) return fromEnv;
+    const row = await this.prisma.appConfig.findUnique({ where: { key: 'REMOTE_DB_URL' } });
+    if (!row?.value) return null;
+    return this.parseConnectionUrl(row.value);
+  }
+
+  async saveRemoteConfig(url: string): Promise<void> {
+    await this.prisma.appConfig.upsert({
+      where: { key: 'REMOTE_DB_URL' },
+      create: { key: 'REMOTE_DB_URL', value: url },
+      update: { value: url },
+    });
+  }
+
+  async getRemoteConfigUrl(): Promise<string | null> {
+    const fromEnv = this.config.get<string>('REMOTE_DB_URL');
+    if (fromEnv) return fromEnv;
+    const row = await this.prisma.appConfig.findUnique({ where: { key: 'REMOTE_DB_URL' } });
+    return row?.value ?? null;
+  }
+
   async sync(): Promise<{ success: boolean; nbEnvois: number; erreur?: string }> {
-    const remoteConfig = this.getRemoteConfig();
+    const remoteConfig = await this.getRemoteConfig();
     if (!remoteConfig) {
       return { success: false, nbEnvois: 0, erreur: 'Base de données distante non configurée' };
     }
@@ -199,7 +235,7 @@ export class SyncService {
     return {
       dernierSync: dernierLog,
       nbEnAttente: pending.reduce((a, b) => a + b, 0),
-      remoteConfigure: !!this.getRemoteConfig(),
+      remoteConfigure: !!(await this.getRemoteConfig()),
     };
   }
 
@@ -208,9 +244,11 @@ export class SyncService {
   }
 
   async testConnection(
-    creds?: { host: string; port: number; user: string; password: string; database: string },
+    creds?: { host: string; port: number; user: string; password: string; database: string } | { connectionUrl: string },
   ): Promise<{ ok: boolean; erreur?: string }> {
-    const config = creds ?? this.getRemoteConfig();
+    const config = creds
+      ? ('connectionUrl' in creds ? this.parseConnectionUrl(creds.connectionUrl) : creds)
+      : await this.getRemoteConfig();
     if (!config) return { ok: false, erreur: 'Base de données distante non configurée' };
     let connection: mysql.Connection | null = null;
     try {

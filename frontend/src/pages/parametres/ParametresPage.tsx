@@ -10,7 +10,6 @@ import {
   Table,
   Tag,
   Space,
-  Switch,
   Select,
   Statistic,
   Alert,
@@ -24,11 +23,9 @@ import {
 } from 'antd';
 import {
   UserOutlined,
-  WifiOutlined,
   CloudOutlined,
   InfoCircleOutlined,
   SyncOutlined,
-  ReloadOutlined,
   PlusOutlined,
   LockOutlined,
   UnlockOutlined,
@@ -39,7 +36,6 @@ import {
   GlobalOutlined,
   TeamOutlined,
   SafetyOutlined,
-  PoweroffOutlined,
 } from '@ant-design/icons';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import type { ColumnsType } from 'antd/es/table';
@@ -234,136 +230,6 @@ function TabCompte({ userId, isAdmin }: { userId: string; isAdmin: boolean }) {
   );
 }
 
-// ─── Tab Réseau (Desktop uniquement) ──────────────────────────────────────────
-
-function TabReseau({ isAdmin }: { isAdmin: boolean }) {
-  const { message, modal } = App.useApp();
-  const [config, setConfig] = useState<{
-    mode: string;
-    server_url: string | null;
-    configured: boolean;
-  } | null>(null);
-  const [autostart, setAutostart] = useState<boolean>(false);
-  const [loadingConfig, setLoadingConfig] = useState(true);
-  const [loadingAutostart, setLoadingAutostart] = useState(false);
-
-  useEffect(() => {
-    const api = eAPI();
-    if (!api) { setLoadingConfig(false); return; }
-    Promise.all([
-      api.getConfig(),
-      api.autostartIsEnabled(),
-    ])
-      .then(([cfg, as]: [any, boolean]) => {
-        setConfig(cfg);
-        setAutostart(as);
-      })
-      .finally(() => setLoadingConfig(false));
-  }, []);
-
-  const toggleAutostart = async (enabled: boolean) => {
-    setLoadingAutostart(true);
-    try {
-      const api = eAPI();
-      const ok = enabled ? await api.autostartEnable() : await api.autostartDisable();
-      if (ok) {
-        setAutostart(enabled);
-        message.success(enabled ? 'Démarrage automatique activé' : 'Démarrage automatique désactivé');
-      } else {
-        message.error('Impossible de modifier le démarrage automatique');
-      }
-    } finally {
-      setLoadingAutostart(false);
-    }
-  };
-
-  const handleReset = () => {
-    modal.confirm({
-      title: 'Reconfigurer la connexion ?',
-      content:
-        "La configuration réseau sera effacée. Le mode (serveur/client) sera redemandé au prochain démarrage.",
-      okText: 'Réinitialiser',
-      okType: 'danger',
-      cancelText: 'Annuler',
-      onOk: async () => {
-        const api = eAPI();
-        const ok = await api.resetConfig();
-        if (ok) {
-          message.success("Configuration réinitialisée. Redémarrez l'application pour appliquer.");
-        } else {
-          message.error('Échec de la réinitialisation');
-        }
-      },
-    });
-  };
-
-  const apiUrl =
-    (window as any).__GLOBE_API_URL__ ??
-    (import.meta.env.VITE_API_BASE_URL as string | undefined) ??
-    '/api';
-
-  return (
-    <Row gutter={[16, 16]}>
-      <Col xs={24} lg={12}>
-        <Card title={<Space><WifiOutlined /> Mode de connexion</Space>} loading={loadingConfig}>
-          {config && (
-            <>
-              <Descriptions column={1} size="middle" className="mb-3">
-                <Descriptions.Item label="Mode">
-                  {config.mode === 'server' ? (
-                    <Tag color="green">Serveur</Tag>
-                  ) : (
-                    <Tag color="blue">Poste client</Tag>
-                  )}
-                </Descriptions.Item>
-                {config.mode === 'client' && config.server_url && (
-                  <Descriptions.Item label="Serveur configuré">
-                    <Text code>{config.server_url}</Text>
-                  </Descriptions.Item>
-                )}
-                <Descriptions.Item label="URL API active">
-                  <Text code style={{ fontSize: 11, wordBreak: 'break-all' }}>
-                    {apiUrl}
-                  </Text>
-                </Descriptions.Item>
-              </Descriptions>
-              <Paragraph type="secondary" style={{ fontSize: 12, marginBottom: 12 }}>
-                {config.mode === 'server'
-                  ? 'Ce poste héberge le serveur de données local.'
-                  : 'Ce poste se connecte à un serveur distant sur le réseau local.'}
-              </Paragraph>
-              {isAdmin && (
-                <>
-                  <Divider style={{ margin: '10px 0' }} />
-                  <Button danger size="middle" icon={<ReloadOutlined />} onClick={handleReset}>
-                    Reconfigurer la connexion
-                  </Button>
-                </>
-              )}
-            </>
-          )}
-        </Card>
-      </Col>
-
-      <Col xs={24} lg={12}>
-        <Card title={<Space><PoweroffOutlined /> Démarrage automatique</Space>} loading={loadingConfig}>
-          <Paragraph type="secondary" style={{ fontSize: 12, marginBottom: 16 }}>
-            Lance GLOBE Manager automatiquement au démarrage de Windows / Linux.
-          </Paragraph>
-          <Space>
-            <Switch
-              checked={autostart}
-              loading={loadingAutostart}
-              onChange={toggleAutostart}
-            />
-            <Text>{autostart ? 'Activé' : 'Désactivé'}</Text>
-          </Space>
-        </Card>
-      </Col>
-    </Row>
-  );
-}
-
 // ─── Tab Synchronisation ──────────────────────────────────────────────────────
 
 function TabSync({ isAdmin }: { isAdmin: boolean }) {
@@ -376,34 +242,28 @@ function TabSync({ isAdmin }: { isAdmin: boolean }) {
   const [syncConfigLoaded, setSyncConfigLoaded] = useState(false);
 
   useEffect(() => {
-    setSyncConfigLoaded(true);
     const api = eAPI();
-    if (!api) return;
-    api.getConfig().then((cfg: any) => {
-      syncForm.setFieldsValue({
-        remote_db_host: cfg.remote_db_host || '',
-        remote_db_port: cfg.remote_db_port || 3306,
-        remote_db_user: cfg.remote_db_user || '',
-        remote_db_password: cfg.remote_db_password || '',
-        remote_db_name: cfg.remote_db_name || '',
-      });
-    }).catch(() => {});
+    if (api) {
+      api.getConfig().then((cfg: any) => {
+        syncForm.setFieldsValue({ remote_db_url: cfg.remote_db_url || '' });
+      }).catch(() => {}).finally(() => setSyncConfigLoaded(true));
+    } else {
+      syncApi.getRemoteConfig().then((r) => {
+        syncForm.setFieldsValue({ remote_db_url: r.data.connectionUrl || '' });
+      }).catch(() => {}).finally(() => setSyncConfigLoaded(true));
+    }
   }, [syncForm, isAdmin]);
 
   const handleTestRemote = async () => {
     try {
-      await syncForm.validateFields(['remote_db_host', 'remote_db_user', 'remote_db_name']);
+      await syncForm.validateFields(['remote_db_url']);
     } catch { return; }
     const values = syncForm.getFieldsValue();
     setTestingRemote(true);
     remote.clear();
     try {
       const result = await syncApi.testConnection({
-        host: values.remote_db_host,
-        port: Number(values.remote_db_port) || 3306,
-        user: values.remote_db_user,
-        password: values.remote_db_password || '',
-        database: values.remote_db_name,
+        connectionUrl: values.remote_db_url,
       }).then((r) => r.data);
       if (result.ok) {
         remote.ok('Connexion à la base distante réussie.');
@@ -424,18 +284,17 @@ function TabSync({ isAdmin }: { isAdmin: boolean }) {
   const handleSaveSync = async (values: any) => {
     setSavingSync(true);
     try {
+      const url = values.remote_db_url || '';
       const api = eAPI();
-      if (!api) return;
-      const current = await api.getConfig();
-      await api.saveConfig({
-        ...current,
-        remote_db_host: values.remote_db_host || '',
-        remote_db_port: Number(values.remote_db_port) || 3306,
-        remote_db_user: values.remote_db_user || '',
-        remote_db_password: values.remote_db_password || '',
-        remote_db_name: values.remote_db_name || '',
-      });
-      message.success('Configuration de synchronisation enregistrée. Redémarrez pour appliquer.');
+      if (api) {
+        const current = await api.getConfig();
+        await api.saveConfig({ ...current, remote_db_url: url });
+        message.success('Configuration enregistrée. Redémarrez pour appliquer.');
+      } else {
+        await syncApi.saveRemoteConfig(url);
+        message.success('Configuration enregistrée.');
+        queryClient.invalidateQueries({ queryKey: ['sync-status'] });
+      }
     } catch {
       message.error('Impossible de sauvegarder la configuration.');
     } finally {
@@ -531,46 +390,16 @@ function TabSync({ isAdmin }: { isAdmin: boolean }) {
               onFinish={handleSaveSync}
               onValuesChange={remote.clear}
             >
-              <Row gutter={12}>
-                <Col xs={24} md={14}>
-                  <Form.Item
-                    label="Hôte"
-                    name="remote_db_host"
-                    rules={[{ required: true, message: 'Hôte requis' }]}
-                    extra="Adresse IP ou nom de domaine du serveur distant"
-                  >
-                    <Input placeholder="192.168.1.100 ou db.mon-serveur.com" allowClear />
-                  </Form.Item>
-                </Col>
-                <Col xs={24} md={10}>
-                  <Form.Item label="Port" name="remote_db_port">
-                    <Input placeholder="3306" type="number" />
-                  </Form.Item>
-                </Col>
-              </Row>
-              <Row gutter={12}>
-                <Col xs={24} md={12}>
-                  <Form.Item
-                    label="Utilisateur MySQL"
-                    name="remote_db_user"
-                    rules={[{ required: true, message: 'Utilisateur requis' }]}
-                  >
-                    <Input placeholder="globe_sync" />
-                  </Form.Item>
-                </Col>
-                <Col xs={24} md={12}>
-                  <Form.Item label="Mot de passe" name="remote_db_password">
-                    <Input.Password placeholder="Mot de passe" />
-                  </Form.Item>
-                </Col>
-              </Row>
               <Form.Item
-                label="Nom de la base de données"
-                name="remote_db_name"
-                rules={[{ required: true, message: 'Nom de base requis' }]}
-                extra="La base doit exister et avoir le même schéma que la base locale"
+                label="Chaîne de connexion"
+                name="remote_db_url"
+                rules={[{ required: true, message: 'URL de connexion requise' }]}
+                extra="Format : mysql://utilisateur:motdepasse@hote:port/base"
               >
-                <Input placeholder="gestion_residence_backup" />
+                <Input.Password
+                  placeholder="mysql://user:password@host:3306/database"
+                  visibilityToggle
+                />
               </Form.Item>
 
               {remote.status.type && (
@@ -593,11 +422,9 @@ function TabSync({ isAdmin }: { isAdmin: boolean }) {
                 <Button icon={<CheckCircleOutlined />} loading={testingRemote} onClick={handleTestRemote}>
                   Tester la connexion
                 </Button>
-                {isDesktop && (
-                  <Button type="primary" htmlType="submit" loading={savingSync} icon={<SyncOutlined />}>
-                    Enregistrer
-                  </Button>
-                )}
+                <Button type="primary" htmlType="submit" loading={savingSync} icon={<SyncOutlined />}>
+                  Enregistrer
+                </Button>
               </Space>
             </Form>
           </Card>
@@ -1378,15 +1205,6 @@ export default function ParametresPage() {
       label: <Space><UserOutlined />Mon compte</Space>,
       children: <TabCompte userId={userId} isAdmin={isAdmin} />,
     },
-    ...(isDesktop
-      ? [
-          {
-            key: 'reseau',
-            label: <Space><WifiOutlined />Réseau</Space>,
-            children: <TabReseau isAdmin={isAdmin} />,
-          },
-        ]
-      : []),
     {
       key: 'sync',
       label: <Space><SyncOutlined />Synchronisation</Space>,
@@ -1406,7 +1224,7 @@ export default function ParametresPage() {
           },
         ]
       : []),
-    ...(isAdmin
+    ...(isAdmin && isDesktop
       ? [
           {
             key: 'serveur',
