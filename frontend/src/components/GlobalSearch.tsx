@@ -178,7 +178,7 @@ export default function GlobalSearch() {
             <div>
               {filtered.map((item) => (
                 <div
-                  key={item.key ?? item.title}
+                  key={item.id}
                   className="px-3 py-2 rounded-lg cursor-pointer hover:bg-slate-50 transition-colors border-b last:border-b-0"
                   onClick={() => handleSelect(item)}
                 >

@@ -18,7 +18,6 @@ import {
   UserOutlined,
   AccountBookOutlined,
   BarChartOutlined,
-  CloudOutlined,
   SettingOutlined,
   HomeOutlined,
   CoffeeOutlined,
