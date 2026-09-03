@@ -1,3 +1,3 @@
 // @ts-nocheck
-// Vercel serverless entry — delegates to the pre-built NestJS handler (dist/server.js)
-export { default } from '../dist/server';
+// Vercel serverless entry — delegates to the NestJS handler
+export { default } from '../src/server';
