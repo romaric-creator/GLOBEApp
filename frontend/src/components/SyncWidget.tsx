@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Button, Tooltip, Badge, Modal, Table, Tag, message } from 'antd';
+import { Button, Tooltip, Badge, Modal, Table, Tag, App } from 'antd';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { syncApi } from '../api/sync';
 import type { SyncLog } from '../api/sync';
@@ -11,6 +11,7 @@ dayjs.extend(relativeTime);
 dayjs.locale('fr');
 
 export function SyncWidget() {
+  const { message } = App.useApp();
   const [logsOpen, setLogsOpen] = useState(false);
   const qc = useQueryClient();
 
