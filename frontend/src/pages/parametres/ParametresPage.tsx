@@ -1246,7 +1246,7 @@ export default function ParametresPage() {
       <Tabs
         id="tour-parametres-tabs"
         items={tabItems}
-        destroyInactiveTabPane={false}
+        destroyOnHidden={false}
         tabBarStyle={{ overflowX: 'auto', flexWrap: 'nowrap' }}
         size="small"
       />

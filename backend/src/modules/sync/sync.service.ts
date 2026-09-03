@@ -50,9 +50,11 @@ export class SyncService {
   private async getRemoteConfig(): Promise<{ host: string; port: number; user: string; password: string; database: string } | null> {
     const fromEnv = this.getRemoteConfigFromEnv();
     if (fromEnv) return fromEnv;
-    const row = await this.prisma.appConfig.findUnique({ where: { key: 'REMOTE_DB_URL' } });
-    if (!row?.value) return null;
-    return this.parseConnectionUrl(row.value);
+    try {
+      const row = await this.prisma.appConfig.findUnique({ where: { key: 'REMOTE_DB_URL' } });
+      if (!row?.value) return null;
+      return this.parseConnectionUrl(row.value);
+    } catch { return null; }
   }
 
   async saveRemoteConfig(url: string): Promise<void> {
@@ -66,8 +68,10 @@ export class SyncService {
   async getRemoteConfigUrl(): Promise<string | null> {
     const fromEnv = this.config.get<string>('REMOTE_DB_URL');
     if (fromEnv) return fromEnv;
-    const row = await this.prisma.appConfig.findUnique({ where: { key: 'REMOTE_DB_URL' } });
-    return row?.value ?? null;
+    try {
+      const row = await this.prisma.appConfig.findUnique({ where: { key: 'REMOTE_DB_URL' } });
+      return row?.value ?? null;
+    } catch { return null; }
   }
 
   async sync(): Promise<{ success: boolean; nbEnvois: number; erreur?: string }> {
