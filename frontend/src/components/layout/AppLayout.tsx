@@ -8,6 +8,7 @@ import {
   Avatar,
   Breadcrumb,
   Tooltip,
+  Drawer,
 } from "antd";
 import {
   DashboardOutlined,
@@ -128,7 +129,15 @@ const allMenuItems = [
 
 export default function AppLayout() {
   const [collapsed, setCollapsed] = useState(false);
+  const [isMobile, setIsMobile] = useState(() => window.innerWidth < 768);
+  const [mobileDrawerOpen, setMobileDrawerOpen] = useState(false);
   const navigate = useNavigate();
+
+  useEffect(() => {
+    const onResize = () => setIsMobile(window.innerWidth < 768);
+    window.addEventListener('resize', onResize);
+    return () => window.removeEventListener('resize', onResize);
+  }, []);
   const location = useLocation();
   const { user, logout } = useAuthStore();
   useAuth();
@@ -216,53 +225,70 @@ export default function AppLayout() {
     ],
   };
 
+  const siderContent = (
+    <div style={{ display: "flex", flexDirection: "column", height: "100%", overflow: "hidden" }}>
+      <div
+        className="flex shrink-0 items-center justify-center px-4 py-3 transition-all duration-300 ease-in-out"
+        style={{ borderBottom: "1px solid rgba(201,168,76,0.18)", flexShrink: 0 }}
+      >
+        {collapsed && !isMobile ? (
+          <div className="flex h-10 w-10 items-center justify-center overflow-hidden rounded-full">
+            <img src="./logo-globe.jpeg" alt="Globe" className="w-full h-full object-cover" />
+          </div>
+        ) : (
+          <div className="flex items-center justify-center transition-all duration-300 ease-in-out">
+            <div className="flex h-28 w-28 shrink-0 items-center justify-center overflow-hidden rounded-full">
+              <img src="./logo-globe.jpeg" alt="Globe" className="w-full h-full object-cover" />
+            </div>
+          </div>
+        )}
+      </div>
+      <div style={{ flex: 1, overflowY: "auto", overflowX: "hidden", minHeight: 0 }}>
+        <Menu
+          mode="inline"
+          selectedKeys={[location.pathname]}
+          items={menuItems}
+          onClick={({ key }) => { navigate(key); if (isMobile) setMobileDrawerOpen(false); }}
+          className="mt-1 border-none bg-transparent"
+          style={{ background: "transparent" }}
+        />
+      </div>
+    </div>
+  );
+
   return (
     <Layout className="min-h-screen app-shell">
-      <Sider
-        id="tour-sidebar"
-        trigger={null}
-        collapsible
-        collapsed={collapsed}
-        theme="light"
-        width={260}
-        className="border-r border-slate-200/80"
-        style={{
-          background: "rgba(255,255,255,0.92)",
-          height: "100vh",
-          position: "sticky",
-          top: 0,
-          borderRight: "1px solid rgba(201,168,76,0.18)",
-        }}
-      >
-        <div style={{ display: "flex", flexDirection: "column", height: "100vh", overflow: "hidden" }}>
-          <div
-            className="flex shrink-0 items-center justify-center px-4 py-3 transition-all duration-300 ease-in-out"
-            style={{ borderBottom: "1px solid rgba(201,168,76,0.18)", flexShrink: 0 }}
-          >
-            {collapsed ? (
-              <div className="flex h-10 w-10 items-center justify-center overflow-hidden rounded-full">
-                <img src="./logo-globe.jpeg" alt="Globe" className="w-full h-full object-cover" />
-              </div>
-            ) : (
-              <div className="flex items-center justify-center transition-all duration-300 ease-in-out">
-                <div className="flex h-36 w-36 shrink-0 items-center justify-center overflow-hidden rounded-full">
-                  <img src="./logo-globe.jpeg" alt="Globe" className="w-full h-full object-cover" />
-                </div>
-              </div>
-            )}
-          </div>
-          <div style={{ flex: 1, overflowY: "auto", overflowX: "hidden", minHeight: 0 }}>
-            <Menu
-              mode="inline"
-              selectedKeys={[location.pathname]}
-              items={menuItems}
-              onClick={({ key }) => navigate(key)}
-              className="mt-1 border-none bg-transparent"
-              style={{ background: "transparent" }}
-            />
-          </div>
-        </div>
-      </Sider>
+      {isMobile ? (
+        <Drawer
+          placement="left"
+          open={mobileDrawerOpen}
+          onClose={() => setMobileDrawerOpen(false)}
+          width={260}
+          styles={{ body: { padding: 0 }, header: { display: "none" } }}
+          style={{ borderRight: "1px solid rgba(201,168,76,0.18)" }}
+        >
+          {siderContent}
+        </Drawer>
+      ) : (
+        <Sider
+          id="tour-sidebar"
+          trigger={null}
+          collapsible
+          collapsed={collapsed}
+          theme="light"
+          width={260}
+          className="border-r border-slate-200/80"
+          style={{
+            background: "rgba(255,255,255,0.92)",
+            height: "100vh",
+            position: "sticky",
+            top: 0,
+            borderRight: "1px solid rgba(201,168,76,0.18)",
+          }}
+        >
+          {siderContent}
+        </Sider>
+      )}
       <Layout className="bg-transparent">
         <Header
           className="flex items-center justify-between px-4 md:px-6"
@@ -275,8 +301,11 @@ export default function AppLayout() {
           <div className="flex items-center gap-3">
             <Button
               type="text"
-              icon={collapsed ? <MenuUnfoldOutlined /> : <MenuFoldOutlined />}
-              onClick={() => setCollapsed(!collapsed)}
+              icon={isMobile
+                ? (mobileDrawerOpen ? <MenuFoldOutlined /> : <MenuUnfoldOutlined />)
+                : (collapsed ? <MenuUnfoldOutlined /> : <MenuFoldOutlined />)
+              }
+              onClick={() => isMobile ? setMobileDrawerOpen((v) => !v) : setCollapsed((v) => !v)}
             />
             <div id="tour-search">
               <GlobalSearch />

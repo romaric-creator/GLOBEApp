@@ -24,7 +24,7 @@ export default defineConfig({
       },
     },
   },
-  base: './',
+  base: process.env.VERCEL ? '/' : './',
   build: {
     target: 'es2020',
     outDir: 'dist',
