@@ -29,6 +29,8 @@ async function bootstrap() {
   const allowedOrigins = [
     'http://localhost:3000',
     'http://localhost:1420',
+    'https://globe-manager-admin.vercel.app',
+    'https://globe-manager-dashboard.vercel.app',
     ...extraOrigins,
   ];
 
