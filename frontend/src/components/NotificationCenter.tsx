@@ -1,4 +1,4 @@
-import { Badge, Button, Popover, List, Tag, Empty } from 'antd';
+import { Badge, Button, Popover, Tag, Empty } from 'antd';
 import { BellOutlined, CheckOutlined, DeleteOutlined } from '@ant-design/icons';
 import { useNotificationsStore } from '../store/notifications';
 import type { AppNotification } from '../store/notifications';
@@ -59,30 +59,26 @@ export default function NotificationCenter() {
               </Button>
             </div>
           </div>
-          <List
-            size="small"
-            dataSource={items}
-            renderItem={(n: AppNotification) => (
-              <List.Item
+          <div>
+            {items.map((n: AppNotification) => (
+              <div
                 key={n.id}
-                className={`cursor-pointer ${!n.lu ? 'bg-blue-50' : ''}`}
+                className={`cursor-pointer border-b last:border-b-0 ${!n.lu ? 'bg-blue-50' : ''}`}
                 onClick={() => !n.lu && handleMarkRead(n.id)}
                 style={{ padding: '8px 12px' }}
               >
-                <div className="w-full">
-                  <div className="flex items-center gap-2 mb-1">
-                    <Tag color={TYPE_COLORS[n.type]} className="text-xs m-0">{TYPE_LABELS[n.type]}</Tag>
-                    <span className="text-xs text-slate-400">
-                      {new Date(n.createdAt).toLocaleString('fr-FR', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' })}
-                    </span>
-                    {!n.lu && <span className="w-2 h-2 rounded-full bg-blue-500 ml-auto" />}
-                  </div>
-                  <div className="text-sm font-medium">{n.titre}</div>
-                  <div className="text-xs text-slate-500 mt-0.5">{n.message}</div>
+                <div className="flex items-center gap-2 mb-1">
+                  <Tag color={TYPE_COLORS[n.type]} className="text-xs m-0">{TYPE_LABELS[n.type]}</Tag>
+                  <span className="text-xs text-slate-400">
+                    {new Date(n.createdAt).toLocaleString('fr-FR', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' })}
+                  </span>
+                  {!n.lu && <span className="w-2 h-2 rounded-full bg-blue-500 ml-auto" />}
                 </div>
-              </List.Item>
-            )}
-          />
+                <div className="text-sm font-medium">{n.titre}</div>
+                <div className="text-xs text-slate-500 mt-0.5">{n.message}</div>
+              </div>
+            ))}
+          </div>
         </>
       )}
     </div>

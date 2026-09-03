@@ -1,5 +1,5 @@
 import {
-  Card, Col, Row, Statistic, Spin, Tag, Button, List, Typography, Progress, Badge, Alert,
+  Card, Col, Row, Statistic, Spin, Tag, Button, Typography, Progress, Badge, Alert,
 } from 'antd';
 import {
   TeamOutlined, ShoppingOutlined, DollarOutlined, ScheduleOutlined,
@@ -545,18 +545,16 @@ export default function DashboardPage() {
               </Button>
             }
           >
-            <List
-              dataSource={alertesProduits.slice(0, 5)}
-              size="small"
-              renderItem={(p: { nom: string; stockActuel: number; unite: string; seuilAlerte: number }) => (
-                <List.Item style={{ padding: '4px 0' }}>
+            <div>
+              {alertesProduits.slice(0, 5).map((p: { nom: string; stockActuel: number; unite: string; seuilAlerte: number }) => (
+                <div key={p.nom} style={{ padding: '4px 0', borderBottom: '1px solid #f0f0f0' }} className="last:border-b-0">
                   <div className="flex items-center justify-between w-full">
                     <Typography.Text>{p.nom}</Typography.Text>
                     <Tag color="red">{p.stockActuel} {p.unite} / seuil {p.seuilAlerte}</Tag>
                   </div>
-                </List.Item>
-              )}
-            />
+                </div>
+              ))}
+            </div>
           </Card>
         )}
       </div>

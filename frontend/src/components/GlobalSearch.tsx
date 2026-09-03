@@ -1,5 +1,5 @@
 import { useState, useEffect, useMemo } from 'react';
-import { Modal, Input, List, Tag, Typography } from 'antd';
+import { Modal, Input, Tag, Typography } from 'antd';
 import {
   SearchOutlined,
   TeamOutlined,
@@ -175,11 +175,11 @@ export default function GlobalSearch() {
               <p>Aucun resultat</p>
             </div>
           ) : (
-            <List
-              dataSource={filtered}
-              renderItem={(item) => (
-                <List.Item
-                  className="!px-3 !py-2 rounded-lg cursor-pointer hover:bg-slate-50 transition-colors !border-none"
+            <div>
+              {filtered.map((item) => (
+                <div
+                  key={item.key ?? item.title}
+                  className="px-3 py-2 rounded-lg cursor-pointer hover:bg-slate-50 transition-colors border-b last:border-b-0"
                   onClick={() => handleSelect(item)}
                 >
                   <div className="flex items-center gap-3 w-full">
@@ -194,9 +194,9 @@ export default function GlobalSearch() {
                     </div>
                     <Tag color={item.color} className="text-xs">{item.category}</Tag>
                   </div>
-                </List.Item>
-              )}
-            />
+                </div>
+              ))}
+            </div>
           )}
         </div>
       </Modal>

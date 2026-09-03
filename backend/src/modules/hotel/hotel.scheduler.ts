@@ -35,14 +35,14 @@ export class HotelScheduler {
 
       if (!estExpiree) continue;
 
-      // Deduplication : ne pas reenvoyer si une notif existe deja dans les 24h pour cette reservation
-      const dejaNotifiee = await this.prisma.notification.findFirst({
-        where: {
-          type: 'RESERVATION_EXPIREE',
-          createdAt: { gte: since24h },
-          data: { path: '$.reservationId', equals: reservation.id },
-        },
-      });
+      // Deduplication via JSON_EXTRACT (Prisma JSON path filter unreliable on MySQL/TiDB)
+      const rows = await this.prisma.$queryRaw<Array<{ cnt: bigint }>>`
+        SELECT COUNT(*) AS cnt FROM notifications
+        WHERE type = 'RESERVATION_EXPIREE'
+          AND createdAt >= ${since24h}
+          AND JSON_EXTRACT(data, '$.reservationId') = ${reservation.id}
+      `;
+      const dejaNotifiee = Number(rows[0]?.cnt) > 0;
 
       if (!dejaNotifiee) {
         this.notifications.notifierReservationExpiree({

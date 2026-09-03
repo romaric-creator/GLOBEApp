@@ -36,6 +36,9 @@ export function useNotifications() {
     }
   }, [loaded, setItems]);
 
+  const itemsRef = useRef(items);
+  itemsRef.current = items;
+
   // Polling mode: used when deployed on Vercel (no WebSocket support)
   useEffect(() => {
     if (!USE_POLLING) return;
@@ -43,7 +46,7 @@ export function useNotifications() {
     const poll = async () => {
       try {
         const res = await api.get<NotificationPayload[]>('/notifications?limit=20');
-        const known = new Set(items.map((n) => n.id));
+        const known = new Set(itemsRef.current.map((n) => n.id));
         const fresh = res.data.filter((n) => n.id && !known.has(n.id));
         fresh.forEach((payload) => {
           add({
@@ -67,7 +70,7 @@ export function useNotifications() {
 
     const interval = setInterval(poll, 30_000);
     return () => clearInterval(interval);
-  }, [USE_POLLING, notification, add, items]);
+  }, [USE_POLLING, notification, add]);
 
   // WebSocket mode: used in Electron / local deployment
   useEffect(() => {
