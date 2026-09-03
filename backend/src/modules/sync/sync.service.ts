@@ -210,7 +210,7 @@ export class SyncService {
       ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4`,
     ];
     for (const sql of stmts) {
-      await conn.execute(sql);
+      await conn.query(sql);
     }
   }
 
@@ -219,7 +219,7 @@ export class SyncService {
     payload: Awaited<ReturnType<typeof this.collectPending>>,
   ) {
     for (const r of payload.reservations) {
-      await conn.execute(
+      await conn.query(
         `INSERT INTO reservations
            (id, typeReservation, dateArrivee, dateDepart, heureArrivee, heureDepart, nbPersonnes, statut, montantTotal, notes, typeDocumentClient, numeroDocumentClient, nationaliteClient, createdAt, chambreId, clientId)
          VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
@@ -230,7 +230,7 @@ export class SyncService {
     }
 
     for (const f of payload.facturesSejour) {
-      await conn.execute(
+      await conn.query(
         `INSERT INTO factures_sejour
            (id, numero, montantNuitee, montantExtras, total, montantPaye, reste, payee, createdAt, reservationId)
          VALUES (?,?,?,?,?,?,?,?,?,?)
@@ -241,7 +241,7 @@ export class SyncService {
     }
 
     for (const c of payload.commandes) {
-      await conn.execute(
+      await conn.query(
         `INSERT INTO commandes_table
            (id, numero, statut, total, notes, chambreNumero, clientNom, createdAt, completedAt, cancelledAt, serveurId)
          VALUES (?,?,?,?,?,?,?,?,?,?,?)
@@ -252,7 +252,7 @@ export class SyncService {
     }
 
     for (const p of payload.paiements) {
-      await conn.execute(
+      await conn.query(
         `INSERT INTO paiements
            (id, reference, montant, moyen, sourceType, statut, notes, createdAt, sessionId, userId, factureSejourId, commandeTableId)
          VALUES (?,?,?,?,?,?,?,?,?,?,?,?)
@@ -263,7 +263,7 @@ export class SyncService {
     }
 
     for (const d of payload.depenses) {
-      await conn.execute(
+      await conn.query(
         `INSERT INTO depenses
            (id, libelle, montant, centre, date, notes, createdAt)
          VALUES (?,?,?,?,?,?,?)
@@ -342,7 +342,7 @@ export class SyncService {
     let connection: mysql.Connection | null = null;
     try {
       connection = await mysql.createConnection({ ...config, ssl: { rejectUnauthorized: false }, connectTimeout: 10000 });
-      await connection.execute('SELECT 1');
+      await connection.query('SELECT 1');
       return { ok: true };
     } catch (err) {
       return { ok: false, erreur: err instanceof Error ? err.message : String(err) };
