@@ -17,6 +17,11 @@ function stripEmpty(obj: Record<string, unknown>): Record<string, unknown> {
   return result;
 }
 
+// TODO: remove hardcoded fallback, use Vercel env var DATABASE_URL
+if (!process.env.DATABASE_URL) {
+  process.env.DATABASE_URL = 'mysql://3ZQj7ZZFZPXudBL.root:6xhtFQNkh02qZMdD@gateway01.us-east-1.prod.aws.tidbcloud.com:4000/GLOBE?sslaccept=strict';
+}
+
 let nestApp: INestApplication | undefined;
 
 async function getApp(): Promise<INestApplication> {
