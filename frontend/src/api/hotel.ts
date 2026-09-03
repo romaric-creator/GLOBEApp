@@ -96,7 +96,7 @@ export const hotelApi = {
   confirmerReservation: (id: string) => axios.patch(`/hotel/reservations/${id}/confirmer`).then((r) => r.data),
   annulerReservation: (id: string) => axios.patch(`/hotel/reservations/${id}/annuler`).then((r) => r.data),
   checkIn: (id: string) => axios.patch(`/hotel/reservations/${id}/checkin`).then((r) => r.data),
-  checkOut: (id: string, force?: boolean) => axios.patch(`/hotel/reservations/${id}/checkout`, force ? { force: true } : undefined).then((r) => r.data),
+  checkOut: (id: string, force?: boolean) => (force ? axios.patch(`/hotel/reservations/${id}/checkout`, { force: true }) : axios.patch(`/hotel/reservations/${id}/checkout`)).then((r) => r.data),
 
   // Factures
   getFactures: (payee?: boolean) =>
