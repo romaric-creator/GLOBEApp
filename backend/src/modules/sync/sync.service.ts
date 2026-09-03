@@ -136,10 +136,10 @@ export class SyncService {
     for (const r of payload.reservations) {
       await conn.execute(
         `INSERT INTO reservations
-           (id, dateArrivee, dateDepart, nbPersonnes, statut, montantTotal, notes, createdAt, chambreId, clientId, syncStatus, syncedAt)
-         VALUES (?,?,?,?,?,?,?,?,?,?,'SYNCED',NOW())
+           (id, dateArrivee, dateDepart, nbPersonnes, statut, montantTotal, notes, createdAt, chambreId, clientId)
+         VALUES (?,?,?,?,?,?,?,?,?,?)
          ON DUPLICATE KEY UPDATE
-           statut=VALUES(statut), montantTotal=VALUES(montantTotal), notes=VALUES(notes), syncStatus='SYNCED', syncedAt=NOW()`,
+           statut=VALUES(statut), montantTotal=VALUES(montantTotal), notes=VALUES(notes)`,
         [r.id, r.dateArrivee, r.dateDepart, r.nbPersonnes, r.statut, r.montantTotal, r.notes ?? null, r.createdAt, r.chambreId, r.clientId] as any[],
       );
     }
@@ -147,10 +147,10 @@ export class SyncService {
     for (const f of payload.facturesSejour) {
       await conn.execute(
         `INSERT INTO factures_sejour
-           (id, numero, montantNuitee, montantExtras, total, montantPaye, reste, payee, createdAt, reservationId, syncStatus, syncedAt)
-         VALUES (?,?,?,?,?,?,?,?,?,?,'SYNCED',NOW())
+           (id, numero, montantNuitee, montantExtras, total, montantPaye, reste, payee, createdAt, reservationId)
+         VALUES (?,?,?,?,?,?,?,?,?,?)
          ON DUPLICATE KEY UPDATE
-           montantPaye=VALUES(montantPaye), reste=VALUES(reste), payee=VALUES(payee), syncStatus='SYNCED', syncedAt=NOW()`,
+           montantPaye=VALUES(montantPaye), reste=VALUES(reste), payee=VALUES(payee)`,
         [f.id, f.numero, f.montantNuitee, f.montantExtras, f.total, f.montantPaye, f.reste, f.payee, f.createdAt, f.reservationId] as any[],
       );
     }
@@ -158,10 +158,10 @@ export class SyncService {
     for (const c of payload.commandes) {
       await conn.execute(
         `INSERT INTO commandes_table
-           (id, numero, statut, total, notes, createdAt, completedAt, cancelledAt, serveurId, syncStatus, syncedAt)
-         VALUES (?,?,?,?,?,?,?,?,?,'SYNCED',NOW())
+           (id, numero, statut, total, notes, createdAt, completedAt, cancelledAt, serveurId)
+         VALUES (?,?,?,?,?,?,?,?,?)
          ON DUPLICATE KEY UPDATE
-           statut=VALUES(statut), total=VALUES(total), completedAt=VALUES(completedAt), syncStatus='SYNCED', syncedAt=NOW()`,
+           statut=VALUES(statut), total=VALUES(total), completedAt=VALUES(completedAt)`,
         [c.id, c.numero, c.statut, c.total, c.notes ?? null, c.createdAt, c.completedAt ?? null, c.cancelledAt ?? null, c.serveurId] as any[],
       );
     }
@@ -169,10 +169,10 @@ export class SyncService {
     for (const p of payload.paiements) {
       await conn.execute(
         `INSERT INTO paiements
-           (id, reference, montant, moyen, sourceType, statut, notes, createdAt, sessionId, userId, factureSejourId, commandeTableId, syncStatus, syncedAt)
-         VALUES (?,?,?,?,?,?,?,?,?,?,?,?,'SYNCED',NOW())
+           (id, reference, montant, moyen, sourceType, statut, notes, createdAt, sessionId, userId, factureSejourId, commandeTableId)
+         VALUES (?,?,?,?,?,?,?,?,?,?,?,?)
          ON DUPLICATE KEY UPDATE
-           statut=VALUES(statut), syncStatus='SYNCED', syncedAt=NOW()`,
+           statut=VALUES(statut)`,
         [p.id, p.reference, p.montant, p.moyen, p.sourceType, p.statut, p.notes ?? null, p.createdAt, p.sessionId, p.userId, p.factureSejourId ?? null, p.commandeTableId ?? null] as any[],
       );
     }
@@ -180,10 +180,10 @@ export class SyncService {
     for (const d of payload.depenses) {
       await conn.execute(
         `INSERT INTO depenses
-           (id, libelle, montant, centre, date, notes, createdAt, syncStatus, syncedAt)
-         VALUES (?,?,?,?,?,?,?,'SYNCED',NOW())
+           (id, libelle, montant, centre, date, notes, createdAt)
+         VALUES (?,?,?,?,?,?,?)
          ON DUPLICATE KEY UPDATE
-           libelle=VALUES(libelle), montant=VALUES(montant), notes=VALUES(notes), syncStatus='SYNCED', syncedAt=NOW()`,
+           libelle=VALUES(libelle), montant=VALUES(montant), notes=VALUES(notes)`,
         [d.id, d.libelle, d.montant, d.centre, d.date, d.notes ?? null, d.createdAt] as any[],
       );
     }

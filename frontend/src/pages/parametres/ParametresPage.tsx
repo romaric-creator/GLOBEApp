@@ -240,19 +240,44 @@ function TabSync({ isAdmin }: { isAdmin: boolean }) {
   const [testingRemote, setTestingRemote] = useState(false);
   const remote = useStatusAlert();
   const [syncConfigLoaded, setSyncConfigLoaded] = useState(false);
+  const [urlConfigured, setUrlConfigured] = useState(false);
+  const [isEditingUrl, setIsEditingUrl] = useState(false);
+  const [confirmOpen, setConfirmOpen] = useState(false);
+  const [confirmPwd, setConfirmPwd] = useState('');
+  const [confirmLoading, setConfirmLoading] = useState(false);
+  const { user } = useAuthStore();
 
   useEffect(() => {
     const api = eAPI();
     if (api) {
       api.getConfig().then((cfg: any) => {
-        syncForm.setFieldsValue({ remote_db_url: cfg.remote_db_url || '' });
+        const url = cfg.remote_db_url || '';
+        syncForm.setFieldsValue({ remote_db_url: url });
+        setUrlConfigured(!!url);
       }).catch(() => {}).finally(() => setSyncConfigLoaded(true));
     } else {
       syncApi.getRemoteConfig().then((r) => {
-        syncForm.setFieldsValue({ remote_db_url: r.data.connectionUrl || '' });
+        const url = r.data.connectionUrl || '';
+        syncForm.setFieldsValue({ remote_db_url: url });
+        setUrlConfigured(!!url);
       }).catch(() => {}).finally(() => setSyncConfigLoaded(true));
     }
   }, [syncForm, isAdmin]);
+
+  const handleConfirmAdmin = async () => {
+    if (!user?.email || !confirmPwd) return;
+    setConfirmLoading(true);
+    try {
+      await authApi.login({ email: user.email, password: confirmPwd });
+      setIsEditingUrl(true);
+      setConfirmOpen(false);
+      setConfirmPwd('');
+    } catch {
+      message.error('Mot de passe incorrect.');
+    } finally {
+      setConfirmLoading(false);
+    }
+  };
 
   const handleTestRemote = async () => {
     try {
@@ -390,23 +415,37 @@ function TabSync({ isAdmin }: { isAdmin: boolean }) {
               onFinish={handleSaveSync}
               onValuesChange={remote.clear}
             >
-              <Form.Item
-                label="Chaîne de connexion"
-                name="remote_db_url"
-                rules={[{ required: true, message: 'URL de connexion requise' }]}
-                extra="Format : mysql://utilisateur:motdepasse@hote:port/base"
-              >
-                <Input.Password
-                  placeholder="mysql://user:password@host:3306/database"
-                  visibilityToggle
-                />
-              </Form.Item>
+              {urlConfigured && !isEditingUrl ? (
+                <Form.Item label="Chaîne de connexion">
+                  <Input.Password
+                    value="••••••••••••••••••••••••••••••••"
+                    disabled
+                    visibilityToggle={false}
+                    style={{ marginBottom: 8 }}
+                  />
+                  <Button size="small" onClick={() => setConfirmOpen(true)}>
+                    Modifier
+                  </Button>
+                </Form.Item>
+              ) : (
+                <Form.Item
+                  label="Chaîne de connexion"
+                  name="remote_db_url"
+                  rules={[{ required: true, message: 'URL de connexion requise' }]}
+                  extra="Format : mysql://utilisateur:motdepasse@hote:port/base"
+                >
+                  <Input.Password
+                    placeholder="mysql://user:password@host:3306/database"
+                    visibilityToggle
+                  />
+                </Form.Item>
+              )}
 
               {remote.status.type && (
                 <Alert
                   type={remote.status.type}
                   showIcon
-                  message={remote.status.type === 'success' ? 'Connexion réussie' : 'Connexion échouée'}
+                  title={remote.status.type === 'success' ? 'Connexion réussie' : 'Connexion échouée'}
                   description={remote.status.msg}
                   style={{ marginBottom: 12 }}
                 />
@@ -416,17 +455,42 @@ function TabSync({ isAdmin }: { isAdmin: boolean }) {
                 type="info"
                 showIcon
                 style={{ marginBottom: 12 }}
-                message="La synchronisation s'exécute automatiquement chaque soir à 23h et à la fermeture de la caisse."
+                title="La synchronisation s'exécute automatiquement chaque soir à 23h et à la fermeture de la caisse."
               />
               <Space>
-                <Button icon={<CheckCircleOutlined />} loading={testingRemote} onClick={handleTestRemote}>
-                  Tester la connexion
-                </Button>
-                <Button type="primary" htmlType="submit" loading={savingSync} icon={<SyncOutlined />}>
+                {(!urlConfigured || isEditingUrl) && (
+                  <Button icon={<CheckCircleOutlined />} loading={testingRemote} onClick={handleTestRemote}>
+                    Tester la connexion
+                  </Button>
+                )}
+                <Button type="primary" htmlType="submit" loading={savingSync} icon={<SyncOutlined />}
+                  disabled={urlConfigured && !isEditingUrl}
+                >
                   Enregistrer
                 </Button>
               </Space>
             </Form>
+
+            <Modal
+              title="Confirmation administrateur"
+              open={confirmOpen}
+              onOk={handleConfirmAdmin}
+              confirmLoading={confirmLoading}
+              onCancel={() => { setConfirmOpen(false); setConfirmPwd(''); }}
+              okText="Confirmer"
+              cancelText="Annuler"
+            >
+              <p style={{ marginBottom: 12 }}>
+                Entrez votre mot de passe pour modifier l'URL de connexion distante.
+              </p>
+              <Input.Password
+                placeholder="Mot de passe"
+                value={confirmPwd}
+                onChange={(e) => setConfirmPwd(e.target.value)}
+                onPressEnter={handleConfirmAdmin}
+                autoFocus
+              />
+            </Modal>
           </Card>
         </Col>
       )}
@@ -509,7 +573,7 @@ function TabSync({ isAdmin }: { isAdmin: boolean }) {
             <Alert
               type="info"
               showIcon
-              message="Synchronisation non configurée"
+              title="Synchronisation non configurée"
               description={
                 <span style={{ fontSize: 12 }}>
                   La synchronisation vers le cloud n'est pas configurée. Contactez l'administrateur.
@@ -1099,7 +1163,7 @@ function TabServeur() {
               <Alert
                 type={db.status.type}
                 showIcon
-                message={db.status.type === 'success' ? 'Connexion réussie' : 'Connexion échouée'}
+                title={db.status.type === 'success' ? 'Connexion réussie' : 'Connexion échouée'}
                 description={db.status.msg}
                 style={{ marginBottom: 12 }}
               />
@@ -1139,7 +1203,7 @@ function TabServeur() {
               type="info"
               showIcon
               style={{ marginTop: 8 }}
-              message="Pour modifier ces paramètres, utilisez l'application installée sur le PC serveur."
+              title="Pour modifier ces paramètres, utilisez l'application installée sur le PC serveur."
             />
           )}
         </Col>
