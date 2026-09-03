@@ -132,85 +132,101 @@ export class SyncService {
   }
 
   private async initRemoteSchema(conn: mysql.Connection): Promise<void> {
-    const stmts = [
-      `CREATE TABLE IF NOT EXISTS reservations (
-        id VARCHAR(36) NOT NULL,
-        typeReservation VARCHAR(20) NOT NULL DEFAULT 'NUIT',
-        dateArrivee DATE NOT NULL,
-        dateDepart DATE NOT NULL,
-        heureArrivee VARCHAR(5),
-        heureDepart VARCHAR(5),
-        nbPersonnes INT NOT NULL DEFAULT 1,
-        statut VARCHAR(30) NOT NULL DEFAULT 'EN_ATTENTE',
-        montantTotal DECIMAL(10,2) NOT NULL DEFAULT 0,
-        notes TEXT,
-        typeDocumentClient VARCHAR(30),
-        numeroDocumentClient VARCHAR(100),
-        nationaliteClient VARCHAR(100),
-        createdAt DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
-        chambreId VARCHAR(36) NOT NULL,
-        clientId VARCHAR(36) NOT NULL,
-        PRIMARY KEY (id)
-      ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4`,
-
-      `CREATE TABLE IF NOT EXISTS factures_sejour (
-        id VARCHAR(36) NOT NULL,
-        numero VARCHAR(100) NOT NULL,
-        montantNuitee DECIMAL(10,2) NOT NULL DEFAULT 0,
-        montantExtras DECIMAL(10,2) NOT NULL DEFAULT 0,
-        total DECIMAL(10,2) NOT NULL DEFAULT 0,
-        montantPaye DECIMAL(10,2) NOT NULL DEFAULT 0,
-        reste DECIMAL(10,2) NOT NULL DEFAULT 0,
-        payee TINYINT(1) NOT NULL DEFAULT 0,
-        createdAt DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
-        reservationId VARCHAR(36) NOT NULL,
-        PRIMARY KEY (id)
-      ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4`,
-
-      `CREATE TABLE IF NOT EXISTS commandes_table (
-        id VARCHAR(36) NOT NULL,
-        numero VARCHAR(100) NOT NULL,
-        statut VARCHAR(20) NOT NULL DEFAULT 'EN_PREPARATION',
-        total DECIMAL(10,2) NOT NULL DEFAULT 0,
-        notes TEXT,
-        chambreNumero VARCHAR(10),
-        clientNom VARCHAR(100),
-        createdAt DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
-        completedAt DATETIME,
-        cancelledAt DATETIME,
-        serveurId VARCHAR(36),
-        PRIMARY KEY (id)
-      ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4`,
-
-      `CREATE TABLE IF NOT EXISTS paiements (
-        id VARCHAR(36) NOT NULL,
-        reference VARCHAR(200) NOT NULL,
-        montant DECIMAL(10,2) NOT NULL,
-        moyen VARCHAR(20) NOT NULL DEFAULT 'ESPECES',
-        sourceType VARCHAR(20),
-        statut VARCHAR(20) NOT NULL DEFAULT 'ENCAISSE',
-        notes TEXT,
-        createdAt DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
-        sessionId VARCHAR(36),
-        userId VARCHAR(36),
-        factureSejourId VARCHAR(36),
-        commandeTableId VARCHAR(36),
-        PRIMARY KEY (id)
-      ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4`,
-
-      `CREATE TABLE IF NOT EXISTS depenses (
-        id VARCHAR(36) NOT NULL,
-        libelle VARCHAR(255) NOT NULL,
-        montant DECIMAL(12,2) NOT NULL,
-        centre VARCHAR(50) NOT NULL DEFAULT 'GENERAL',
-        \`date\` DATETIME NOT NULL,
-        notes TEXT,
-        createdAt DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
-        PRIMARY KEY (id)
-      ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4`,
+    const tables: { name: string; sql: string }[] = [
+      {
+        name: 'reservations',
+        sql: `CREATE TABLE IF NOT EXISTS \`reservations\` (
+          \`id\` VARCHAR(36) NOT NULL,
+          \`typeReservation\` VARCHAR(20) NOT NULL DEFAULT 'NUIT',
+          \`dateArrivee\` DATE NOT NULL,
+          \`dateDepart\` DATE NOT NULL,
+          \`heureArrivee\` VARCHAR(5),
+          \`heureDepart\` VARCHAR(5),
+          \`nbPersonnes\` INT NOT NULL DEFAULT 1,
+          \`statut\` VARCHAR(30) NOT NULL DEFAULT 'EN_ATTENTE',
+          \`montantTotal\` DECIMAL(10,2) NOT NULL DEFAULT 0,
+          \`notes\` TEXT,
+          \`typeDocumentClient\` VARCHAR(30),
+          \`numeroDocumentClient\` VARCHAR(100),
+          \`nationaliteClient\` VARCHAR(100),
+          \`createdAt\` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+          \`chambreId\` VARCHAR(36) NOT NULL,
+          \`clientId\` VARCHAR(36) NOT NULL,
+          PRIMARY KEY (\`id\`)
+        )`,
+      },
+      {
+        name: 'factures_sejour',
+        sql: `CREATE TABLE IF NOT EXISTS \`factures_sejour\` (
+          \`id\` VARCHAR(36) NOT NULL,
+          \`numero\` VARCHAR(100) NOT NULL,
+          \`montantNuitee\` DECIMAL(10,2) NOT NULL DEFAULT 0,
+          \`montantExtras\` DECIMAL(10,2) NOT NULL DEFAULT 0,
+          \`total\` DECIMAL(10,2) NOT NULL DEFAULT 0,
+          \`montantPaye\` DECIMAL(10,2) NOT NULL DEFAULT 0,
+          \`reste\` DECIMAL(10,2) NOT NULL DEFAULT 0,
+          \`payee\` TINYINT(1) NOT NULL DEFAULT 0,
+          \`createdAt\` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+          \`reservationId\` VARCHAR(36) NOT NULL,
+          PRIMARY KEY (\`id\`)
+        )`,
+      },
+      {
+        name: 'commandes_table',
+        sql: `CREATE TABLE IF NOT EXISTS \`commandes_table\` (
+          \`id\` VARCHAR(36) NOT NULL,
+          \`numero\` VARCHAR(100) NOT NULL,
+          \`statut\` VARCHAR(20) NOT NULL DEFAULT 'EN_PREPARATION',
+          \`total\` DECIMAL(10,2) NOT NULL DEFAULT 0,
+          \`notes\` TEXT,
+          \`chambreNumero\` VARCHAR(10),
+          \`clientNom\` VARCHAR(100),
+          \`createdAt\` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+          \`completedAt\` DATETIME,
+          \`cancelledAt\` DATETIME,
+          \`serveurId\` VARCHAR(36),
+          PRIMARY KEY (\`id\`)
+        )`,
+      },
+      {
+        name: 'paiements',
+        sql: `CREATE TABLE IF NOT EXISTS \`paiements\` (
+          \`id\` VARCHAR(36) NOT NULL,
+          \`reference\` VARCHAR(200) NOT NULL,
+          \`montant\` DECIMAL(10,2) NOT NULL,
+          \`moyen\` VARCHAR(20) NOT NULL DEFAULT 'ESPECES',
+          \`sourceType\` VARCHAR(20),
+          \`statut\` VARCHAR(20) NOT NULL DEFAULT 'ENCAISSE',
+          \`notes\` TEXT,
+          \`createdAt\` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+          \`sessionId\` VARCHAR(36),
+          \`userId\` VARCHAR(36),
+          \`factureSejourId\` VARCHAR(36),
+          \`commandeTableId\` VARCHAR(36),
+          PRIMARY KEY (\`id\`)
+        )`,
+      },
+      {
+        name: 'depenses',
+        sql: `CREATE TABLE IF NOT EXISTS \`depenses\` (
+          \`id\` VARCHAR(36) NOT NULL,
+          \`libelle\` VARCHAR(255) NOT NULL,
+          \`montant\` DECIMAL(12,2) NOT NULL,
+          \`centre\` VARCHAR(50) NOT NULL DEFAULT 'GENERAL',
+          \`date\` DATETIME NOT NULL,
+          \`notes\` TEXT,
+          \`createdAt\` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+          PRIMARY KEY (\`id\`)
+        )`,
+      },
     ];
-    for (const sql of stmts) {
-      await conn.query(sql);
+
+    for (const table of tables) {
+      try {
+        await conn.query(table.sql);
+      } catch (err) {
+        this.logger.error(`initRemoteSchema: failed to create table ${table.name}: ${err instanceof Error ? err.message : String(err)}`);
+      }
     }
   }
 
