@@ -17,9 +17,19 @@ function stripEmpty(obj: Record<string, unknown>): Record<string, unknown> {
   return result;
 }
 
-// TODO: remove hardcoded fallback, use Vercel env var DATABASE_URL
-if (!process.env.DATABASE_URL) {
-  process.env.DATABASE_URL = 'mysql://3ZQj7ZZFZPXudBL.root:6xhtFQNkh02qZMdD@gateway01.us-east-1.prod.aws.tidbcloud.com:4000/GLOBE?sslaccept=strict';
+const databaseUrl = process.env.DATABASE_URL;
+if (!databaseUrl) {
+  throw new Error('DATABASE_URL must be configured before starting the API');
+}
+
+if (
+  process.env.NODE_ENV === 'production' &&
+  databaseUrl.includes('tidbcloud.com') &&
+  !databaseUrl.includes('sslaccept=strict')
+) {
+  throw new Error(
+    'DATABASE_URL must use sslaccept=strict for TiDB Cloud production connections',
+  );
 }
 
 let nestApp: INestApplication | undefined;
