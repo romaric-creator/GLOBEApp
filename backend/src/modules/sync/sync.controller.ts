@@ -57,14 +57,8 @@ export class SyncController {
   }
 
   @UseGuards(JwtAuthGuard)
-  @Post('init-schema')
-  async initSchema() {
-    return this.syncService.pushSchemaToRemote();
-  }
-
-  @UseGuards(JwtAuthGuard)
   @Post('backup')
   async backup() {
-    return this.syncService.backupAll();
+    return this.syncService.backupFull();
   }
 }

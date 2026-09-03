@@ -373,13 +373,16 @@ export class SyncService {
     const url = await this.getRemoteConfigUrl();
     if (!url) return { ok: false, message: 'Base de données distante non configurée' };
 
-    const cwd = join(__dirname, '..', '..', '..');
+    // TiDB Cloud requires SSL. Strip mysql2-style ssl param and use Prisma's SSL format.
+    const prismaUrl = `${url.split('?')[0]}?sslaccept=accept_invalid_certs`;
+
+    const schemaPath = join(process.cwd(), 'prisma', 'schema.prisma');
     const result = spawnSync(
       'npx',
-      ['prisma', 'db', 'push', '--accept-data-loss', '--skip-generate'],
+      ['prisma', 'db', 'push', '--accept-data-loss', '--skip-generate', `--schema=${schemaPath}`],
       {
-        env: { ...process.env, DATABASE_URL: url },
-        cwd,
+        env: { ...process.env, DATABASE_URL: prismaUrl },
+        cwd: process.cwd(),
         encoding: 'utf8',
         timeout: 120_000,
       },
@@ -392,6 +395,14 @@ export class SyncService {
     }
     this.logger.log('pushSchemaToRemote: success');
     return { ok: true, message: result.stdout || 'Schéma appliqué avec succès' };
+  }
+
+  async backupFull(): Promise<{ ok: boolean; nbEnvois: number; erreur?: string }> {
+    const schemaResult = await this.pushSchemaToRemote();
+    if (!schemaResult.ok) {
+      return { ok: false, nbEnvois: 0, erreur: `Échec initialisation schéma : ${schemaResult.message}` };
+    }
+    return this.backupAll();
   }
 
   async backupAll(): Promise<{ ok: boolean; nbEnvois: number; erreur?: string }> {

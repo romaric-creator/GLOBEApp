@@ -112,12 +112,6 @@ const allMenuItems = [
         roles: ["admin", "manager"],
       },
       {
-        key: "/sauvegarde",
-        icon: <CloudOutlined />,
-        label: "Sauvegarde",
-        roles: ["admin", "manager"],
-      },
-      {
         key: "/parametres",
         icon: <SettingOutlined />,
         label: "Paramètres",

@@ -338,18 +338,6 @@ function TabSync({ isAdmin }: { isAdmin: boolean }) {
     queryFn: () => syncApi.getLogs(20).then((r) => r.data),
   });
 
-  const initSchemaMutation = useMutation({
-    mutationFn: () => syncApi.initSchema().then((r) => r.data),
-    onSuccess: (data) => {
-      if (data.ok) {
-        message.success('Schéma appliqué sur la base distante.');
-      } else {
-        message.error(`Échec : ${data.message}`);
-      }
-    },
-    onError: () => message.error('Impossible d\'initialiser le schéma.'),
-  });
-
   const backupMutation = useMutation({
     mutationFn: () => syncApi.backupAll().then((r) => r.data),
     onSuccess: (data) => {
@@ -596,24 +584,14 @@ function TabSync({ isAdmin }: { isAdmin: boolean }) {
                   {syncStatus.nbEnAttente > 0 && ` (${syncStatus.nbEnAttente})`}
                 </Button>
                 {isAdmin && (
-                  <>
-                    <Button
-                      size="middle"
-                      icon={<CloudOutlined />}
-                      loading={initSchemaMutation.isPending}
-                      onClick={() => initSchemaMutation.mutate()}
-                    >
-                      Initialiser le schéma distant
-                    </Button>
-                    <Button
-                      size="middle"
-                      icon={<SyncOutlined />}
-                      loading={backupMutation.isPending}
-                      onClick={() => backupMutation.mutate()}
-                    >
-                      Sauvegarder toutes les tables
-                    </Button>
-                  </>
+                  <Button
+                    size="middle"
+                    icon={<CloudOutlined />}
+                    loading={backupMutation.isPending}
+                    onClick={() => backupMutation.mutate()}
+                  >
+                    Sauvegarder
+                  </Button>
                 )}
               </Space>
             </>
