@@ -76,6 +76,8 @@ describe('CaisseService', () => {
         id: 's1',
         statut: 'OUVERTE',
         fondInitial: 100,
+        ouvertureAt: new Date(),
+        caisse: { type: 'RESTAURANT_BAR', nom: 'Caisse Resto' },
         paiements: [
           { statut: 'ENCAISSE', montant: 50 },
           { statut: 'ENCAISSE', montant: 30 },

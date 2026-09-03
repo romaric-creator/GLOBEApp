@@ -102,19 +102,20 @@ describe('HotelService', () => {
       ).rejects.toThrow(BadRequestException);
     });
 
-    it("echoue si la date de depart est avant la date d'arrivee", async () => {
+    it("echoue si heureArrivee manquante pour une sieste", async () => {
       prisma.chambre.findUnique.mockResolvedValue({
         id: 'ch1',
         capacite: 3,
         prixNuit: 100,
+        prixSieste: 30,
       });
       prisma.reservation.findMany.mockResolvedValue([]);
 
       await expect(
         service.createReservation({
           ...dto,
+          typeReservation: 'SIESTE',
           dateArrivee: '2026-09-05',
-          dateDepart: '2026-09-01',
         } as any),
       ).rejects.toThrow(BadRequestException);
     });
