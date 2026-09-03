@@ -203,7 +203,7 @@ export class SyncService {
         libelle VARCHAR(255) NOT NULL,
         montant DECIMAL(12,2) NOT NULL,
         centre VARCHAR(50) NOT NULL DEFAULT 'GENERAL',
-        date DATETIME NOT NULL,
+        \`date\` DATETIME NOT NULL,
         notes TEXT,
         createdAt DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
         PRIMARY KEY (id)
@@ -265,7 +265,7 @@ export class SyncService {
     for (const d of payload.depenses) {
       await conn.query(
         `INSERT INTO depenses
-           (id, libelle, montant, centre, date, notes, createdAt)
+           (id, libelle, montant, centre, \`date\`, notes, createdAt)
          VALUES (?,?,?,?,?,?,?)
          ON DUPLICATE KEY UPDATE
            libelle=VALUES(libelle), montant=VALUES(montant), notes=VALUES(notes)`,
