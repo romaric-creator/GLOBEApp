@@ -98,12 +98,9 @@ export function SyncWidget() {
           <Button
             type="text"
             size="small"
-            icon={<Badge status={!status?.remoteConfigure ? 'default' : badgeStatus} />}
+            icon={<CloudSyncOutlined style={{ fontSize: 16, color: !status?.remoteConfigure ? '#bfbfbf' : badgeStatus === 'error' ? '#ff4d4f' : badgeStatus === 'success' ? '#52c41a' : '#595959' }} />}
             onClick={() => setOpen(true)}
-            style={{ color: 'rgba(255,255,255,0.75)', fontSize: 12 }}
-          >
-            Sync
-          </Button>
+          />
         </Badge>
       </Tooltip>
 

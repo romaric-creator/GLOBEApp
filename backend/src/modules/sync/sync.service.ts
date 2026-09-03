@@ -90,6 +90,8 @@ export class SyncService {
         connectTimeout: 15000,
       });
 
+      await this.initRemoteSchema(connection);
+
       const payload = await this.collectPending();
       const nbEnvois =
         payload.reservations.length +
@@ -129,6 +131,89 @@ export class SyncService {
     }
   }
 
+  private async initRemoteSchema(conn: mysql.Connection): Promise<void> {
+    const stmts = [
+      `CREATE TABLE IF NOT EXISTS reservations (
+        id VARCHAR(36) NOT NULL,
+        typeReservation VARCHAR(20) NOT NULL DEFAULT 'NUIT',
+        dateArrivee DATE NOT NULL,
+        dateDepart DATE NOT NULL,
+        heureArrivee VARCHAR(5),
+        heureDepart VARCHAR(5),
+        nbPersonnes INT NOT NULL DEFAULT 1,
+        statut VARCHAR(30) NOT NULL DEFAULT 'EN_ATTENTE',
+        montantTotal DECIMAL(10,2) NOT NULL DEFAULT 0,
+        notes TEXT,
+        typeDocumentClient VARCHAR(30),
+        numeroDocumentClient VARCHAR(100),
+        nationaliteClient VARCHAR(100),
+        createdAt DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+        chambreId VARCHAR(36) NOT NULL,
+        clientId VARCHAR(36) NOT NULL,
+        PRIMARY KEY (id)
+      ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4`,
+
+      `CREATE TABLE IF NOT EXISTS factures_sejour (
+        id VARCHAR(36) NOT NULL,
+        numero VARCHAR(100) NOT NULL,
+        montantNuitee DECIMAL(10,2) NOT NULL DEFAULT 0,
+        montantExtras DECIMAL(10,2) NOT NULL DEFAULT 0,
+        total DECIMAL(10,2) NOT NULL DEFAULT 0,
+        montantPaye DECIMAL(10,2) NOT NULL DEFAULT 0,
+        reste DECIMAL(10,2) NOT NULL DEFAULT 0,
+        payee TINYINT(1) NOT NULL DEFAULT 0,
+        createdAt DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+        reservationId VARCHAR(36) NOT NULL,
+        PRIMARY KEY (id)
+      ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4`,
+
+      `CREATE TABLE IF NOT EXISTS commandes_table (
+        id VARCHAR(36) NOT NULL,
+        numero VARCHAR(100) NOT NULL,
+        statut VARCHAR(20) NOT NULL DEFAULT 'EN_PREPARATION',
+        total DECIMAL(10,2) NOT NULL DEFAULT 0,
+        notes TEXT,
+        chambreNumero VARCHAR(10),
+        clientNom VARCHAR(100),
+        createdAt DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+        completedAt DATETIME,
+        cancelledAt DATETIME,
+        serveurId VARCHAR(36),
+        PRIMARY KEY (id)
+      ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4`,
+
+      `CREATE TABLE IF NOT EXISTS paiements (
+        id VARCHAR(36) NOT NULL,
+        reference VARCHAR(200) NOT NULL,
+        montant DECIMAL(10,2) NOT NULL,
+        moyen VARCHAR(20) NOT NULL DEFAULT 'ESPECES',
+        sourceType VARCHAR(20),
+        statut VARCHAR(20) NOT NULL DEFAULT 'ENCAISSE',
+        notes TEXT,
+        createdAt DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+        sessionId VARCHAR(36),
+        userId VARCHAR(36),
+        factureSejourId VARCHAR(36),
+        commandeTableId VARCHAR(36),
+        PRIMARY KEY (id)
+      ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4`,
+
+      `CREATE TABLE IF NOT EXISTS depenses (
+        id VARCHAR(36) NOT NULL,
+        libelle VARCHAR(255) NOT NULL,
+        montant DECIMAL(12,2) NOT NULL,
+        centre VARCHAR(50) NOT NULL DEFAULT 'GENERAL',
+        date DATETIME NOT NULL,
+        notes TEXT,
+        createdAt DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+        PRIMARY KEY (id)
+      ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4`,
+    ];
+    for (const sql of stmts) {
+      await conn.execute(sql);
+    }
+  }
+
   private async upsertAll(
     conn: mysql.Connection,
     payload: Awaited<ReturnType<typeof this.collectPending>>,
@@ -136,11 +221,11 @@ export class SyncService {
     for (const r of payload.reservations) {
       await conn.execute(
         `INSERT INTO reservations
-           (id, dateArrivee, dateDepart, nbPersonnes, statut, montantTotal, notes, createdAt, chambreId, clientId)
-         VALUES (?,?,?,?,?,?,?,?,?,?)
+           (id, typeReservation, dateArrivee, dateDepart, heureArrivee, heureDepart, nbPersonnes, statut, montantTotal, notes, typeDocumentClient, numeroDocumentClient, nationaliteClient, createdAt, chambreId, clientId)
+         VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
          ON DUPLICATE KEY UPDATE
            statut=VALUES(statut), montantTotal=VALUES(montantTotal), notes=VALUES(notes)`,
-        [r.id, r.dateArrivee, r.dateDepart, r.nbPersonnes, r.statut, r.montantTotal, r.notes ?? null, r.createdAt, r.chambreId, r.clientId] as any[],
+        [r.id, r.typeReservation, r.dateArrivee, r.dateDepart, r.heureArrivee ?? null, r.heureDepart ?? null, r.nbPersonnes, r.statut, r.montantTotal, r.notes ?? null, r.typeDocumentClient ?? null, r.numeroDocumentClient ?? null, r.nationaliteClient ?? null, r.createdAt, r.chambreId, r.clientId] as any[],
       );
     }
 
@@ -158,11 +243,11 @@ export class SyncService {
     for (const c of payload.commandes) {
       await conn.execute(
         `INSERT INTO commandes_table
-           (id, numero, statut, total, notes, createdAt, completedAt, cancelledAt, serveurId)
-         VALUES (?,?,?,?,?,?,?,?,?)
+           (id, numero, statut, total, notes, chambreNumero, clientNom, createdAt, completedAt, cancelledAt, serveurId)
+         VALUES (?,?,?,?,?,?,?,?,?,?,?)
          ON DUPLICATE KEY UPDATE
            statut=VALUES(statut), total=VALUES(total), completedAt=VALUES(completedAt)`,
-        [c.id, c.numero, c.statut, c.total, c.notes ?? null, c.createdAt, c.completedAt ?? null, c.cancelledAt ?? null, c.serveurId] as any[],
+        [c.id, c.numero, c.statut, c.total, c.notes ?? null, c.chambreNumero ?? null, c.clientNom ?? null, c.createdAt, c.completedAt ?? null, c.cancelledAt ?? null, c.serveurId] as any[],
       );
     }
 
