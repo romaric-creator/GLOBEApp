@@ -398,12 +398,8 @@ export class SyncService {
   }
 
   async backupFull(): Promise<{ ok: boolean; nbEnvois: number; erreur?: string }> {
-    const schemaResult = await this.pushSchemaToRemote();
-    if (!schemaResult.ok) {
-      // Schema push can fail on TiDB Cloud due to FK constraints incompatibility.
-      // If remote tables already exist, proceed anyway — data copy does not require FKs.
-      this.logger.warn(`pushSchemaToRemote échoué (${schemaResult.message}) — tentative backup quand même`);
-    }
+    // pushSchemaToRemote is skipped here: backupAll() uses FOREIGN_KEY_CHECKS=0 and
+    // handles a full reset atomically. Schema must be initialised manually on first use.
     return this.backupAll();
   }
 
