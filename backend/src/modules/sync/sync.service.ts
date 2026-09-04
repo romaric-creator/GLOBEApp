@@ -121,7 +121,7 @@ export class SyncService {
       this.logger.log(`Sync réussie — ${nbEnvois} enregistrements envoyés vers ${remoteConfig.host}/${remoteConfig.database}`);
       return { success: true, nbEnvois };
     } catch (err) {
-      const erreur = err instanceof Error ? err.message : String(err);
+      const erreur = (err instanceof Error ? err.message : String(err)).substring(0, 2000);
       await this.prisma.syncLog.update({
         where: { id: log.id },
         data: { statut: 'ECHOUEE', erreur, completedAt: new Date() },
@@ -400,7 +400,9 @@ export class SyncService {
   async backupFull(): Promise<{ ok: boolean; nbEnvois: number; erreur?: string }> {
     const schemaResult = await this.pushSchemaToRemote();
     if (!schemaResult.ok) {
-      return { ok: false, nbEnvois: 0, erreur: `Échec initialisation schéma : ${schemaResult.message}` };
+      // Schema push can fail on TiDB Cloud due to FK constraints incompatibility.
+      // If remote tables already exist, proceed anyway — data copy does not require FKs.
+      this.logger.warn(`pushSchemaToRemote échoué (${schemaResult.message}) — tentative backup quand même`);
     }
     return this.backupAll();
   }
@@ -409,74 +411,165 @@ export class SyncService {
     const url = await this.getRemoteConfigUrl();
     if (!url) return { ok: false, nbEnvois: 0, erreur: 'Base de données distante non configurée' };
 
+    const sslUrl = url.includes('?') ? url : `${url}?sslaccept=accept_invalid_certs`;
     const log = await this.prisma.syncLog.create({ data: { statut: 'EN_COURS' } });
-    const remote = new PrismaClient({ datasources: { db: { url } } });
+    const remote = new PrismaClient({ datasources: { db: { url: sslUrl } } });
 
-    let total = 0;
     try {
-      await remote.$executeRaw`SET FOREIGN_KEY_CHECKS = 0`;
+      // 1. Fetch all local data upfront — outside the transaction
+      const [
+        roles, permissions, rolePermissions, categories, categoriesCompta,
+        fournisseurs, caisses, typesReservationSalle, clients, chambres,
+        users, produits, comptes, employes, sessions, sessionsCaisse,
+        bonsCommande, accessoiresPiscine, reservations, commandesTables,
+        ticketsPiscine, abonnementsLoisir, reservationsSalle, pointages,
+        conges, mouvementsStock, lignesBonCommande, facturesSejour,
+        lignesCommande, paiementsTranche, paiements, mouvementsCaisse,
+        ecritures, clotures, depenses, transactionsAccessoire,
+        logsConnexion, notifications,
+      ] = await Promise.all([
+        this.prisma.role.findMany(),
+        this.prisma.permission.findMany(),
+        this.prisma.rolePermission.findMany(),
+        this.prisma.categorie.findMany(),
+        this.prisma.categorieCompta.findMany(),
+        this.prisma.fournisseur.findMany(),
+        this.prisma.caisse.findMany(),
+        this.prisma.typeReservationSalle.findMany(),
+        this.prisma.client.findMany(),
+        this.prisma.chambre.findMany(),
+        this.prisma.user.findMany(),
+        this.prisma.produit.findMany(),
+        this.prisma.compte.findMany(),
+        this.prisma.employe.findMany(),
+        this.prisma.session.findMany(),
+        this.prisma.sessionCaisse.findMany(),
+        this.prisma.bonCommande.findMany(),
+        this.prisma.accessoirePiscine.findMany(),
+        this.prisma.reservation.findMany(),
+        this.prisma.commandeTable.findMany(),
+        this.prisma.ticketPiscine.findMany(),
+        this.prisma.abonnementLoisir.findMany(),
+        this.prisma.reservationSalle.findMany(),
+        this.prisma.pointage.findMany(),
+        this.prisma.conge.findMany(),
+        this.prisma.mouvementStock.findMany(),
+        this.prisma.ligneBonCommande.findMany(),
+        this.prisma.factureSejour.findMany(),
+        this.prisma.ligneCommande.findMany(),
+        this.prisma.paiementTranche.findMany(),
+        this.prisma.paiement.findMany(),
+        this.prisma.mouvementCaisse.findMany(),
+        this.prisma.ecriture.findMany(),
+        this.prisma.cloture.findMany(),
+        this.prisma.depense.findMany(),
+        this.prisma.transactionAccessoire.findMany(),
+        this.prisma.logConnexion.findMany(),
+        this.prisma.notification.findMany(),
+      ]);
 
-      // Copie dans l'ordre : tables sans FK d'abord, puis les dépendantes
-      const steps: Array<{ name: string; fn: () => Promise<number> }> = [
-        { name: 'roles',                    fn: () => this.copyTable(remote.role,                   () => this.prisma.role.findMany()) },
-        { name: 'permissions',              fn: () => this.copyTable(remote.permission,              () => this.prisma.permission.findMany()) },
-        { name: 'role_permissions',         fn: () => this.copyTable(remote.rolePermission,          () => this.prisma.rolePermission.findMany()) },
-        { name: 'categories',               fn: () => this.copyTable(remote.categorie,               () => this.prisma.categorie.findMany()) },
-        { name: 'categories_compta',        fn: () => this.copyTable(remote.categorieCompta,         () => this.prisma.categorieCompta.findMany()) },
-        { name: 'fournisseurs',             fn: () => this.copyTable(remote.fournisseur,             () => this.prisma.fournisseur.findMany()) },
-        { name: 'caisses',                  fn: () => this.copyTable(remote.caisse,                  () => this.prisma.caisse.findMany()) },
-        { name: 'types_reservation_salle',  fn: () => this.copyTable(remote.typeReservationSalle,    () => this.prisma.typeReservationSalle.findMany()) },
-        { name: 'clients',                  fn: () => this.copyTable(remote.client,                  () => this.prisma.client.findMany()) },
-        { name: 'chambres',                 fn: () => this.copyTable(remote.chambre,                 () => this.prisma.chambre.findMany()) },
-        { name: 'users',                    fn: () => this.copyTable(remote.user,                    () => this.prisma.user.findMany()) },
-        { name: 'produits',                 fn: () => this.copyTable(remote.produit,                 () => this.prisma.produit.findMany()) },
-        { name: 'comptes',                  fn: () => this.copyTable(remote.compte,                  () => this.prisma.compte.findMany()) },
-        { name: 'employes',                 fn: () => this.copyTable(remote.employe,                 () => this.prisma.employe.findMany()) },
-        { name: 'sessions',                 fn: () => this.copyTable(remote.session,                 () => this.prisma.session.findMany()) },
-        { name: 'sessions_caisse',          fn: () => this.copyTable(remote.sessionCaisse,           () => this.prisma.sessionCaisse.findMany()) },
-        { name: 'bons_commande',            fn: () => this.copyTable(remote.bonCommande,             () => this.prisma.bonCommande.findMany()) },
-        { name: 'accessoires_piscine',      fn: () => this.copyTable(remote.accessoirePiscine,       () => this.prisma.accessoirePiscine.findMany()) },
-        { name: 'reservations',             fn: () => this.copyTable(remote.reservation,             () => this.prisma.reservation.findMany()) },
-        { name: 'commandes_table',          fn: () => this.copyTable(remote.commandeTable,           () => this.prisma.commandeTable.findMany()) },
-        { name: 'tickets_piscine',          fn: () => this.copyTable(remote.ticketPiscine,           () => this.prisma.ticketPiscine.findMany()) },
-        { name: 'abonnements_loisir',       fn: () => this.copyTable(remote.abonnementLoisir,        () => this.prisma.abonnementLoisir.findMany()) },
-        { name: 'reservations_salle',       fn: () => this.copyTable(remote.reservationSalle,        () => this.prisma.reservationSalle.findMany()) },
-        { name: 'pointages',                fn: () => this.copyTable(remote.pointage,                () => this.prisma.pointage.findMany()) },
-        { name: 'conges',                   fn: () => this.copyTable(remote.conge,                   () => this.prisma.conge.findMany()) },
-        { name: 'mouvements_stock',         fn: () => this.copyTable(remote.mouvementStock,          () => this.prisma.mouvementStock.findMany()) },
-        { name: 'lignes_bon_commande',      fn: () => this.copyTable(remote.ligneBonCommande,        () => this.prisma.ligneBonCommande.findMany()) },
-        { name: 'factures_sejour',          fn: () => this.copyTable(remote.factureSejour,           () => this.prisma.factureSejour.findMany()) },
-        { name: 'lignes_commande',          fn: () => this.copyTable(remote.ligneCommande,           () => this.prisma.ligneCommande.findMany()) },
-        { name: 'paiements_tranche',        fn: () => this.copyTable(remote.paiementTranche,         () => this.prisma.paiementTranche.findMany()) },
-        { name: 'paiements',                fn: () => this.copyTable(remote.paiement,                () => this.prisma.paiement.findMany()) },
-        { name: 'mouvements_caisse',        fn: () => this.copyTable(remote.mouvementCaisse,         () => this.prisma.mouvementCaisse.findMany()) },
-        { name: 'ecritures',                fn: () => this.copyTable(remote.ecriture,                () => this.prisma.ecriture.findMany()) },
-        { name: 'clotures',                 fn: () => this.copyTable(remote.cloture,                 () => this.prisma.cloture.findMany()) },
-        { name: 'depenses',                 fn: () => this.copyTable(remote.depense,                 () => this.prisma.depense.findMany()) },
-        { name: 'transactions_accessoire',  fn: () => this.copyTable(remote.transactionAccessoire,   () => this.prisma.transactionAccessoire.findMany()) },
-        { name: 'logs_connexion',           fn: () => this.copyTable(remote.logConnexion,            () => this.prisma.logConnexion.findMany()) },
-        { name: 'notifications',            fn: () => this.copyTable(remote.notification,            () => this.prisma.notification.findMany()) },
-      ];
+      // 2. Full reset + insert in a single transaction — atomic: rollback on any error
+      let total = 0;
+      await remote.$transaction(async (tx) => {
+        await tx.$executeRaw`SET FOREIGN_KEY_CHECKS = 0`;
 
-      for (const step of steps) {
-        try {
-          const n = await step.fn();
-          total += n;
-          if (n > 0) this.logger.log(`backup ${step.name}: ${n} records`);
-        } catch (err) {
-          this.logger.error(`backup ${step.name} failed: ${err instanceof Error ? err.message : String(err)}`);
-        }
-      }
+        // Delete in reverse dependency order (leaf tables first)
+        await tx.notification.deleteMany({});
+        await tx.logConnexion.deleteMany({});
+        await tx.transactionAccessoire.deleteMany({});
+        await tx.depense.deleteMany({});
+        await tx.cloture.deleteMany({});
+        await tx.ecriture.deleteMany({});
+        await tx.mouvementCaisse.deleteMany({});
+        await tx.paiement.deleteMany({});
+        await tx.paiementTranche.deleteMany({});
+        await tx.ligneCommande.deleteMany({});
+        await tx.factureSejour.deleteMany({});
+        await tx.ligneBonCommande.deleteMany({});
+        await tx.mouvementStock.deleteMany({});
+        await tx.conge.deleteMany({});
+        await tx.pointage.deleteMany({});
+        await tx.reservationSalle.deleteMany({});
+        await tx.abonnementLoisir.deleteMany({});
+        await tx.ticketPiscine.deleteMany({});
+        await tx.commandeTable.deleteMany({});
+        await tx.reservation.deleteMany({});
+        await tx.accessoirePiscine.deleteMany({});
+        await tx.bonCommande.deleteMany({});
+        await tx.sessionCaisse.deleteMany({});
+        await tx.session.deleteMany({});
+        await tx.employe.deleteMany({});
+        await tx.compte.deleteMany({});
+        await tx.produit.deleteMany({});
+        await tx.user.deleteMany({});
+        await tx.chambre.deleteMany({});
+        await tx.client.deleteMany({});
+        await tx.typeReservationSalle.deleteMany({});
+        await tx.caisse.deleteMany({});
+        await tx.fournisseur.deleteMany({});
+        await tx.categorieCompta.deleteMany({});
+        await tx.categorie.deleteMany({});
+        await tx.rolePermission.deleteMany({});
+        await tx.permission.deleteMany({});
+        await tx.role.deleteMany({});
 
-      await remote.$executeRaw`SET FOREIGN_KEY_CHECKS = 1`;
+        // Insert in forward dependency order (parent tables first)
+        const ins = async (data: any[], fn: (d: any[]) => Promise<{ count: number }>) => {
+          if (!data.length) return;
+          const r = await fn(data);
+          total += r.count;
+        };
 
+        await ins(roles,                  (d) => tx.role.createMany({ data: d }));
+        await ins(permissions,            (d) => tx.permission.createMany({ data: d }));
+        await ins(rolePermissions,        (d) => tx.rolePermission.createMany({ data: d }));
+        await ins(categories,             (d) => tx.categorie.createMany({ data: d }));
+        await ins(categoriesCompta,       (d) => tx.categorieCompta.createMany({ data: d }));
+        await ins(fournisseurs,           (d) => tx.fournisseur.createMany({ data: d }));
+        await ins(caisses,                (d) => tx.caisse.createMany({ data: d }));
+        await ins(typesReservationSalle,  (d) => tx.typeReservationSalle.createMany({ data: d }));
+        await ins(clients,                (d) => tx.client.createMany({ data: d }));
+        await ins(chambres,               (d) => tx.chambre.createMany({ data: d }));
+        await ins(users,                  (d) => tx.user.createMany({ data: d }));
+        await ins(produits,               (d) => tx.produit.createMany({ data: d }));
+        await ins(comptes,                (d) => tx.compte.createMany({ data: d }));
+        await ins(employes,               (d) => tx.employe.createMany({ data: d }));
+        await ins(sessions,               (d) => tx.session.createMany({ data: d }));
+        await ins(sessionsCaisse,         (d) => tx.sessionCaisse.createMany({ data: d }));
+        await ins(bonsCommande,           (d) => tx.bonCommande.createMany({ data: d }));
+        await ins(accessoiresPiscine,     (d) => tx.accessoirePiscine.createMany({ data: d }));
+        await ins(reservations,           (d) => tx.reservation.createMany({ data: d }));
+        await ins(commandesTables,        (d) => tx.commandeTable.createMany({ data: d }));
+        await ins(ticketsPiscine,         (d) => tx.ticketPiscine.createMany({ data: d }));
+        await ins(abonnementsLoisir,      (d) => tx.abonnementLoisir.createMany({ data: d }));
+        await ins(reservationsSalle,      (d) => tx.reservationSalle.createMany({ data: d }));
+        await ins(pointages,              (d) => tx.pointage.createMany({ data: d }));
+        await ins(conges,                 (d) => tx.conge.createMany({ data: d }));
+        await ins(mouvementsStock,        (d) => tx.mouvementStock.createMany({ data: d }));
+        await ins(lignesBonCommande,      (d) => tx.ligneBonCommande.createMany({ data: d }));
+        await ins(facturesSejour,         (d) => tx.factureSejour.createMany({ data: d }));
+        await ins(lignesCommande,         (d) => tx.ligneCommande.createMany({ data: d }));
+        await ins(paiementsTranche,       (d) => tx.paiementTranche.createMany({ data: d }));
+        await ins(paiements,              (d) => tx.paiement.createMany({ data: d }));
+        await ins(mouvementsCaisse,       (d) => tx.mouvementCaisse.createMany({ data: d }));
+        await ins(ecritures,              (d) => tx.ecriture.createMany({ data: d }));
+        await ins(clotures,               (d) => tx.cloture.createMany({ data: d }));
+        await ins(depenses,               (d) => tx.depense.createMany({ data: d }));
+        await ins(transactionsAccessoire, (d) => tx.transactionAccessoire.createMany({ data: d }));
+        await ins(logsConnexion,          (d) => tx.logConnexion.createMany({ data: d }));
+        await ins(notifications,          (d) => tx.notification.createMany({ data: d }));
+
+        await tx.$executeRaw`SET FOREIGN_KEY_CHECKS = 1`;
+      }, { maxWait: 60_000, timeout: 300_000 });
+
+      this.logger.log(`backupAll: transaction committed — ${total} records`);
       await this.prisma.syncLog.update({
         where: { id: log.id },
         data: { statut: 'REUSSIE', nbEnvois: total, completedAt: new Date() },
       });
       return { ok: true, nbEnvois: total };
     } catch (err) {
-      const erreur = err instanceof Error ? err.message : String(err);
+      const erreur = (err instanceof Error ? err.message : String(err)).substring(0, 2000);
       await this.prisma.syncLog.update({
         where: { id: log.id },
         data: { statut: 'ECHOUEE', erreur, completedAt: new Date() },
@@ -486,12 +579,5 @@ export class SyncService {
     } finally {
       await remote.$disconnect();
     }
-  }
-
-  private async copyTable(remoteModel: any, fetch: () => Promise<any[]>): Promise<number> {
-    const records = await fetch();
-    if (records.length === 0) return 0;
-    const result = await remoteModel.createMany({ data: records, skipDuplicates: true });
-    return result.count;
   }
 }

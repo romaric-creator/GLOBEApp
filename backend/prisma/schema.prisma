@@ -825,7 +825,7 @@ model SyncLog {
   details      String?
   nbEnvois     Int        @default(0)
   nbRecus      Int        @default(0)
-  erreur       String?
+  erreur       String?    @db.Text
   createdAt    DateTime   @default(now())
   completedAt  DateTime?
 
