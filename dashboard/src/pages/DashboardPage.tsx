@@ -303,56 +303,57 @@ export default function DashboardPage() {
             </div>
           </Card>
 
-          {/* Graphique évolution — dynamique selon période */}
-          <Card>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
-              <Label>
-                {periode === 'annee' ? `Évolution mensuelle ${annee}` :
-                 periode === 'jour' ? "Journée" :
-                 periode === 'semaine' ? "7 derniers jours" :
-                 `Évolution — ${periodeInfo.label}`}
-              </Label>
-              <span style={{ fontSize: 10, color: '#9ca3af' }}>
-                {periode === 'annee'
-                  ? `Jan – ${dayjs().format('MMM')} ${annee}`
-                  : `${dayjs(periodeInfo.debut).format('DD/MM')} – ${dayjs(periodeInfo.fin).format('DD/MM')}`}
-              </span>
-            </div>
-            {chartQuery.isLoading && (
-              <div style={{ height: 80, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                <Spin size="small" />
+          {/* Graphique évolution — masqué pour vue journalière (1 seul point) */}
+          {periode !== 'jour' && (
+            <Card>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
+                <Label>
+                  {periode === 'annee' ? `Évolution mensuelle ${annee}` :
+                   periode === 'semaine' ? "7 derniers jours" :
+                   `Évolution — ${periodeInfo.label}`}
+                </Label>
+                <span style={{ fontSize: 10, color: '#9ca3af' }}>
+                  {periode === 'annee'
+                    ? `Jan – ${dayjs().format('MMM')} ${annee}`
+                    : `${dayjs(periodeInfo.debut).format('DD/MM')} – ${dayjs(periodeInfo.fin).format('DD/MM')}`}
+                </span>
               </div>
-            )}
-            {chartQuery.isError && (
-              <p style={{ margin: 0, fontSize: 12, color: '#9ca3af', textAlign: 'center', padding: '20px 0' }}>
-                Impossible de charger le graphique
-              </p>
-            )}
-            {!chartQuery.isLoading && !chartQuery.isError && chartQuery.data && chartQuery.data.length > 1 && (
-              <>
-                <CAChart
-                  data={chartQuery.data}
-                  labelFmt={(d) => periode === 'annee' ? dayjs(d).format('MMM') : dayjs(d).format('DD/MM')}
-                />
-                <div style={{ display: 'flex', alignItems: 'center', gap: 5, marginTop: 10, paddingTop: 10, borderTop: '1px solid #f3f4f6' }}>
-                  <div style={{ width: 8, height: 8, borderRadius: 99, background: '#C9A84C' }} />
-                  <span style={{ fontSize: 10, color: '#6b7280' }}>
-                    CA / {periode === 'annee' ? 'mois' : 'jour'}
-                  </span>
-                  <div style={{ marginLeft: 'auto' }}>
-                    <span style={{ fontSize: 11, fontWeight: 600, color: '#111827' }}>
-                      {fmt(chartQuery.data.reduce((s, d) => s + d.total, 0))} FCFA
-                    </span>
-                  </div>
+              {chartQuery.isLoading && (
+                <div style={{ height: 80, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                  <Spin size="small" />
                 </div>
-              </>
-            )}
-            {!chartQuery.isLoading && !chartQuery.isError && (!chartQuery.data || chartQuery.data.length <= 1) && (
-              <p style={{ margin: 0, fontSize: 12, color: '#9ca3af', textAlign: 'center', padding: '20px 0' }}>
-                Aucune donnée sur cette période
-              </p>
-            )}
-          </Card>
+              )}
+              {chartQuery.isError && (
+                <p style={{ margin: 0, fontSize: 12, color: '#9ca3af', textAlign: 'center', padding: '20px 0' }}>
+                  Impossible de charger le graphique
+                </p>
+              )}
+              {!chartQuery.isLoading && !chartQuery.isError && chartQuery.data && chartQuery.data.length > 1 && (
+                <>
+                  <CAChart
+                    data={chartQuery.data}
+                    labelFmt={(d) => periode === 'annee' ? dayjs(d).format('MMM') : dayjs(d).format('DD/MM')}
+                  />
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 5, marginTop: 10, paddingTop: 10, borderTop: '1px solid #f3f4f6' }}>
+                    <div style={{ width: 8, height: 8, borderRadius: 99, background: '#C9A84C' }} />
+                    <span style={{ fontSize: 10, color: '#6b7280' }}>
+                      CA / {periode === 'annee' ? 'mois' : 'jour'}
+                    </span>
+                    <div style={{ marginLeft: 'auto' }}>
+                      <span style={{ fontSize: 11, fontWeight: 600, color: '#111827' }}>
+                        {fmt(chartQuery.data.reduce((s, d) => s + d.total, 0))} FCFA
+                      </span>
+                    </div>
+                  </div>
+                </>
+              )}
+              {!chartQuery.isLoading && !chartQuery.isError && (!chartQuery.data || chartQuery.data.length <= 1) && (
+                <p style={{ margin: 0, fontSize: 12, color: '#9ca3af', textAlign: 'center', padding: '20px 0' }}>
+                  Pas encore assez de données sur cette période
+                </p>
+              )}
+            </Card>
+          )}
 
           {/* Répartition CA */}
           {ca && ca.total > 0 && (
