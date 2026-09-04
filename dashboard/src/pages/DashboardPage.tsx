@@ -229,16 +229,8 @@ export default function DashboardPage() {
         zIndex: 10,
       }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-          <div style={{
-            width: 32, height: 32, borderRadius: 8, background: '#1a1a1a',
-            display: 'flex', alignItems: 'center', justifyContent: 'center',
-          }}>
-            <span style={{ color: '#C9A84C', fontSize: 14, fontWeight: 800 }}>G</span>
-          </div>
-          <div>
-            <p style={{ margin: 0, fontSize: 14, fontWeight: 700, color: '#111827' }}>GLOBE</p>
-            <p style={{ margin: 0, fontSize: 10, color: '#9ca3af' }}>{user?.prenom} {user?.nom}</p>
-          </div>
+          <img src="/logo.png" alt="GLOBE" style={{ height: 32, width: 'auto', borderRadius: 6 }} />
+          <p style={{ margin: 0, fontSize: 10, color: '#9ca3af' }}>{user?.prenom} {user?.nom}</p>
         </div>
         <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
           <span style={{ fontSize: 10, color: '#d1d5db' }}>màj {lastUpdated}</span>
