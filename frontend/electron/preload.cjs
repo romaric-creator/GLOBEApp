@@ -6,6 +6,8 @@ contextBridge.exposeInMainWorld('electronAPI', {
   resetConfig: () => ipcRenderer.invoke('reset-config'),
   getServerUrl: () => ipcRenderer.invoke('get-server-url'),
   getVersion: () => ipcRenderer.invoke('get-version'),
+  getLogPath: () => ipcRenderer.invoke('get-log-path'),
+  getLogContent: () => ipcRenderer.invoke('get-log-content'),
   autostartIsEnabled: () => ipcRenderer.invoke('autostart-is-enabled'),
   autostartEnable: () => ipcRenderer.invoke('autostart-enable'),
   autostartDisable: () => ipcRenderer.invoke('autostart-disable'),

@@ -1,8 +1,22 @@
 const { app, BrowserWindow, ipcMain, Tray, Menu, dialog, session } = require('electron');
 const path = require('path');
+const fs = require('fs');
 const http = require('http');
 const { BackendRunner } = require('./backend-runner.cjs');
 const { loadConfig, saveConfig, resetConfig } = require('./config.cjs');
+
+// File logger — writes all init messages to userData/startup.log
+let _logPath = null;
+function getLogPath() {
+  if (!_logPath) _logPath = path.join(app.getPath('userData'), 'startup.log');
+  return _logPath;
+}
+function writeLog(level, msg) {
+  try {
+    const line = `[${new Date().toISOString()}] [${level}] ${msg}\n`;
+    fs.appendFileSync(getLogPath(), line);
+  } catch {}
+}
 
 // Performance optimizations
 app.commandLine.appendSwitch('enable-gpu-rasterization');
@@ -110,6 +124,9 @@ function createTray() {
 }
 
 function emitSplash(channel, data) {
+  if (channel === 'splash-status' || channel === 'splash-detail') {
+    writeLog(channel === 'splash-status' ? 'STATUS' : 'DETAIL', String(data ?? ''));
+  }
   if (splashWindow && !splashWindow.isDestroyed()) {
     splashWindow.webContents.send(channel, data);
   }
@@ -152,6 +169,9 @@ async function waitForRemoteBackend(url, timeoutSecs, emit) {
 }
 
 async function startup() {
+  writeLog('STATUS', `=== GLOBE Manager v${app.getVersion()} startup ===`);
+  writeLog('STATUS', `userData: ${app.getPath('userData')}`);
+  writeLog('STATUS', `platform: ${process.platform} / arch: ${process.arch}`);
   Menu.setApplicationMenu(null);
 
   session.defaultSession.webRequest.onHeadersReceived((details, callback) => {
@@ -274,6 +294,10 @@ ipcMain.handle('get-server-url', () => {
   return `http://localhost:${c.port || 3001}`;
 });
 ipcMain.handle('get-version', () => app.getVersion());
+ipcMain.handle('get-log-path', () => getLogPath());
+ipcMain.handle('get-log-content', () => {
+  try { return fs.readFileSync(getLogPath(), 'utf-8'); } catch { return ''; }
+});
 ipcMain.handle('autostart-is-enabled', () => {
   return app.getLoginItemSettings().openAtLogin;
 });
