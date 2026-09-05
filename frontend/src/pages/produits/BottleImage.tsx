@@ -8,16 +8,16 @@ interface BottleImageProps {
 }
 
 const CATEGORY_IMAGES: Record<string, string> = {
-  vins: '/images/bottles/vins.png',
-  bieres: '/images/bottles/bieres.png',
-  whisky: '/images/bottles/whisky.png',
-  cocktails: '/images/bottles/cocktails.png',
-  jus: '/images/bottles/jus.png',
-  sodas: '/images/bottles/sodas.png',
-  eau: '/images/bottles/eau.png',
+  vins: './images/bottles/vins.png',
+  bieres: './images/bottles/bieres.png',
+  whisky: './images/bottles/whisky.png',
+  cocktails: './images/bottles/cocktails.png',
+  jus: './images/bottles/jus.png',
+  sodas: './images/bottles/sodas.png',
+  eau: './images/bottles/eau.png',
 };
 
-const DEFAULT_IMAGE = '/images/bottles/default.png';
+const DEFAULT_IMAGE = './images/bottles/default.png';
 
 function getImagePath(categorie: string): string {
   const key = categorie.toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '');
