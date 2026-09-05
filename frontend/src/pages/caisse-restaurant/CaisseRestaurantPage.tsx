@@ -1,27 +1,30 @@
 import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { useMsg } from '../../hooks/useMsg';
 import {
   Card, Button, Modal, Form, InputNumber, Select, Input, Table, Tag,
-  Row, Col, Statistic, App, Empty, Descriptions, Popconfirm, Skeleton,
+  Row, Col, Statistic, App, Empty, Descriptions, Popconfirm, Skeleton, Space,
 } from 'antd';
 import {
   UnlockOutlined, LockOutlined, DollarOutlined, ShoppingOutlined, ExclamationCircleOutlined,
-  SwapOutlined, PrinterOutlined,
+  SwapOutlined, PrinterOutlined, EyeOutlined, HistoryOutlined,
 } from '@ant-design/icons';
 import { caisseApi, ticketsApi, MOYEN_OPTIONS } from '../../api/caisse';
 import type { Caisse, SessionCaisse, Paiement } from '../../api/caisse';
 import { restaurantApi } from '../../api/restaurant';
 import type { Commande } from '../../api/restaurant';
-import { getErrorMessage } from '../../api/errors';
 
 export default function CaisseRestaurantPage() {
   const { message } = App.useApp();
+  const { err } = useMsg();
   const queryClient = useQueryClient();
   const [ouvrirModalOpen, setOuvrirModalOpen] = useState(false);
   const [fermerModalOpen, setFermerModalOpen] = useState(false);
   const [encaisserModal, setEncaisserModal] = useState<Commande | null>(null);
   const [mouvementModalOpen, setMouvementModalOpen] = useState(false);
   const [closedSessionId, setClosedSessionId] = useState<string | null>(null);
+  const [histModalOpen, setHistModalOpen] = useState(false);
+  const [histPage, setHistPage] = useState(1);
   const [fondInitialForm] = Form.useForm();
   const [fermerForm] = Form.useForm();
   const [encaisserForm] = Form.useForm();
@@ -67,7 +70,7 @@ export default function CaisseRestaurantPage() {
   const ouvrirMutation = useMutation({
     mutationFn: (fondInitial: number) => caisseApi.ouvrirSession(caisse!.id, fondInitial),
     onSuccess: () => { setClosedSessionId(null); message.success('Caisse ouverte'); setOuvrirModalOpen(false); fondInitialForm.resetFields(); invalidate(); },
-    onError: (err: unknown) => message.error(getErrorMessage(err)),
+    onError: (e: unknown) => err(e),
   });
 
   const fermerMutation = useMutation({
@@ -80,20 +83,26 @@ export default function CaisseRestaurantPage() {
       fermerForm.resetFields();
       invalidate();
     },
-    onError: (err: unknown) => message.error(getErrorMessage(err)),
+    onError: (e: unknown) => err(e),
   });
 
   const encaisserMutation = useMutation({
     mutationFn: (data: { commandeId: string; montant: number; moyen: string }) =>
       caisseApi.encaisserRestaurant({ ...data, sessionId: (session as SessionCaisse).id }),
     onSuccess: () => { message.success('Paiement enregistre'); setEncaisserModal(null); encaisserForm.resetFields(); invalidate(); },
-    onError: (err: unknown) => message.error(getErrorMessage(err)),
+    onError: (e: unknown) => err(e),
   });
 
   const { data: mouvements } = useQuery({
     queryKey: ['mouvements-resto', (session as SessionCaisse)?.id],
     queryFn: () => caisseApi.getMouvements((session as SessionCaisse).id),
     enabled: !!session,
+  });
+
+  const { data: histData, isLoading: histLoading } = useQuery({
+    queryKey: ['caisse-hist-resto', caisse?.id, histPage],
+    queryFn: () => caisseApi.getHistorique(caisse!.id, histPage),
+    enabled: histModalOpen && !!caisse,
   });
 
   const mouvementMutation = useMutation({
@@ -106,7 +115,7 @@ export default function CaisseRestaurantPage() {
       queryClient.invalidateQueries({ queryKey: ['mouvements-resto'] });
       invalidate();
     },
-    onError: (err: unknown) => message.error(getErrorMessage(err)),
+    onError: (e: unknown) => err(e),
   });
 
   const loading = caisseLoading || sessionLoading;
@@ -162,6 +171,8 @@ export default function CaisseRestaurantPage() {
     },
   ];
 
+  if (caisseLoading || !caisse) return <Skeleton active />;
+
   return (
     <div id="tour-caisse-resto-page">
       <div id="tour-caisse-resto-header" className="flex items-center justify-between mb-6">
@@ -176,42 +187,54 @@ export default function CaisseRestaurantPage() {
             )}
           </p>
         </div>
-        {session ? (
-          <Popconfirm
-            title="Cloturer la caisse ?"
-            description="Vous allez saisir le montant reel et generer le rapport de cloture."
-            icon={<ExclamationCircleOutlined style={{ color: '#ff4d4f' }} />}
-            onConfirm={() => setFermerModalOpen(true)}
-            okText="Continuer"
-            okButtonProps={{ danger: true }}
-            cancelText="Annuler"
-          >
-            <Button danger icon={<LockOutlined />}>Cloturer la caisse</Button>
-          </Popconfirm>
-        ) : (
-          <Button type="primary" icon={<UnlockOutlined />} onClick={() => setOuvrirModalOpen(true)}>
-            Ouvrir la caisse
+        <Space>
+          <Button icon={<HistoryOutlined />} onClick={() => { setHistPage(1); setHistModalOpen(true); }}>
+            Historique
           </Button>
-        )}
+          {session ? (
+            <Popconfirm
+              title="Cloturer la caisse ?"
+              description="Vous allez saisir le montant reel et generer le rapport de cloture."
+              icon={<ExclamationCircleOutlined style={{ color: '#ff4d4f' }} />}
+              onConfirm={() => setFermerModalOpen(true)}
+              okText="Continuer"
+              okButtonProps={{ danger: true }}
+              cancelText="Annuler"
+            >
+              <Button danger icon={<LockOutlined />}>Cloturer la caisse</Button>
+            </Popconfirm>
+          ) : (
+            <Button type="primary" icon={<UnlockOutlined />} onClick={() => setOuvrirModalOpen(true)}>
+              Ouvrir la caisse
+            </Button>
+          )}
+        </Space>
       </div>
 
       {!session ? (
         <div className="text-center">
           <Empty description="La caisse est fermee. Ouvrez une session pour commencer." />
           {closedSessionId && (
-            <Button
-              className="mt-4"
-              icon={<PrinterOutlined />}
-              onClick={async () => {
-                try {
-                  const blob = await ticketsApi.imprimerCloture(closedSessionId);
-                  const url = URL.createObjectURL(new Blob([blob], { type: 'application/pdf' }));
-                  window.open(url, '_blank');
-                } catch { message.error('Erreur lors de l\'impression'); }
-              }}
-            >
-              Imprimer rapport de cloture
-            </Button>
+            <Space className="mt-4">
+              <Button
+                icon={<PrinterOutlined />}
+                onClick={async () => {
+                  try { await ticketsApi.imprimerCloture(closedSessionId); message.success('Rapport envoyé'); }
+                  catch { message.error('Erreur lors de l\'impression'); }
+                }}
+              >
+                Imprimer rapport de cloture
+              </Button>
+              <Button
+                icon={<EyeOutlined />}
+                onClick={async () => {
+                  try { await ticketsApi.apercevoirCloture(closedSessionId); }
+                  catch { message.error('Erreur apercu'); }
+                }}
+              >
+                Apercu
+              </Button>
+            </Space>
           )}
         </div>
       ) : (
@@ -423,6 +446,89 @@ export default function CaisseRestaurantPage() {
             <Input.TextArea rows={2} />
           </Form.Item>
         </Form>
+      </Modal>
+      <Modal
+        title="Historique des sessions — Caisse Restaurant / Bar"
+        open={histModalOpen}
+        onCancel={() => setHistModalOpen(false)}
+        footer={null}
+        width={860}
+      >
+        <Table
+          dataSource={histData?.data || []}
+          rowKey="id"
+          loading={histLoading}
+          size="small"
+          pagination={{
+            current: histPage,
+            pageSize: 20,
+            total: histData?.total || 0,
+            onChange: (p) => setHistPage(p),
+            showTotal: (t) => `${t} sessions`,
+          }}
+          columns={[
+            {
+              title: 'Ouverture',
+              dataIndex: 'ouvertureAt',
+              key: 'ouv',
+              width: 150,
+              render: (d: string) => new Date(d).toLocaleString('fr-FR', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' }),
+            },
+            {
+              title: 'Fermeture',
+              dataIndex: 'fermetureAt',
+              key: 'ferm',
+              width: 150,
+              render: (d: string | null) => d
+                ? new Date(d).toLocaleString('fr-FR', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' })
+                : <Tag color="green">En cours</Tag>,
+            },
+            {
+              title: 'Caissier',
+              key: 'user',
+              width: 140,
+              render: (_: unknown, r: SessionCaisse) => r.user ? `${r.user.nom} ${r.user.prenom}` : '—',
+            },
+            {
+              title: 'Statut',
+              dataIndex: 'statut',
+              key: 'statut',
+              width: 90,
+              render: (s: string) => <Tag color={s === 'OUVERTE' ? 'green' : 'default'}>{s}</Tag>,
+            },
+            {
+              title: 'Fond initial',
+              dataIndex: 'fondInitial',
+              key: 'fond',
+              width: 120,
+              render: (v: number) => `${Number(v).toLocaleString()} FCFA`,
+            },
+            {
+              title: 'Total theorique',
+              dataIndex: 'totalTheorique',
+              key: 'theo',
+              width: 130,
+              render: (v: number) => `${Number(v).toLocaleString()} FCFA`,
+            },
+            {
+              title: 'Ecart',
+              dataIndex: 'ecart',
+              key: 'ecart',
+              width: 110,
+              render: (v: number) => (
+                <span style={{ color: Number(v) === 0 ? undefined : Number(v) > 0 ? '#52c41a' : '#ff4d4f' }}>
+                  {Number(v) > 0 ? '+' : ''}{Number(v).toLocaleString()} FCFA
+                </span>
+              ),
+            },
+            {
+              title: 'Paiements',
+              key: 'nb',
+              width: 90,
+              render: (_: unknown, r: SessionCaisse) => r._count?.paiements ?? '—',
+            },
+          ]}
+        />
       </Modal>
     </div>
   );
