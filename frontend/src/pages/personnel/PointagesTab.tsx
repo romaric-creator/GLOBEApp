@@ -1,14 +1,106 @@
-import { useState } from 'react';
+import { useState, useEffect, type CSSProperties } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { Table, Button, Modal, Form, Select, DatePicker, TimePicker, Tag, Card, Row, Col, Statistic, Alert, App, Divider } from 'antd';
+import { Table, Button, Modal, Form, Select, DatePicker, Tag, Card, Row, Col, Statistic, Alert, App, Divider } from 'antd';
 import { PlusOutlined, CheckCircleOutlined, CloseCircleOutlined, ToolOutlined } from '@ant-design/icons';
 import { personnelApi } from '../../api/personnel';
 import type { Pointage, Presence } from '../../api/personnel';
-import dayjs from 'dayjs';
-import { getErrorMessage } from '../../api/errors';
+import dayjs, { type Dayjs } from 'dayjs';
+import { useMsg } from '../../hooks/useMsg';
+
+const _btnBase: CSSProperties = {
+  padding: '8px 0',
+  background: 'rgba(255,255,255,0.03)',
+  border: '1px solid rgba(201,168,76,0.12)',
+  borderRadius: 5,
+  color: '#e8e0d0',
+  fontFamily: '"Cascadia Code","Consolas",monospace',
+  fontSize: 15,
+  fontWeight: 600,
+  cursor: 'pointer',
+};
+
+function TimeNumpad({ value, onChange }: { value?: Dayjs | null; onChange?: (v: Dayjs | null) => void }) {
+  const [digits, setDigits] = useState<number[]>([]);
+
+  useEffect(() => {
+    if (value === undefined) setDigits([]);
+  }, [value]);
+
+  function push(d: number) {
+    if (digits.length >= 4) return;
+    if (digits.length === 0 && d > 2) return;
+    if (digits.length === 1 && digits[0] === 2 && d > 3) return;
+    if (digits.length === 2 && d > 5) return;
+    const next = [...digits, d];
+    setDigits(next);
+    if (next.length === 4) {
+      onChange?.(dayjs().hour(next[0] * 10 + next[1]).minute(next[2] * 10 + next[3]).second(0));
+    }
+  }
+
+  function back() {
+    if (digits.length === 0) return;
+    setDigits(digits.slice(0, -1));
+    onChange?.(null);
+  }
+
+  function clear() {
+    setDigits([]);
+    onChange?.(null);
+  }
+
+  const d = digits;
+  const complete = d.length === 4;
+  const display = [
+    d[0] !== undefined ? d[0] : '–',
+    d[1] !== undefined ? d[1] : '–',
+    ':',
+    d[2] !== undefined ? d[2] : '–',
+    d[3] !== undefined ? d[3] : '–',
+  ].join('');
+
+  return (
+    <div>
+      <div style={{
+        background: '#0d1117',
+        border: `1px solid ${complete ? 'rgba(201,168,76,0.5)' : 'rgba(201,168,76,0.15)'}`,
+        borderRadius: 6,
+        padding: '8px 12px',
+        fontFamily: '"Cascadia Code","Consolas",monospace',
+        fontSize: 22,
+        fontWeight: 700,
+        letterSpacing: 6,
+        color: complete ? '#C9A84C' : 'rgba(232,224,208,0.45)',
+        textAlign: 'center',
+        marginBottom: 6,
+        textShadow: complete ? '0 0 10px rgba(201,168,76,0.35)' : 'none',
+        transition: 'border-color 0.15s, color 0.15s',
+      }}>
+        {display}
+      </div>
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 4 }}>
+        {[7, 8, 9, 4, 5, 6, 1, 2, 3].map(n => (
+          <button key={n} type="button" onClick={() => push(n)}
+            className="hover:!bg-white/10 active:scale-95 transition-colors"
+            style={_btnBase}>{n}</button>
+        ))}
+        <button type="button" onClick={back}
+          className="hover:!bg-white/10 active:scale-95 transition-colors"
+          style={{ ..._btnBase, color: '#ff9a8a' }}>⌫</button>
+        <button type="button" onClick={() => push(0)}
+          className="hover:!bg-white/10 active:scale-95 transition-colors"
+          style={_btnBase}>0</button>
+        <button type="button" onClick={clear}
+          className="hover:!bg-white/10 active:scale-95 transition-colors"
+          style={{ ..._btnBase, color: '#ff9a8a', fontSize: 11 }}>CLR</button>
+      </div>
+    </div>
+  );
+}
 
 export default function PointagesTab() {
   const { message } = App.useApp();
+  const { err } = useMsg();
   const queryClient = useQueryClient();
   const [modalOpen, setModalOpen] = useState(false);
   const [selectedDate, setSelectedDate] = useState<string | null>(null);
@@ -38,7 +130,7 @@ export default function PointagesTab() {
       queryClient.invalidateQueries({ queryKey: ['pointages'] });
       queryClient.invalidateQueries({ queryKey: ['presences'] });
     },
-    onError: (err: unknown) => message.error(getErrorMessage(err)),
+    onError: (e: unknown) => err(e),
   });
 
   const nbPresents = presences?.filter((p: Presence) => p.present).length || 0;
@@ -202,12 +294,18 @@ export default function PointagesTab() {
           <Form.Item name="date" label="Date" rules={[{ required: true }]} initialValue={dayjs()}>
             <DatePicker className="w-full" />
           </Form.Item>
-          <Form.Item name="heureArrivee" label="Heure d'arrivee">
-            <TimePicker format="HH:mm" className="w-full" />
-          </Form.Item>
-          <Form.Item name="heureDepart" label="Heure de depart">
-            <TimePicker format="HH:mm" className="w-full" />
-          </Form.Item>
+          <Row gutter={12}>
+            <Col span={12}>
+              <Form.Item name="heureArrivee" label="Heure d'arrivee">
+                <TimeNumpad />
+              </Form.Item>
+            </Col>
+            <Col span={12}>
+              <Form.Item name="heureDepart" label="Heure de depart">
+                <TimeNumpad />
+              </Form.Item>
+            </Col>
+          </Row>
           <Form.Item name="methode" label="Methode" initialValue="MANUEL">
             <Select options={[
               { value: 'MANUEL', label: 'Manuel' },
