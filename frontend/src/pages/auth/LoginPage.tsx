@@ -1,16 +1,16 @@
-import { Form, Input, Button, App } from "antd";
+import { Form, Input, Button } from "antd";
 import { LockOutlined, MailOutlined } from "@ant-design/icons";
 import { useNavigate } from "react-router-dom";
 import { useQueryClient } from "@tanstack/react-query";
 import { authApi } from "../../api/auth";
 import type { LoginDto } from "../../api/auth";
-import { getErrorMessage } from "../../api/errors";
 import { useAuthStore } from "../../store/auth";
+import { useMsg } from '../../hooks/useMsg';
 
 export default function LoginPage() {
   const navigate = useNavigate();
   const { setUser } = useAuthStore();
-  const { message } = App.useApp();
+  const { err } = useMsg();
   const queryClient = useQueryClient();
   const [form] = Form.useForm();
 
@@ -23,7 +23,7 @@ export default function LoginPage() {
       setUser(data.user);
       navigate("/dashboard");
     } catch (error) {
-      message.error(getErrorMessage(error));
+      err(error);
     }
   };
 
