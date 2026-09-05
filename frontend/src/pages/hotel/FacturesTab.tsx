@@ -5,10 +5,12 @@ import { DollarOutlined, HistoryOutlined } from '@ant-design/icons';
 import { hotelApi } from '../../api/hotel';
 import type { FactureSejour } from '../../api/hotel';
 import { caisseApi, MOYEN_OPTIONS } from '../../api/caisse';
+import { useMsg } from '../../hooks/useMsg';
 
 
 export default function FactureSejoursTab() {
   const { message } = App.useApp();
+  const { err } = useMsg();
   const qc = useQueryClient();
   const [trancheFactureSejour, setTrancheFactureSejour] = useState<FactureSejour | null>(null);
   const [trancheForm] = Form.useForm();
@@ -33,9 +35,7 @@ export default function FactureSejoursTab() {
       refetchTranches();
       qc.invalidateQueries({ queryKey: ['hotel-factures'] });
     },
-    onError: (err: { response?: { data?: { message?: string } } }) => {
-      message.error(err.response?.data?.message || 'Erreur');
-    },
+    onError: (e: unknown) => err(e),
   });
 
   const columns = [

@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { useMsg } from '../../hooks/useMsg';
 import {
   Table, Button, Modal, Form, Input, Select, InputNumber,
   Tag, Card, Row, Col, Statistic, App, Popconfirm, Space, Tabs, Badge, Alert,
@@ -12,7 +13,6 @@ import { piscineApi } from '../../api/piscine';
 import { clientsApi } from '../../api/clients';
 import type { AccessoirePiscine, TransactionAccessoire, TicketPiscine } from '../../api/piscine';
 import type { Client } from '../../api/clients';
-import { getErrorMessage } from '../../api/errors';
 
 const TYPE_LABELS: Record<string, string> = {
   VENTE: 'Vente',
@@ -34,6 +34,7 @@ const TX_COLORS: Record<string, string> = {
 
 export default function AccessoiresTab() {
   const { message } = App.useApp();
+  const { err } = useMsg();
   const queryClient = useQueryClient();
   const [modalOpen, setModalOpen] = useState(false);
   const [txModalOpen, setTxModalOpen] = useState(false);
@@ -77,7 +78,7 @@ export default function AccessoiresTab() {
       closeModal();
       queryClient.invalidateQueries({ queryKey: ['accessoires-piscine'] });
     },
-    onError: (err: unknown) => message.error(getErrorMessage(err)),
+    onError: (e: unknown) => err(e),
   });
 
   const updateMutation = useMutation({
@@ -88,7 +89,7 @@ export default function AccessoiresTab() {
       closeModal();
       queryClient.invalidateQueries({ queryKey: ['accessoires-piscine'] });
     },
-    onError: (err: unknown) => message.error(getErrorMessage(err)),
+    onError: (e: unknown) => err(e),
   });
 
   const deleteMutation = useMutation({
@@ -97,7 +98,7 @@ export default function AccessoiresTab() {
       message.success('Accessoire desactive');
       queryClient.invalidateQueries({ queryKey: ['accessoires-piscine'] });
     },
-    onError: (err: unknown) => message.error(getErrorMessage(err)),
+    onError: (e: unknown) => err(e),
   });
 
   const txMutation = useMutation({
@@ -112,7 +113,7 @@ export default function AccessoiresTab() {
       queryClient.invalidateQueries({ queryKey: ['accessoires-piscine'] });
       queryClient.invalidateQueries({ queryKey: ['transactions-accessoire'] });
     },
-    onError: (err: unknown) => message.error(getErrorMessage(err)),
+    onError: (e: unknown) => err(e),
   });
 
   const closeModal = () => {

@@ -4,13 +4,14 @@ import { Table, Button, Modal, Form, Input, Space, Popconfirm, App } from 'antd'
 import { PlusOutlined, DeleteOutlined } from '@ant-design/icons';
 import { produitsApi } from '../../api/produits';
 import type { Categorie } from '../../api/produits';
-import { getErrorMessage } from '../../api/errors';
+import { useMsg } from '../../hooks/useMsg';
 
 export default function CategoriesTab() {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [form] = Form.useForm();
   const queryClient = useQueryClient();
   const { message } = App.useApp();
+  const { err } = useMsg();
 
   const { data: categories, isLoading } = useQuery({
     queryKey: ['categories'],
@@ -25,7 +26,7 @@ export default function CategoriesTab() {
       setIsModalOpen(false);
       form.resetFields();
     },
-    onError: (err: unknown) => message.error(getErrorMessage(err)),
+    onError: (e: unknown) => err(e),
   });
 
   const deleteMutation = useMutation({
@@ -34,7 +35,7 @@ export default function CategoriesTab() {
       queryClient.invalidateQueries({ queryKey: ['categories'] });
       message.success('Categorie supprimee');
     },
-    onError: (err: unknown) => message.error(getErrorMessage(err)),
+    onError: (e: unknown) => err(e),
   });
 
   const columns = [

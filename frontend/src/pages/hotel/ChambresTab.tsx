@@ -4,7 +4,7 @@ import { Button, Modal, Form, Input, Select, InputNumber, Tag, Card, Row, Col, S
 import { PlusOutlined, HomeOutlined, CheckCircleOutlined, CloseCircleOutlined, ToolOutlined } from '@ant-design/icons';
 import { hotelApi } from '../../api/hotel';
 import type { Chambre } from '../../api/hotel';
-import { getErrorMessage } from '../../api/errors';
+import { useMsg } from '../../hooks/useMsg';
 
 const TYPE_COLORS: Record<string, string> = {
   STANDARD: 'gold',
@@ -24,6 +24,7 @@ const STATUT_BG: Record<string, string> = {
 
 export default function ChambresTab() {
   const { message } = App.useApp();
+  const { err } = useMsg();
   const queryClient = useQueryClient();
   const [modalOpen, setModalOpen] = useState(false);
   const [editingChambre, setEditingChambre] = useState<Chambre | null>(null);
@@ -47,7 +48,7 @@ export default function ChambresTab() {
       queryClient.invalidateQueries({ queryKey: ['chambres'] });
       queryClient.invalidateQueries({ queryKey: ['hotel-stats'] });
     },
-    onError: (err: unknown) => message.error(getErrorMessage(err)),
+    onError: (e: unknown) => err(e),
   });
 
   const updateMutation = useMutation({
@@ -58,7 +59,7 @@ export default function ChambresTab() {
       queryClient.invalidateQueries({ queryKey: ['chambres'] });
       queryClient.invalidateQueries({ queryKey: ['hotel-stats'] });
     },
-    onError: (err: unknown) => message.error(getErrorMessage(err)),
+    onError: (e: unknown) => err(e),
   });
 
   const deleteMutation = useMutation({
@@ -68,7 +69,7 @@ export default function ChambresTab() {
       queryClient.invalidateQueries({ queryKey: ['chambres'] });
       queryClient.invalidateQueries({ queryKey: ['hotel-stats'] });
     },
-    onError: (err: unknown) => message.error(getErrorMessage(err)),
+    onError: (e: unknown) => err(e),
   });
 
   const closeModal = () => {

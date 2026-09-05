@@ -5,10 +5,11 @@ import { PlusOutlined } from '@ant-design/icons';
 import { piscineApi } from '../../api/piscine';
 import { clientsApi } from '../../api/clients';
 import type { AbonnementLoisir } from '../../api/piscine';
-import { getErrorMessage } from '../../api/errors';
+import { useMsg } from '../../hooks/useMsg';
 
 export default function AbonnementsTab() {
   const { message } = App.useApp();
+  const { err } = useMsg();
   const queryClient = useQueryClient();
   const [modalOpen, setModalOpen] = useState(false);
   const [form] = Form.useForm();
@@ -32,7 +33,7 @@ export default function AbonnementsTab() {
       queryClient.invalidateQueries({ queryKey: ['abonnements-loisir'] });
       queryClient.invalidateQueries({ queryKey: ['piscine-stats'] });
     },
-    onError: (err: unknown) => message.error(getErrorMessage(err)),
+    onError: (e: unknown) => err(e),
   });
 
   const resilierMutation = useMutation({
@@ -42,7 +43,7 @@ export default function AbonnementsTab() {
       queryClient.invalidateQueries({ queryKey: ['abonnements-loisir'] });
       queryClient.invalidateQueries({ queryKey: ['piscine-stats'] });
     },
-    onError: (err: unknown) => message.error(getErrorMessage(err)),
+    onError: (e: unknown) => err(e),
   });
 
   const columns = [

@@ -2,6 +2,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { Table, Button, Card, Row, Col, Statistic, Tag, App } from 'antd';
 import { CloudOutlined, DatabaseOutlined, ReloadOutlined } from '@ant-design/icons';
 import { sauvegardeApi } from '../../api/sauvegarde';
+import { useMsg } from '../../hooks/useMsg';
 
 const STATUT_COLORS: Record<string, string> = {
   EN_COURS: 'processing',
@@ -23,6 +24,7 @@ function formatTaille(bytes: number | null): string {
 
 export default function SauvegardePage() {
   const { message } = App.useApp();
+  const { err } = useMsg();
   const queryClient = useQueryClient();
 
   const { data: sauvegardes, isLoading } = useQuery({
@@ -42,9 +44,7 @@ export default function SauvegardePage() {
       queryClient.invalidateQueries({ queryKey: ['sauvegardes'] });
       queryClient.invalidateQueries({ queryKey: ['sauvegarde-stats'] });
     },
-    onError: (err: { response?: { data?: { message?: string } } }) => {
-      message.error(err.response?.data?.message || 'Erreur lors de la sauvegarde');
-    },
+    onError: (e: unknown) => err(e),
   });
 
   const columns = [

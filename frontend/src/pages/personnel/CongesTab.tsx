@@ -4,7 +4,7 @@ import { Table, Button, Modal, Form, Select, DatePicker, Input, Tag, Space, App,
 import { PlusOutlined, CheckOutlined, CloseOutlined } from '@ant-design/icons';
 import { personnelApi } from '../../api/personnel';
 import type { Conge } from '../../api/personnel';
-import { getErrorMessage } from '../../api/errors';
+import { useMsg } from '../../hooks/useMsg';
 
 const statutColors: Record<string, string> = {
   EN_ATTENTE: 'processing',
@@ -23,6 +23,7 @@ const typeLabels: Record<string, string> = {
 
 export default function CongesTab() {
   const { message } = App.useApp();
+  const { err } = useMsg();
   const queryClient = useQueryClient();
   const [modalOpen, setModalOpen] = useState(false);
   const [form] = Form.useForm();
@@ -45,7 +46,7 @@ export default function CongesTab() {
       form.resetFields();
       queryClient.invalidateQueries({ queryKey: ['conges'] });
     },
-    onError: (err: unknown) => message.error(getErrorMessage(err)),
+    onError: (e: unknown) => err(e),
   });
 
   const approuverMutation = useMutation({
@@ -54,7 +55,7 @@ export default function CongesTab() {
       message.success('Conge approuve');
       queryClient.invalidateQueries({ queryKey: ['conges'] });
     },
-    onError: (err: unknown) => message.error(getErrorMessage(err)),
+    onError: (e: unknown) => err(e),
   });
 
   const refuserMutation = useMutation({
@@ -63,7 +64,7 @@ export default function CongesTab() {
       message.success('Conge refuse');
       queryClient.invalidateQueries({ queryKey: ['conges'] });
     },
-    onError: (err: unknown) => message.error(getErrorMessage(err)),
+    onError: (e: unknown) => err(e),
   });
 
   const columns = [

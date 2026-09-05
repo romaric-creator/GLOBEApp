@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { useMsg } from '../../hooks/useMsg';
 import {
   Card, Row, Col, Statistic, Tabs, Table, Button, Modal, Form,
   Input, InputNumber, Select, DatePicker, Popconfirm, Tag, App, Progress,
@@ -11,7 +12,6 @@ import {
 import dayjs from 'dayjs';
 import { comptabiliteApi } from '../../api/comptabilite';
 import type { Depense, MoisHistorique } from '../../api/comptabilite';
-import { getErrorMessage } from '../../api/errors';
 
 const CENTRES = [
   { value: 'HOTEL', label: 'Hotel', color: 'gold' },
@@ -76,6 +76,7 @@ function BarChart({ data }: { data: MoisHistorique[] }) {
 
 export default function ComptabilitePage() {
   const { message } = App.useApp();
+  const { err } = useMsg();
   const qc = useQueryClient();
   const [mois, setMois] = useState<string | undefined>(undefined);
   const [depenseModal, setDepenseModal] = useState(false);
@@ -124,7 +125,7 @@ export default function ComptabilitePage() {
       form.resetFields();
       invalidate();
     },
-    onError: (err: unknown) => message.error(getErrorMessage(err)),
+    onError: (e: unknown) => err(e),
   });
 
   const deleteMutation = useMutation({

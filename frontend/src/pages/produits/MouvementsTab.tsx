@@ -4,7 +4,7 @@ import { Table, Button, Modal, Form, InputNumber, Select, Input, Tag, App } from
 import { PlusOutlined } from '@ant-design/icons';
 import { produitsApi } from '../../api/produits';
 import type { CreateMouvementDto, Produit } from '../../api/produits';
-import { getErrorMessage } from '../../api/errors';
+import { useMsg } from '../../hooks/useMsg';
 
 const typeColors: Record<string, string> = {
   ENTREE: 'green',
@@ -18,6 +18,7 @@ export default function MouvementsTab() {
   const [form] = Form.useForm();
   const queryClient = useQueryClient();
   const { message } = App.useApp();
+  const { err } = useMsg();
 
   const { data: mouvements, isLoading } = useQuery({
     queryKey: ['mouvements'],
@@ -38,7 +39,7 @@ export default function MouvementsTab() {
       setIsModalOpen(false);
       form.resetFields();
     },
-    onError: (err: unknown) => message.error(getErrorMessage(err)),
+    onError: (e: unknown) => err(e),
   });
 
   const columns = [

@@ -5,7 +5,7 @@ import { PlusOutlined, EditOutlined, DeleteOutlined, SearchOutlined } from '@ant
 import { clientsApi } from '../../api/clients';
 import type { Client, CreateClientDto } from '../../api/clients';
 import EmptyState from '../../components/EmptyState';
-import { getErrorMessage } from '../../api/errors';
+import { useMsg } from '../../hooks/useMsg';
 
 export default function ClientsPage() {
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -13,6 +13,7 @@ export default function ClientsPage() {
   const [form] = Form.useForm();
   const queryClient = useQueryClient();
   const { message } = App.useApp();
+  const { err } = useMsg();
 
   const { data: clients, isLoading } = useQuery({
     queryKey: ['clients'],
@@ -26,7 +27,7 @@ export default function ClientsPage() {
       message.success('Client cree');
       closeModal();
     },
-    onError: (err: unknown) => message.error(getErrorMessage(err)),
+    onError: (e: unknown) => err(e),
   });
 
   const updateMutation = useMutation({
@@ -37,7 +38,7 @@ export default function ClientsPage() {
       message.success('Client modifie');
       closeModal();
     },
-    onError: (err: unknown) => message.error(getErrorMessage(err)),
+    onError: (e: unknown) => err(e),
   });
 
   const deleteMutation = useMutation({
@@ -46,7 +47,7 @@ export default function ClientsPage() {
       queryClient.invalidateQueries({ queryKey: ['clients'] });
       message.success('Client supprime');
     },
-    onError: (err: unknown) => message.error(getErrorMessage(err)),
+    onError: (e: unknown) => err(e),
   });
 
   const openCreate = () => {

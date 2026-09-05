@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { useMsg } from '../../hooks/useMsg';
 import {
   Table, Button, Modal, Form, Select, Input, InputNumber,
   DatePicker, TimePicker, Tag, Card, Row, Col, Statistic,
@@ -13,7 +14,6 @@ import { salleFeteApi } from '../../api/salle-fete';
 import { clientsApi } from '../../api/clients';
 import type { ReservationSalle, TypeReservationSalle } from '../../api/salle-fete';
 import type { Client } from '../../api/clients';
-import { getErrorMessage } from '../../api/errors';
 
 const STATUT_COLORS: Record<string, string> = {
   EN_ATTENTE: 'orange',
@@ -34,6 +34,7 @@ const STATUT_LABELS: Record<string, string> = {
 // ─────────────────────────────────────────────────────────
 function TypesTab() {
   const { message } = App.useApp();
+  const { err } = useMsg();
   const queryClient = useQueryClient();
   const [modalOpen, setModalOpen] = useState(false);
   const [editingType, setEditingType] = useState<TypeReservationSalle | null>(null);
@@ -51,7 +52,7 @@ function TypesTab() {
       closeModal();
       queryClient.invalidateQueries({ queryKey: ['types-reservation-salle'] });
     },
-    onError: (err: unknown) => message.error(getErrorMessage(err)),
+    onError: (e: unknown) => err(e),
   });
 
   const updateMutation = useMutation({
@@ -62,7 +63,7 @@ function TypesTab() {
       closeModal();
       queryClient.invalidateQueries({ queryKey: ['types-reservation-salle'] });
     },
-    onError: (err: unknown) => message.error(getErrorMessage(err)),
+    onError: (e: unknown) => err(e),
   });
 
   const deleteMutation = useMutation({
@@ -71,7 +72,7 @@ function TypesTab() {
       message.success('Type desactive');
       queryClient.invalidateQueries({ queryKey: ['types-reservation-salle'] });
     },
-    onError: (err: unknown) => message.error(getErrorMessage(err)),
+    onError: (e: unknown) => err(e),
   });
 
   const closeModal = () => {
@@ -203,6 +204,7 @@ function TypesTab() {
 // ─────────────────────────────────────────────────────────
 function ReservationsTab() {
   const { message } = App.useApp();
+  const { err } = useMsg();
   const queryClient = useQueryClient();
   const [modalOpen, setModalOpen] = useState(false);
   const [filterStatut, setFilterStatut] = useState<string | undefined>(undefined);
@@ -241,25 +243,25 @@ function ReservationsTab() {
       form.resetFields();
       invalidateAll();
     },
-    onError: (err: unknown) => message.error(getErrorMessage(err)),
+    onError: (e: unknown) => err(e),
   });
 
   const confirmerMutation = useMutation({
     mutationFn: salleFeteApi.confirmer,
     onSuccess: () => { message.success('Reservation confirmee'); invalidateAll(); },
-    onError: (err: unknown) => message.error(getErrorMessage(err)),
+    onError: (e: unknown) => err(e),
   });
 
   const annulerMutation = useMutation({
     mutationFn: salleFeteApi.annuler,
     onSuccess: () => { message.success('Reservation annulee'); invalidateAll(); },
-    onError: (err: unknown) => message.error(getErrorMessage(err)),
+    onError: (e: unknown) => err(e),
   });
 
   const terminerMutation = useMutation({
     mutationFn: salleFeteApi.terminer,
     onSuccess: () => { message.success('Evenement termine'); invalidateAll(); },
-    onError: (err: unknown) => message.error(getErrorMessage(err)),
+    onError: (e: unknown) => err(e),
   });
 
   const columns = [

@@ -1,5 +1,6 @@
 import { useState, useMemo } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useMsg } from '../../hooks/useMsg';
 import {
   Table,
   Button,
@@ -35,7 +36,6 @@ import type { Produit, CreateProduitDto } from "../../api/produits";
 import CategoriesTab from "./CategoriesTab";
 import MouvementsTab from "./MouvementsTab";
 import BoissonsGrid from "./BoissonsGrid";
-import { getErrorMessage } from "../../api/errors";
 
 export default function ProduitsPage() {
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -46,6 +46,7 @@ export default function ProduitsPage() {
   const [form] = Form.useForm();
   const queryClient = useQueryClient();
   const { message } = App.useApp();
+  const { err } = useMsg();
 
   const { data: produits, isLoading } = useQuery({
     queryKey: ["produits"],
@@ -64,7 +65,7 @@ export default function ProduitsPage() {
       message.success("Produit créé");
       closeModal();
     },
-    onError: (err: unknown) => message.error(getErrorMessage(err)),
+    onError: (e: unknown) => err(e),
   });
 
   const updateMutation = useMutation({
@@ -80,7 +81,7 @@ export default function ProduitsPage() {
       message.success("Produit modifié");
       closeModal();
     },
-    onError: (err: unknown) => message.error(getErrorMessage(err)),
+    onError: (e: unknown) => err(e),
   });
 
   const deleteMutation = useMutation({

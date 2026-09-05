@@ -1,9 +1,11 @@
 import { useState, useEffect, useCallback } from 'react';
+import { useMsg } from '../../hooks/useMsg';
 import {
   Tabs,
   Card,
   Form,
   Input,
+  InputNumber,
   Button,
   Row,
   Col,
@@ -36,6 +38,7 @@ import {
   GlobalOutlined,
   TeamOutlined,
   SafetyOutlined,
+  PrinterOutlined,
 } from '@ant-design/icons';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import type { ColumnsType } from 'antd/es/table';
@@ -78,6 +81,7 @@ function useStatusAlert() {
 
 function TabCompte({ userId, isAdmin }: { userId: string; isAdmin: boolean }) {
   const { message } = App.useApp();
+  const { err } = useMsg();
   const queryClient = useQueryClient();
   const [pwForm] = Form.useForm();
   const [profileForm] = Form.useForm();
@@ -88,14 +92,14 @@ function TabCompte({ userId, isAdmin }: { userId: string; isAdmin: boolean }) {
   });
 
   useEffect(() => {
-    if (profile) {
+    if (profile && isAdmin) {
       profileForm.setFieldsValue({
         nom: profile.nom,
         prenom: profile.prenom,
         telephone: profile.telephone ?? '',
       });
     }
-  }, [profile, profileForm]);
+  }, [profile, profileForm, isAdmin]);
 
   const changePasswordMutation = useMutation({
     mutationFn: authApi.changePassword,
@@ -114,7 +118,7 @@ function TabCompte({ userId, isAdmin }: { userId: string; isAdmin: boolean }) {
       message.success('Profil mis à jour');
       queryClient.invalidateQueries({ queryKey: ['profile'] });
     },
-    onError: () => message.error('Impossible de mettre à jour le profil. Veuillez réessayer.'),
+    onError: () => err('Impossible de mettre à jour le profil. Veuillez réessayer.'),
   });
 
   return (
@@ -234,6 +238,7 @@ function TabCompte({ userId, isAdmin }: { userId: string; isAdmin: boolean }) {
 
 function TabSync({ isAdmin }: { isAdmin: boolean }) {
   const { message } = App.useApp();
+  const { err } = useMsg();
   const queryClient = useQueryClient();
   const [syncForm] = Form.useForm();
   const [savingSync, setSavingSync] = useState(false);
@@ -248,6 +253,7 @@ function TabSync({ isAdmin }: { isAdmin: boolean }) {
   const { user } = useAuthStore();
 
   useEffect(() => {
+    if (!isAdmin) return;
     const api = eAPI();
     if (api) {
       api.getConfig().then((cfg: any) => {
@@ -273,7 +279,7 @@ function TabSync({ isAdmin }: { isAdmin: boolean }) {
       setConfirmOpen(false);
       setConfirmPwd('');
     } catch {
-      message.error('Mot de passe incorrect.');
+      err('Mot de passe incorrect.');
     } finally {
       setConfirmLoading(false);
     }
@@ -321,7 +327,7 @@ function TabSync({ isAdmin }: { isAdmin: boolean }) {
         queryClient.invalidateQueries({ queryKey: ['sync-status'] });
       }
     } catch {
-      message.error('Impossible de sauvegarder la configuration.');
+      err('Impossible de sauvegarder la configuration.');
     } finally {
       setSavingSync(false);
     }
@@ -349,7 +355,7 @@ function TabSync({ isAdmin }: { isAdmin: boolean }) {
         message.error(`Sauvegarde échouée : ${data.erreur}`);
       }
     },
-    onError: () => message.error('Impossible de lancer la sauvegarde.'),
+    onError: () => err('Impossible de lancer la sauvegarde.'),
   });
 
   const syncMutation = useMutation({
@@ -360,10 +366,10 @@ function TabSync({ isAdmin }: { isAdmin: boolean }) {
       if (data.success) {
         message.success(`Synchronisation réussie : ${data.nbEnvois} enregistrement(s) envoyé(s).`);
       } else {
-        message.error('La synchronisation a échoué. Veuillez réessayer.');
+        err('La synchronisation a échoué. Veuillez réessayer.');
       }
     },
-    onError: () => message.error('Impossible de joindre le serveur de synchronisation'),
+    onError: () => err('Impossible de joindre le serveur de synchronisation'),
   });
 
   const logColumns: ColumnsType<SyncLog> = [
@@ -631,6 +637,7 @@ function TabSync({ isAdmin }: { isAdmin: boolean }) {
 
 function TabUtilisateurs() {
   const { message } = App.useApp();
+  const { err } = useMsg();
   const queryClient = useQueryClient();
   const [modalOpen, setModalOpen] = useState(false);
   const [editingUser, setEditingUser] = useState<User | null>(null);
@@ -654,9 +661,7 @@ function TabUtilisateurs() {
       setModalOpen(false);
       form.resetFields();
     },
-    onError: (err: { response?: { data?: { message?: string } } }) => {
-      message.error(err.response?.data?.message || "Erreur lors de la création");
-    },
+    onError: (e: unknown) => err(e),
   });
 
   const updateMutation = useMutation({
@@ -827,7 +832,6 @@ function TabUtilisateurs() {
         open={modalOpen}
         onCancel={() => { setModalOpen(false); setEditingUser(null); form.resetFields(); }}
         footer={null}
-        destroyOnClose
       >
         <Form form={form} layout="vertical" onFinish={handleSubmit} size="middle">
           <Row gutter={8}>
@@ -890,6 +894,7 @@ function TabUtilisateurs() {
 
 function TabRoles() {
   const { message } = App.useApp();
+  const { err } = useMsg();
   const queryClient = useQueryClient();
   const [selectedRoleId, setSelectedRoleId] = useState<string | null>(null);
   const [checkedIds, setCheckedIds] = useState<string[]>([]);
@@ -918,7 +923,7 @@ function TabRoles() {
       message.success('Permissions mises à jour');
       queryClient.invalidateQueries({ queryKey: ['roles-full'] });
     },
-    onError: () => message.error('Erreur lors de la mise à jour des permissions'),
+    onError: () => err('Erreur lors de la mise à jour des permissions'),
   });
 
   // Grouper les permissions par module
@@ -1034,6 +1039,7 @@ function TabRoles() {
 
 function TabServeur() {
   const { message, modal } = App.useApp();
+  const { err } = useMsg();
   const [form] = Form.useForm();
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -1152,7 +1158,7 @@ function TabServeur() {
       db.ok('Configuration sauvegardée avec succès.');
       message.success('Configuration sauvegardée. Redémarrez l\'application pour appliquer.');
     } catch {
-      message.error('Erreur lors de la sauvegarde du fichier de configuration.');
+      err('Erreur lors de la sauvegarde du fichier de configuration.');
     } finally {
       setSaving(false);
     }
@@ -1282,6 +1288,150 @@ function TabAbout() {
   );
 }
 
+// ─── Tab Impression ───────────────────────────────────────────────────────────
+
+function TabImpression() {
+  const { message } = App.useApp();
+  const [printers, setPrinters] = useState<{ name: string; displayName: string; isDefault: boolean }[]>([]);
+  const [printerName, setPrinterName] = useState<string>('');
+  const [mode, setMode] = useState<'gdi' | 'escpos'>('gdi');
+  const [escposHost, setEscposHost] = useState('');
+  const [escposPort, setEscposPort] = useState<number>(9444);
+  const [loading, setLoading] = useState(false);
+
+  useEffect(() => {
+    const api = eAPI();
+    if (!api) return;
+    api.getConfig().then((cfg: any) => {
+      if (cfg.printer_name) setPrinterName(cfg.printer_name);
+      if (cfg.printer_mode) setMode(cfg.printer_mode);
+      if (cfg.escpos_host) setEscposHost(cfg.escpos_host);
+      if (cfg.escpos_port) setEscposPort(cfg.escpos_port);
+    }).catch(() => {});
+    api.getPrinters().then((list: any[]) => setPrinters(list)).catch(() => {});
+  }, []);
+
+  const handleSave = async () => {
+    const api = eAPI();
+    if (!api) return;
+    setLoading(true);
+    try {
+      const current = await api.getConfig();
+      await api.saveConfig({ ...current, printer_name: printerName, printer_mode: mode, escpos_host: escposHost, escpos_port: escposPort });
+      message.success('Configuration enregistrée');
+    } catch {
+      message.error('Erreur lors de la sauvegarde');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const testHtml = () => `<!DOCTYPE html><html><head><meta charset="UTF-8"/><style>
+    @page{size:80mm auto;margin:0}body{font-family:'Courier New',monospace;font-size:11px;width:80mm;padding:10px}
+    h3{text-align:center;margin-bottom:8px}.sep{border-top:1px dashed #000;margin:6px 0}p{margin:3px 0}
+  </style></head><body>
+    <h3>GLOBE Manager</h3><div class="sep"></div>
+    <p>Test impression</p><p>Mode : ${mode.toUpperCase()}</p>
+    <p>${mode === 'escpos' ? 'Hote : ' + (escposHost || '?') + ':' + escposPort : 'Imprimante : ' + (printerName || '(defaut)')}</p>
+    <p>Date : ${new Date().toLocaleString('fr-FR')}</p>
+    <div class="sep"></div><p style="text-align:center">*** OK ***</p>
+  </body></html>`;
+
+  const handleTest = async () => {
+    const api = eAPI();
+    if (!api) return;
+    const result = await api.printTicket(testHtml());
+    if (result?.ok) message.success('Ticket de test envoyé');
+    else message.error(result?.error || 'Impression échouée');
+  };
+
+  return (
+    <Row gutter={[16, 16]}>
+      <Col xs={24} lg={14}>
+        <Card title={<Space><PrinterOutlined />Configuration impression</Space>}>
+          <Form layout="vertical">
+            <Form.Item label="Mode d'impression">
+              <Select
+                value={mode}
+                onChange={(v) => setMode(v)}
+                options={[
+                  { value: 'gdi', label: 'Driver Windows (USB local)' },
+                  { value: 'escpos', label: 'ESC/POS TCP (imprimante réseau / virtuelle)' },
+                ]}
+              />
+            </Form.Item>
+
+            {mode === 'gdi' && (
+              <Form.Item
+                label="Imprimante"
+                extra="Sélectionnez l'imprimante thermique (ex: XP-80T). Vide = imprimante par défaut."
+              >
+                <Select
+                  allowClear
+                  placeholder="Imprimante par défaut du système"
+                  value={printerName || undefined}
+                  onChange={(v) => setPrinterName(v ?? '')}
+                  options={printers.map((p) => ({
+                    value: p.name,
+                    label: p.isDefault ? `${p.displayName} (défaut)` : p.displayName,
+                  }))}
+                />
+              </Form.Item>
+            )}
+
+            {mode === 'escpos' && (
+              <>
+                <Form.Item label="Adresse hôte" extra="Ex : virtual-printer.online">
+                  <Input
+                    value={escposHost}
+                    onChange={(e) => setEscposHost(e.target.value)}
+                    placeholder="virtual-printer.online"
+                  />
+                </Form.Item>
+                <Form.Item label="Port TCP" extra="Par défaut : 9444">
+                  <InputNumber
+                    value={escposPort}
+                    onChange={(v) => setEscposPort(v ?? 9444)}
+                    min={1} max={65535}
+                    style={{ width: '100%' }}
+                  />
+                </Form.Item>
+              </>
+            )}
+
+            <Space>
+              <Button type="primary" loading={loading} onClick={handleSave}>
+                Enregistrer
+              </Button>
+              <Button icon={<PrinterOutlined />} onClick={handleTest}>
+                Test impression
+              </Button>
+            </Space>
+          </Form>
+        </Card>
+      </Col>
+      <Col xs={24} lg={10}>
+        <Card title="Aide">
+          <Paragraph style={{ margin: 0 }}>
+            <Text strong>Driver Windows (GDI) :</Text> XP-80T branché en USB avec le driver
+            Xprinter 80mm installé.
+          </Paragraph>
+          <Divider style={{ margin: '10px 0' }} />
+          <Paragraph style={{ margin: 0 }}>
+            <Text strong>ESC/POS TCP :</Text> imprimante accessible via réseau ou service en ligne
+            (ex: <Text code>virtual-printer.online:9444</Text>). Le ticket HTML est converti
+            en image bitmap et envoyé en raster ESC/POS.
+          </Paragraph>
+          <Divider style={{ margin: '10px 0' }} />
+          <Paragraph style={{ margin: 0, fontSize: 12, color: '#888' }}>
+            Sans configuration, les tickets s'ouvrent dans le navigateur.
+          </Paragraph>
+        </Card>
+      </Col>
+    </Row>
+  );
+}
+
 // ─── Page principale ──────────────────────────────────────────────────────────
 
 export default function ParametresPage() {
@@ -1320,6 +1470,15 @@ export default function ParametresPage() {
             key: 'serveur',
             label: <Space><CloudOutlined />Serveur</Space>,
             children: <TabServeur />,
+          },
+        ]
+      : []),
+    ...(isDesktop
+      ? [
+          {
+            key: 'impression',
+            label: <Space><PrinterOutlined />Impression</Space>,
+            children: <TabImpression />,
           },
         ]
       : []),
