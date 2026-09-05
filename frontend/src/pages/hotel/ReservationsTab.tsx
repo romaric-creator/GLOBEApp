@@ -1,13 +1,14 @@
 import { useState, useRef } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { Table, Button, Modal, Form, Select, InputNumber, DatePicker, Input, Tag, Space, App, Popconfirm, TimePicker, Row, Col, Empty, Descriptions, Divider, Spin } from 'antd';
-import { PlusOutlined, LoginOutlined, LogoutOutlined, UserAddOutlined, PrinterOutlined, CreditCardOutlined } from '@ant-design/icons';
+import { PlusOutlined, LoginOutlined, LogoutOutlined, UserAddOutlined, PrinterOutlined, CreditCardOutlined, EyeOutlined } from '@ant-design/icons';
 import { hotelApi } from '../../api/hotel';
 import { ticketsApi } from '../../api/caisse';
 import { clientsApi } from '../../api/clients';
 import type { Client } from '../../api/clients';
 import type { Reservation, Chambre, TypeReservation } from '../../api/hotel';
 import { getErrorMessage } from '../../api/errors';
+import { useMsg } from '../../hooks/useMsg';
 
 const MOYEN_LABELS: Record<string, string> = {
   ESPECES: 'Especes',
@@ -39,6 +40,7 @@ const TYPE_LABELS: Record<TypeReservation, string> = {
 
 export default function ReservationsTab() {
   const { message, modal } = App.useApp();
+  const { err } = useMsg();
   const queryClient = useQueryClient();
   const [modalOpen, setModalOpen] = useState(false);
   const [newClientOpen, setNewClientOpen] = useState(false);
@@ -88,10 +90,10 @@ export default function ReservationsTab() {
       setTypeReservation('NUIT');
       invalidateAll();
     },
-    onError: (err: unknown) => message.error(getErrorMessage(err)),
+    onError: (e: unknown) => err(e),
   });
 
-  const onError = (err: unknown) => message.error(getErrorMessage(err));
+  const onError = (e: unknown) => err(e);
 
   const confirmerMutation = useMutation({
     mutationFn: hotelApi.confirmerReservation,
@@ -114,8 +116,8 @@ export default function ReservationsTab() {
   const checkOutMutation = useMutation({
     mutationFn: (id: string) => hotelApi.checkOut(id),
     onSuccess: () => { message.success('Check-out effectue'); invalidateAll(); },
-    onError: (err: unknown) => {
-      const errMsg = getErrorMessage(err);
+    onError: (apiErr: unknown) => {
+      const errMsg = getErrorMessage(apiErr);
       if (errMsg.toLowerCase().includes('impay') && checkoutTargetRef.current) {
         const targetId = checkoutTargetRef.current;
         modal.confirm({
@@ -127,10 +129,10 @@ export default function ReservationsTab() {
           onOk: () =>
             hotelApi.checkOut(targetId, true)
               .then(() => { message.success('Check-out force effectue'); invalidateAll(); })
-              .catch(() => message.error('Erreur lors du check-out force')),
+              .catch(() => err('Erreur lors du check-out force')),
         });
       } else {
-        message.error(errMsg);
+        err(errMsg);
       }
     },
   });
@@ -145,7 +147,7 @@ export default function ReservationsTab() {
       setModalOpen(true);
       clientForm.resetFields();
     },
-    onError: (err: unknown) => message.error(getErrorMessage(err)),
+    onError: (e: unknown) => err(e),
   });
 
   const chambresDisponibles = chambres?.filter((c: Chambre) => c.statut === 'DISPONIBLE') || [];
@@ -258,19 +260,26 @@ export default function ReservationsTab() {
             </Popconfirm>
           )}
           {(r.statut === 'EN_COURS' || r.statut === 'CONFIRMEE' || r.statut === 'TERMINEE') && (
-            <Button
-              size="small"
-              icon={<PrinterOutlined />}
-              onClick={async () => {
-                try {
-                  const blob = await ticketsApi.imprimerReservation(r.id);
-                  const url = URL.createObjectURL(new Blob([blob], { type: 'application/pdf' }));
-                  window.open(url, '_blank');
-                } catch { message.error("Erreur lors de l'impression"); }
-              }}
-            >
-              Ticket
-            </Button>
+            <>
+              <Button
+                size="small"
+                icon={<PrinterOutlined />}
+                onClick={async () => {
+                  try { await ticketsApi.imprimerReservation(r.id); message.success('Ticket envoyé'); }
+                  catch { message.error("Erreur lors de l'impression"); }
+                }}
+              >
+                Ticket
+              </Button>
+              <Button
+                size="small"
+                icon={<EyeOutlined />}
+                onClick={async () => {
+                  try { await ticketsApi.apercevoirReservation(r.id); }
+                  catch { message.error("Erreur apercu"); }
+                }}
+              />
+            </>
           )}
           {(r.statut === 'EN_COURS' || r.statut === 'TERMINEE') && (
             <Button
@@ -322,6 +331,7 @@ export default function ReservationsTab() {
               typeReservation,
               dateArrivee,
               nbPersonnes: values.nbPersonnes,
+              nbNuits: typeReservation === 'NUIT' ? (values.nbNuits ?? 1) : undefined,
               heureArrivee: values.heureArrivee?.format('HH:mm') || undefined,
               // SIESTE uniquement : heureDepart manuelle
               heureDepart: typeReservation === 'SIESTE' ? values.heureDepart?.format('HH:mm') || undefined : undefined,
@@ -446,6 +456,12 @@ export default function ReservationsTab() {
               </Col>
             )}
           </Row>
+
+          {typeReservation === 'NUIT' && (
+            <Form.Item name="nbNuits" label="Nombre de nuits" initialValue={1} rules={[{ required: true }]}>
+              <InputNumber min={1} max={30} className="w-full" />
+            </Form.Item>
+          )}
 
           <Form.Item
             name="nbPersonnes"

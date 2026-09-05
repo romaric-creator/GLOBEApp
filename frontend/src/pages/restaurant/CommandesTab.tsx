@@ -1,17 +1,17 @@
 import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { useMsg } from '../../hooks/useMsg';
 import {
   Table, Button, Modal, Form, Select, InputNumber, Input,
   Tag, Space, App, Popconfirm, Card, Row, Col, Statistic,
 } from 'antd';
-import { PlusOutlined, MinusCircleOutlined, CoffeeOutlined, DollarOutlined, ClockCircleOutlined, PrinterOutlined, AppstoreAddOutlined } from '@ant-design/icons';
+import { PlusOutlined, MinusCircleOutlined, CoffeeOutlined, DollarOutlined, ClockCircleOutlined, PrinterOutlined, AppstoreAddOutlined, EyeOutlined } from '@ant-design/icons';
 import { restaurantApi } from '../../api/restaurant';
 import type { Commande } from '../../api/restaurant';
 import { ticketsApi } from '../../api/caisse';
 import { produitsApi } from '../../api/produits';
 import type { Produit } from '../../api/produits';
 import { useAuthStore } from '../../store/auth';
-import { getErrorMessage } from '../../api/errors';
 
 const STATUT_COLORS: Record<string, string> = {
   EN_PREPARATION: 'gold',
@@ -21,6 +21,7 @@ const STATUT_COLORS: Record<string, string> = {
 
 export default function CommandesTab() {
   const { message } = App.useApp();
+  const { err } = useMsg();
   const queryClient = useQueryClient();
   const { user } = useAuthStore();
   const [modalOpen, setModalOpen] = useState(false);
@@ -61,19 +62,19 @@ export default function CommandesTab() {
       form.resetFields();
       invalidateAll();
     },
-    onError: (err: unknown) => message.error(getErrorMessage(err)),
+    onError: (e: unknown) => err(e),
   });
 
   const terminerMutation = useMutation({
     mutationFn: (id: string) => { setTerminingId(id); return restaurantApi.terminer(id); },
     onSuccess: () => { setTerminingId(null); message.success('Commande terminee'); invalidateAll(); },
-    onError: (err: unknown) => { setTerminingId(null); message.error(getErrorMessage(err)); },
+    onError: (e: unknown) => { setTerminingId(null); err(e); },
   });
 
   const annulerMutation = useMutation({
     mutationFn: (id: string) => restaurantApi.annuler(id),
     onSuccess: () => { message.success('Commande annulee'); invalidateAll(); },
-    onError: (err: unknown) => message.error(getErrorMessage(err)),
+    onError: (e: unknown) => err(e),
   });
 
   const ajouterLignesMutation = useMutation({
@@ -85,7 +86,7 @@ export default function CommandesTab() {
       ajouterForm.resetFields();
       invalidateAll();
     },
-    onError: (err: unknown) => message.error(getErrorMessage(err)),
+    onError: (e: unknown) => err(e),
   });
 
   const produitOptions = (produits || [])
@@ -169,19 +170,26 @@ export default function CommandesTab() {
               : <Tag color="orange">A encaisser</Tag>
           )}
           {(r.statut === 'TERMINEE' || r.statut === 'EN_PREPARATION') && (
-            <Button
-              size="small"
-              icon={<PrinterOutlined />}
-              onClick={async () => {
-                try {
-                  const blob = await ticketsApi.imprimerCommande(r.id);
-                  const url = URL.createObjectURL(new Blob([blob], { type: 'application/pdf' }));
-                  window.open(url, '_blank');
-                } catch { message.error('Erreur impression'); }
-              }}
-            >
-              Ticket
-            </Button>
+            <>
+              <Button
+                size="small"
+                icon={<PrinterOutlined />}
+                onClick={async () => {
+                  try { await ticketsApi.imprimerCommande(r.id); message.success('Ticket envoyé'); }
+                  catch { err('Erreur impression'); }
+                }}
+              >
+                Ticket
+              </Button>
+              <Button
+                size="small"
+                icon={<EyeOutlined />}
+                onClick={async () => {
+                  try { await ticketsApi.apercevoirCommande(r.id); }
+                  catch { err('Erreur apercu'); }
+                }}
+              />
+            </>
           )}
         </Space>
       ),

@@ -20,6 +20,8 @@ export interface SessionCaisse {
   caisse?: Caisse;
   paiements?: Paiement[];
   totalTranches?: number;
+  user?: { nom: string; prenom: string };
+  _count?: { paiements: number; mouvementsCaisse: number };
 }
 
 export interface Paiement {
@@ -91,13 +93,72 @@ export const caisseApi = {
     axios.post(`/caisse/factures/${factureId}/tranches`, data).then((r) => r.data),
 };
 
+const isElectron = () => typeof (window as any).electronAPI !== 'undefined';
+
+function writeToWindow(win: Window, html: string) {
+  win.document.open();
+  win.document.write(html);
+  win.document.close();
+}
+
+// Ouvre une fenêtre de façon synchrone (pendant le user-gesture) pour éviter
+// le popup blocker. En Electron on n'en a pas besoin.
+function preOpenWindow(): Window | null {
+  if (isElectron()) return null;
+  return window.open('about:blank', '_blank');
+}
+
+async function openTicket(html: string, preWin: Window | null): Promise<void> {
+  const api = (window as any).electronAPI;
+  if (api?.printTicket) {
+    const result = await api.printTicket(html);
+    if (result && !result.ok) throw new Error(result.error || "Erreur d'impression");
+    return;
+  }
+  const win = preWin ?? window.open('about:blank', '_blank');
+  if (win) writeToWindow(win, html);
+}
+
+function fetchAndPrint(url: string): Promise<void> {
+  const preWin = preOpenWindow();
+  return axios
+    .get<string>(url)
+    .then((r) => openTicket(r.data, preWin))
+    .catch((err) => {
+      if (preWin) preWin.close();
+      throw err;
+    });
+}
+
+function openPreview(html: string, preWin: Window | null) {
+  const stripped = html.replace(/<script>window\.onload[^<]*<\/script>/g, '');
+  const api = (window as any).electronAPI;
+  if (api?.previewTicket) {
+    api.previewTicket(html); // main process s'occupe du strip + barre
+    return;
+  }
+  const win = preWin ?? window.open('about:blank', '_blank');
+  if (win) writeToWindow(win, stripped);
+}
+
+function fetchAndPreview(url: string): Promise<void> {
+  const preWin = preOpenWindow();
+  return axios
+    .get<string>(url)
+    .then((r) => openPreview(r.data, preWin))
+    .catch((err) => {
+      if (preWin) preWin.close();
+      throw err;
+    });
+}
+
 export const ticketsApi = {
-  imprimerReservation: (id: string) =>
-    axios.get(`/tickets/reservation/${id}`, { responseType: 'blob' }).then((r) => r.data),
-  imprimerCommande: (id: string) =>
-    axios.get(`/tickets/commande/${id}`, { responseType: 'blob' }).then((r) => r.data),
-  imprimerPiscine: (id: string) =>
-    axios.get(`/tickets/piscine/${id}`, { responseType: 'blob' }).then((r) => r.data),
-  imprimerCloture: (sessionId: string) =>
-    axios.get(`/tickets/cloture/${sessionId}`, { responseType: 'blob' }).then((r) => r.data),
+  imprimerReservation: (id: string) => fetchAndPrint(`/tickets/reservation/${id}`),
+  imprimerCommande: (id: string) => fetchAndPrint(`/tickets/commande/${id}`),
+  imprimerPiscine: (id: string) => fetchAndPrint(`/tickets/piscine/${id}`),
+  imprimerCloture: (sessionId: string) => fetchAndPrint(`/tickets/cloture/${sessionId}`),
+  apercevoirReservation: (id: string) => fetchAndPreview(`/tickets/reservation/${id}`),
+  apercevoirCommande: (id: string) => fetchAndPreview(`/tickets/commande/${id}`),
+  apercevoirPiscine: (id: string) => fetchAndPreview(`/tickets/piscine/${id}`),
+  apercevoirCloture: (sessionId: string) => fetchAndPreview(`/tickets/cloture/${sessionId}`),
 };

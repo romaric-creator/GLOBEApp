@@ -1,10 +1,11 @@
 import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { useMsg } from '../../hooks/useMsg';
 import {
   Table, Button, Modal, Form, Select, InputNumber, DatePicker,
   Tag, Card, Row, Col, Statistic, App, Popconfirm, Space, Divider,
 } from 'antd';
-import { PlusOutlined, MinusCircleOutlined, CheckOutlined, PrinterOutlined } from '@ant-design/icons';
+import { PlusOutlined, MinusCircleOutlined, CheckOutlined, PrinterOutlined, EyeOutlined } from '@ant-design/icons';
 import { piscineApi } from '../../api/piscine';
 import { ticketsApi } from '../../api/caisse';
 import { clientsApi } from '../../api/clients';
@@ -24,6 +25,7 @@ const TYPE_COLORS: Record<string, string> = {
 
 export default function TicketsTab() {
   const { message } = App.useApp();
+  const { err } = useMsg();
   const queryClient = useQueryClient();
   const [modalOpen, setModalOpen] = useState(false);
   const [total, setTotal] = useState(0);
@@ -57,12 +59,7 @@ export default function TicketsTab() {
       queryClient.invalidateQueries({ queryKey: ['tickets-piscine'] });
       queryClient.invalidateQueries({ queryKey: ['piscine-stats'] });
       queryClient.invalidateQueries({ queryKey: ['accessoires-piscine'] });
-      ticketsApi.imprimerPiscine(createdTicket.id)
-        .then((blob) => {
-          const url = URL.createObjectURL(new Blob([blob], { type: 'application/pdf' }));
-          window.open(url, '_blank');
-        })
-        .catch(() => {});
+      ticketsApi.imprimerPiscine(createdTicket.id).catch(() => {});
     },
     onError: (err: { response?: { data?: { message?: string } } }) => {
       message.error(err.response?.data?.message || 'Une erreur s\'est produite. Veuillez réessayer.');
@@ -164,16 +161,19 @@ export default function TicketsTab() {
           <Button
             size="small"
             icon={<PrinterOutlined />}
-            onClick={async () => {
-              try {
-                const blob = await ticketsApi.imprimerPiscine(r.id);
-                const url = URL.createObjectURL(new Blob([blob], { type: 'application/pdf' }));
-                window.open(url, '_blank');
-              } catch { message.error('Erreur impression'); }
-            }}
+            onClick={() =>
+              ticketsApi.imprimerPiscine(r.id)
+                .then(() => message.success('Ticket envoyé'))
+                .catch(() => err('Erreur impression'))
+            }
           >
             Ticket
           </Button>
+          <Button
+            size="small"
+            icon={<EyeOutlined />}
+            onClick={() => ticketsApi.apercevoirPiscine(r.id).catch(() => err('Erreur apercu'))}
+          />
         </Space>
       ),
     },
