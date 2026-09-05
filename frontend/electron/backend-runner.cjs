@@ -312,6 +312,7 @@ class BackendRunner {
         JWT_REFRESH_EXPIRES_IN: '7d',
         PORT: String(port),
         ALLOWED_ORIGINS: config.allowed_origins || '',
+        REMOTE_DB_URL: config.remote_db_url || '',
         REMOTE_DB_HOST: config.remote_db_host || '',
         REMOTE_DB_PORT: String(config.remote_db_port || 3306),
         REMOTE_DB_USER: config.remote_db_user || '',

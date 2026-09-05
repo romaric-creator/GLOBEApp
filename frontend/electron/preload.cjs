@@ -12,6 +12,9 @@ contextBridge.exposeInMainWorld('electronAPI', {
   autostartEnable: () => ipcRenderer.invoke('autostart-enable'),
   autostartDisable: () => ipcRenderer.invoke('autostart-disable'),
   testDbConnection: (dbUrl) => ipcRenderer.invoke('test-db-connection', dbUrl),
+  getPrinters: () => ipcRenderer.invoke('get-printers'),
+  printTicket: (html) => ipcRenderer.invoke('print-ticket', html),
+  previewTicket: (html) => ipcRenderer.invoke('preview-ticket', html),
 
   // Splash events
   onSplashStatus: (cb) => { ipcRenderer.removeAllListeners('splash-status'); ipcRenderer.on('splash-status', (_e, msg) => cb(msg)); },

@@ -31,6 +31,10 @@ function loadConfig() {
       remote_db_user: '',
       remote_db_password: '',
       remote_db_name: '',
+      printer_name: '',
+      printer_mode: 'gdi',
+      escpos_host: '',
+      escpos_port: 9444,
       configured: false,
     };
   }
