@@ -88,6 +88,7 @@ export const hotelApi = {
     typeReservation?: TypeReservation;
     dateArrivee: string;
     dateDepart?: string;
+    nbNuits?: number;
     nbPersonnes: number;
     heureArrivee?: string;
     heureDepart?: string;

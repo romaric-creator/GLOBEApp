@@ -7,6 +7,7 @@ import type { SyncLog } from '../api/sync';
 import dayjs from 'dayjs';
 import relativeTime from 'dayjs/plugin/relativeTime';
 import 'dayjs/locale/fr';
+import { useMsg } from '../hooks/useMsg';
 
 dayjs.extend(relativeTime);
 dayjs.locale('fr');
@@ -15,6 +16,7 @@ const { Text } = Typography;
 
 export function SyncWidget() {
   const { message } = App.useApp();
+  const { err } = useMsg();
   const [open, setOpen] = useState(false);
   const qc = useQueryClient();
 
@@ -41,7 +43,7 @@ export function SyncWidget() {
         message.error(result.erreur ?? 'La synchronisation a échoué.');
       }
     },
-    onError: () => message.error('Impossible de synchroniser. Vérifiez votre connexion réseau.'),
+    onError: () => err('Impossible de synchroniser. Vérifiez votre connexion réseau.'),
   });
 
   const dernierStatut = status?.dernierSync?.statut;

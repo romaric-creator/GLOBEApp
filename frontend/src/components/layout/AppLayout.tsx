@@ -256,8 +256,7 @@ export default function AppLayout() {
           placement="left"
           open={mobileDrawerOpen}
           onClose={() => setMobileDrawerOpen(false)}
-          width={260}
-          styles={{ body: { padding: 0 }, header: { display: "none" } }}
+          styles={{ body: { padding: 0 }, header: { display: "none" }, wrapper: { width: 260 } }}
           style={{ borderRight: "1px solid rgba(201,168,76,0.18)" }}
         >
           {siderContent}
