@@ -44,6 +44,11 @@ export class CreateReservationDto {
 
   @IsInt()
   @Min(1)
+  @IsOptional()
+  nbNuits?: number;
+
+  @IsInt()
+  @Min(1)
   nbPersonnes: number;
 
   @IsString()

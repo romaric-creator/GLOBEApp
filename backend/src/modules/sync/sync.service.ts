@@ -86,11 +86,10 @@ export class SyncService {
 
     let connection: mysql.Connection | null = null;
     try {
-      connection = await mysql.createConnection({
-        ...remoteConfig,
-        ssl: { rejectUnauthorized: false },
-        connectTimeout: 15000,
-      });
+      connection = await Promise.race([
+        mysql.createConnection({ ...remoteConfig, ssl: { rejectUnauthorized: false }, connectTimeout: 10000 }),
+        new Promise<never>((_, reject) => setTimeout(() => reject(new Error('Connexion distante timeout (10s)')), 12000)),
+      ]);
 
       await this.initRemoteSchema(connection);
 
@@ -359,7 +358,10 @@ export class SyncService {
     if (!config) return { ok: false, erreur: 'Base de données distante non configurée' };
     let connection: mysql.Connection | null = null;
     try {
-      connection = await mysql.createConnection({ ...config, ssl: { rejectUnauthorized: false }, connectTimeout: 10000 });
+      connection = await Promise.race([
+        mysql.createConnection({ ...config, ssl: { rejectUnauthorized: false }, connectTimeout: 8000 }),
+        new Promise<never>((_, reject) => setTimeout(() => reject(new Error('Connexion timeout (10s)')), 10000)),
+      ]);
       await connection.query('SELECT 1');
       return { ok: true };
     } catch (err) {
@@ -407,7 +409,9 @@ export class SyncService {
     const url = await this.getRemoteConfigUrl();
     if (!url) return { ok: false, nbEnvois: 0, erreur: 'Base de données distante non configurée' };
 
-    const sslUrl = url.includes('?') ? url : `${url}?sslaccept=accept_invalid_certs`;
+    const sslUrl = url.includes('?')
+      ? url + '&connect_timeout=10&pool_timeout=10'
+      : `${url}?sslaccept=accept_invalid_certs&connect_timeout=10&pool_timeout=10`;
     const log = await this.prisma.syncLog.create({ data: { statut: 'EN_COURS' } });
     const remote = new PrismaClient({ datasources: { db: { url: sslUrl } } });
 

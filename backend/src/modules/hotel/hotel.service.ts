@@ -8,6 +8,13 @@ import { PrismaService } from '../../prisma/prisma.service';
 import { CreateChambreDto, UpdateChambreDto } from './dto/create-chambre.dto';
 import { CreateReservationDto } from './dto/create-reservation.dto';
 
+function combineDateHour(date: Date, heure: string): Date {
+  const [h, m] = heure.split(':').map(Number);
+  const d = new Date(date);
+  d.setHours(h, m, 0, 0);
+  return d;
+}
+
 @Injectable()
 export class HotelService {
   constructor(private prisma: PrismaService) {}
@@ -135,9 +142,10 @@ export class HotelService {
     let dateDepart: Date;
 
     if (typeReservation === 'NUIT') {
-      // Nuitée : départ fixé au lendemain 12h00
+      // Nuitée : départ fixé à nbNuits jours plus tard à 12h00
+      const nbNuits = dto.nbNuits ?? 1;
       dateDepart = new Date(dateArrivee);
-      dateDepart.setDate(dateDepart.getDate() + 1);
+      dateDepart.setDate(dateDepart.getDate() + nbNuits);
       heureDepart = '12:00';
 
     } else if (typeReservation === 'SIESTE_PROLONGEE') {
@@ -197,7 +205,7 @@ export class HotelService {
       }
       montantTotal = Number(chambre.prixJournee);
     } else {
-      montantTotal = Number(chambre.prixNuit);
+      montantTotal = Number(chambre.prixNuit) * (dto.nbNuits ?? 1);
     }
 
     return this.prisma.$transaction(async (tx) => {
@@ -212,33 +220,18 @@ export class HotelService {
       });
 
       for (const existing of reservationsActives) {
-        // Si même date : vérifier chevauchement d'heures
-        const sameDay =
-          existing.dateArrivee.toISOString().split('T')[0] ===
-          dateArrivee.toISOString().split('T')[0];
+        // Comparaison de datetimes réelles pour éviter les faux conflits
+        // (ex: NUIT J→J+1 12h00 + NUIT J+1→J+2 12h00 = back-to-back valide)
+        const existStart = combineDateHour(existing.dateArrivee, existing.heureArrivee ?? '00:00');
+        const existEnd = combineDateHour(existing.dateDepart, existing.heureDepart ?? '23:59');
+        const newStart = combineDateHour(dateArrivee, heureArrivee ?? (typeReservation === 'NUIT' ? '12:00' : '00:00'));
+        const newEnd = combineDateHour(dateDepart, heureDepart ?? '23:59');
 
-        if (sameDay && existing.heureArrivee && dto.heureArrivee) {
-          // Chevauchement horaire
-          const existStart = existing.heureArrivee;
-          const existEnd = existing.heureDepart ?? '23:59';
-          const newStart = dto.heureArrivee;
-          const newEnd = dto.heureDepart ?? '23:59';
-          if (!(newEnd <= existStart || newStart >= existEnd)) {
-            throw new ConflictException(
-              `La chambre est déjà réservée sur ce créneau (${existStart}-${existEnd})`,
-            );
-          }
-        } else if (!existing.heureArrivee && !dto.heureArrivee) {
-          // Les deux sont des réservations nuit — conflit de dates
-          throw new ConflictException(
-            'La chambre est deja reservee pour ces dates',
-          );
-        } else {
-          // Mix nuit + sieste/journée sur la même date — conflit
-          throw new ConflictException(
-            'La chambre est deja reservee (conflit avec une autre reservation)',
-          );
-        }
+        if (newEnd <= existStart || newStart >= existEnd) continue;
+
+        throw new ConflictException(
+          `La chambre est déjà réservée sur ce créneau (${existing.heureArrivee ?? '?'}-${existing.heureDepart ?? '?'})`,
+        );
       }
 
       const reservation = await tx.reservation.create({
