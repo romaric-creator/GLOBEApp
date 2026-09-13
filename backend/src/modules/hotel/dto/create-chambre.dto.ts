@@ -6,6 +6,7 @@ import {
   IsString,
   Min,
 } from 'class-validator';
+import { StatutChambre } from '@prisma/client';
 
 export enum TypeChambreDto {
   STANDARD = 'STANDARD',
@@ -15,6 +16,8 @@ export enum TypeChambreDto {
   STUDIO = 'STUDIO',
   APPARTEMENT = 'APPARTEMENT',
 }
+
+
 
 export class CreateChambreDto {
   @IsString()
@@ -51,6 +54,10 @@ export class CreateChambreDto {
 }
 
 export class UpdateChambreDto {
+  @IsEnum(StatutChambre)
+  @IsOptional()
+  statut?: StatutChambre;
+
   @IsEnum(TypeChambreDto)
   @IsOptional()
   type?: TypeChambreDto;
