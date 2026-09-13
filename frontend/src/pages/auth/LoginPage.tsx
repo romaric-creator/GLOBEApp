@@ -1,4 +1,4 @@
-import { Form, Input, Button } from "antd";
+import { Form, Input, Button, Checkbox } from "antd";
 import { LockOutlined, MailOutlined } from "@ant-design/icons";
 import { useNavigate } from "react-router-dom";
 import { useQueryClient } from "@tanstack/react-query";
@@ -7,15 +7,23 @@ import type { LoginDto } from "../../api/auth";
 import { useAuthStore } from "../../store/auth";
 import { useMsg } from '../../hooks/useMsg';
 
+const SAVED_EMAIL_KEY = 'globe_saved_email';
+
 export default function LoginPage() {
   const navigate = useNavigate();
   const { setUser } = useAuthStore();
   const { err } = useMsg();
   const queryClient = useQueryClient();
   const [form] = Form.useForm();
+  const savedEmail = localStorage.getItem(SAVED_EMAIL_KEY) ?? '';
 
-  const onFinish = async (values: LoginDto) => {
+  const onFinish = async (values: LoginDto & { rememberMe?: boolean }) => {
     try {
+      if (values.rememberMe) {
+        localStorage.setItem(SAVED_EMAIL_KEY, values.email);
+      } else {
+        localStorage.removeItem(SAVED_EMAIL_KEY);
+      }
       const { data } = await authApi.login(values);
       localStorage.setItem("accessToken", data.accessToken);
       localStorage.setItem("refreshToken", data.refreshToken);
@@ -86,7 +94,14 @@ export default function LoginPage() {
             Entrez vos identifiants pour continuer
           </p>
 
-          <Form form={form} onFinish={onFinish} layout="vertical" size="large" requiredMark={false}>
+          <Form
+            form={form}
+            onFinish={onFinish}
+            layout="vertical"
+            size="large"
+            requiredMark={false}
+            initialValues={{ email: savedEmail, rememberMe: !!savedEmail }}
+          >
             <Form.Item
               name="email"
               label={<span className="text-xs font-medium text-slate-500 uppercase tracking-wide">Email</span>}
@@ -99,6 +114,7 @@ export default function LoginPage() {
                 prefix={<MailOutlined className="text-slate-300" />}
                 placeholder="nom@exemple.com"
                 className="!rounded-xl !h-11"
+                autoComplete="email"
               />
             </Form.Item>
             <Form.Item
@@ -110,9 +126,13 @@ export default function LoginPage() {
                 prefix={<LockOutlined className="text-slate-300" />}
                 placeholder="Votre mot de passe"
                 className="!rounded-xl !h-11"
+                autoComplete="current-password"
               />
             </Form.Item>
-            <Form.Item className="!mt-8 !mb-0">
+            <Form.Item name="rememberMe" valuePropName="checked" className="!mb-0">
+              <Checkbox className="text-sm text-slate-500">Se souvenir de l'identifiant</Checkbox>
+            </Form.Item>
+            <Form.Item className="!mt-4 !mb-0">
               <Button
                 type="primary"
                 htmlType="submit"
