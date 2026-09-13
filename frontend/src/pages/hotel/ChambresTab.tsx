@@ -5,6 +5,7 @@ import { PlusOutlined, HomeOutlined, CheckCircleOutlined, CloseCircleOutlined, T
 import { hotelApi } from '../../api/hotel';
 import type { Chambre } from '../../api/hotel';
 import { useMsg } from '../../hooks/useMsg';
+import { useAuthStore } from '../../store/auth';
 
 const TYPE_COLORS: Record<string, string> = {
   STANDARD: 'gold',
@@ -26,6 +27,8 @@ export default function ChambresTab() {
   const { message } = App.useApp();
   const { err } = useMsg();
   const queryClient = useQueryClient();
+  const { user } = useAuthStore();
+  const isAdmin = user?.role === 'admin';
   const [modalOpen, setModalOpen] = useState(false);
   const [editingChambre, setEditingChambre] = useState<Chambre | null>(null);
   const [form] = Form.useForm();
@@ -115,9 +118,11 @@ export default function ChambresTab() {
           <span className="flex items-center gap-1"><span className="w-3 h-3 rounded bg-amber-400 inline-block" /> Reservee</span>
           <span className="flex items-center gap-1"><span className="w-3 h-3 rounded bg-orange-400 inline-block" /> Maintenance</span>
         </div>
-        <Button type="primary" icon={<PlusOutlined />} onClick={() => setModalOpen(true)}>
-          Nouvelle chambre
-        </Button>
+        {isAdmin && (
+          <Button type="primary" icon={<PlusOutlined />} onClick={() => setModalOpen(true)}>
+            Nouvelle chambre
+          </Button>
+        )}
       </div>
 
       {isLoading ? (
@@ -184,9 +189,11 @@ export default function ChambresTab() {
         open={modalOpen}
         onCancel={closeModal}
         footer={editingChambre ? [
-          <Popconfirm key="del" title="Supprimer cette chambre ?" onConfirm={() => { deleteMutation.mutate(editingChambre.id); closeModal(); }}>
-            <Button danger>Supprimer</Button>
-          </Popconfirm>,
+          ...(isAdmin ? [
+            <Popconfirm key="del" title="Supprimer cette chambre ?" onConfirm={() => { deleteMutation.mutate(editingChambre.id); closeModal(); }}>
+              <Button danger>Supprimer</Button>
+            </Popconfirm>,
+          ] : []),
           <Button key="cancel" onClick={closeModal}>Annuler</Button>,
           <Button key="ok" type="primary" onClick={() => form.submit()} loading={updateMutation.isPending}>Enregistrer</Button>,
         ] : undefined}
@@ -225,15 +232,19 @@ export default function ChambresTab() {
           <Form.Item name="capacite" label="Nombre de personnes max" rules={[{ required: true }]}>
             <InputNumber min={1} max={10} className="w-full" />
           </Form.Item>
-          <Form.Item name="prixNuit" label="Prix par nuit (FCFA)" rules={[{ required: true }]}>
-            <InputNumber min={0} className="w-full" />
-          </Form.Item>
-          <Form.Item name="prixSieste" label="Prix sieste (FCFA)" extra="Laisser vide si la chambre ne propose pas ce tarif">
-            <InputNumber min={0} className="w-full" placeholder="Optionnel" />
-          </Form.Item>
-          <Form.Item name="prixJournee" label="Prix journee (FCFA)" extra="Laisser vide si la chambre ne propose pas ce tarif">
-            <InputNumber min={0} className="w-full" placeholder="Optionnel" />
-          </Form.Item>
+          {isAdmin && (
+            <>
+              <Form.Item name="prixNuit" label="Prix par nuit (FCFA)" rules={[{ required: !editingChambre }]}>
+                <InputNumber min={0} className="w-full" />
+              </Form.Item>
+              <Form.Item name="prixSieste" label="Prix sieste (FCFA)" extra="Laisser vide si la chambre ne propose pas ce tarif">
+                <InputNumber min={0} className="w-full" placeholder="Optionnel" />
+              </Form.Item>
+              <Form.Item name="prixJournee" label="Prix journee (FCFA)" extra="Laisser vide si la chambre ne propose pas ce tarif">
+                <InputNumber min={0} className="w-full" placeholder="Optionnel" />
+              </Form.Item>
+            </>
+          )}
           {editingChambre && (
             <Form.Item name="statut" label="Statut">
               <Select options={[

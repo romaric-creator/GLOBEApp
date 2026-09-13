@@ -10,6 +10,7 @@ import {
   UseGuards,
 } from '@nestjs/common';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
+import { CurrentUser } from '../auth/decorators/current-user.decorator';
 import { HotelService } from './hotel.service';
 import { CreateChambreDto, UpdateChambreDto } from './dto/create-chambre.dto';
 import { CreateReservationDto } from './dto/create-reservation.dto';
@@ -37,8 +38,12 @@ export class HotelController {
   }
 
   @Patch('chambres/:id')
-  updateChambre(@Param('id') id: string, @Body() dto: UpdateChambreDto) {
-    return this.hotelService.updateChambre(id, dto);
+  updateChambre(
+    @Param('id') id: string,
+    @Body() dto: UpdateChambreDto,
+    @CurrentUser() user: { id: string; role: string },
+  ) {
+    return this.hotelService.updateChambre(id, dto, user.role);
   }
 
   @Delete('chambres/:id')

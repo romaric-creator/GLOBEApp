@@ -3,6 +3,7 @@ import {
   BadRequestException,
   NotFoundException,
   ConflictException,
+  ForbiddenException,
 } from '@nestjs/common';
 import { PrismaService } from '../../prisma/prisma.service';
 import { CreateChambreDto, UpdateChambreDto } from './dto/create-chambre.dto';
@@ -66,8 +67,14 @@ export class HotelService {
     });
   }
 
-  async updateChambre(id: string, dto: UpdateChambreDto) {
+  async updateChambre(id: string, dto: UpdateChambreDto, userRole?: string) {
     await this.findOneChambre(id);
+
+    const hasPrixChange = dto.prixNuit !== undefined || dto.prixSieste !== undefined || dto.prixJournee !== undefined;
+    if (hasPrixChange && userRole !== 'admin') {
+      throw new ForbiddenException("Seul l'administrateur peut modifier les prix des chambres");
+    }
+
     return this.prisma.chambre.update({
       where: { id },
       data: dto,
