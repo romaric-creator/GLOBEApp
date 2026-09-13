@@ -79,8 +79,9 @@ export class CaisseController {
   ajouterMouvement(
     @Param('sessionId') sessionId: string,
     @Body() dto: CreateMouvementCaisseDto,
+    @CurrentUser() user: { id: string },
   ) {
-    return this.caisseService.ajouterMouvement(sessionId, dto);
+    return this.caisseService.ajouterMouvement(sessionId, dto, user.id);
   }
 
   @Get('sessions/:sessionId/mouvements')

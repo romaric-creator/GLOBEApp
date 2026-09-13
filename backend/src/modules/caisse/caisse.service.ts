@@ -2,6 +2,7 @@ import {
   Injectable,
   BadRequestException,
   NotFoundException,
+  ForbiddenException,
 } from '@nestjs/common';
 import { MoyenPaiement, Prisma, TypeMouvementCaisse } from '@prisma/client';
 import { PrismaService } from '../../prisma/prisma.service';
@@ -275,6 +276,7 @@ export class CaisseService {
   async ajouterMouvement(
     sessionId: string,
     dto: CreateMouvementCaisseDto,
+    userId: string,
   ) {
     const session = await this.prisma.sessionCaisse.findUnique({
       where: { id: sessionId },
@@ -282,8 +284,24 @@ export class CaisseService {
     if (!session) throw new NotFoundException('Session introuvable');
     if (session.statut !== 'OUVERTE')
       throw new BadRequestException(
-        'Impossible d’ajouter un mouvement à une session fermée',
+        "Impossible d'ajouter un mouvement a une session fermee",
       );
+
+    const isSortie = dto.type === 'RETRAIT' || dto.type === 'DEPENSE';
+    if (isSortie) {
+      const user = await this.prisma.user.findUnique({
+        where: { id: userId },
+        include: { role: { include: { permissions: { include: { permission: true } } } } },
+      });
+      const hasSortiePermission = user?.role.permissions.some(
+        (rp) => rp.permission.module === "caisse" && rp.permission.action === "sortie",
+      );
+      if (!hasSortiePermission) {
+        throw new ForbiddenException(
+          "Action non autorisee : enregistrement de sorties de caisse interdit",
+        );
+      }
+    }
 
     return this.prisma.mouvementCaisse.create({
       data: {

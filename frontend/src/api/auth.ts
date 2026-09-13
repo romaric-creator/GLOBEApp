@@ -12,6 +12,7 @@ export interface LoginResponse {
     nom: string;
     prenom: string;
     role: string;
+    permissions: Array<{ module: string; action: string }>;
   };
   accessToken: string;
   refreshToken: string;

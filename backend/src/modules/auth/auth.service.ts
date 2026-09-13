@@ -25,7 +25,7 @@ export class AuthService {
   async login(dto: LoginDto, ip?: string, userAgent?: string) {
     const user = await this.prisma.user.findUnique({
       where: { email: dto.email },
-      include: { role: true },
+      include: { role: { include: { permissions: { include: { permission: true } } } } },
     });
 
     if (!user) {
@@ -85,6 +85,10 @@ export class AuthService {
         nom: user.nom,
         prenom: user.prenom,
         role: user.role.nom,
+        permissions: user.role.permissions.map((rp) => ({
+          module: rp.permission.module,
+          action: rp.permission.action,
+        })),
       },
       ...tokens,
     };
