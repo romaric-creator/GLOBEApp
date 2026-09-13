@@ -47,7 +47,7 @@ export class CaisseService {
     });
   }
 
-  async fermerSession(sessionId: string, totalReel: number, notes?: string) {
+  async fermerSession(sessionId: string, totalReel: number, notes?: string, motifEcart?: string) {
     const session = await this.prisma.sessionCaisse.findUnique({
       where: { id: sessionId },
       include: { paiements: true, mouvementsCaisse: true, caisse: true },
@@ -99,6 +99,7 @@ export class CaisseService {
         totalReel,
         ecart,
         notes: notes || null,
+        motifEcart: motifEcart || null,
       },
     });
   }

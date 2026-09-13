@@ -887,6 +887,7 @@ model SessionCaisse {
   ouvertureAt    DateTime            @default(now())
   fermetureAt    DateTime?
   notes          String?
+  motifEcart     String?
 
   caisseId String @db.VarChar(36)
   caisse   Caisse @relation(fields: [caisseId], references: [id])

@@ -61,12 +61,13 @@ export class CaisseController {
   @Post('sessions/:sessionId/fermer')
   fermerSession(
     @Param('sessionId') sessionId: string,
-    @Body() body: { totalReel: number; notes?: string },
+    @Body() body: { totalReel: number; notes?: string; motifEcart?: string },
   ) {
     return this.caisseService.fermerSession(
       sessionId,
       body.totalReel,
       body.notes,
+      body.motifEcart,
     );
   }
 
