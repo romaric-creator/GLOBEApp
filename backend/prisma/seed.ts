@@ -16,6 +16,20 @@ async function main() {
     create: { id: 'caisse-restaurant-bar', nom: 'Caisse Restaurant & Bar', type: 'RESTAURANT_BAR', actif: true },
   });
 
+  // Core permissions — always upsert
+  const corePermissions = [
+    { module: 'caisse', action: 'sortie', description: 'Enregistrer des sorties de caisse (retraits, depenses)' },
+    { module: 'caisse', action: 'inventaire', description: 'Realiser les inventaires de caisse' },
+    { module: 'caisse', action: 'entree', description: 'Enregistrer des entrees de fonds' },
+  ];
+  for (const p of corePermissions) {
+    await prisma.permission.upsert({
+      where: { module_action: { module: p.module, action: p.action } },
+      update: { description: p.description },
+      create: p,
+    });
+  }
+
   const existingAdmin = await prisma.user.findFirst();
   if (existingAdmin) {
     console.log('Seed skipped — database already initialized (caisses ensured)');
