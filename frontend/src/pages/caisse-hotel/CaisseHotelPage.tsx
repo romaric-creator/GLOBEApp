@@ -13,11 +13,13 @@ import { caisseApi, ticketsApi, MOYEN_OPTIONS } from '../../api/caisse';
 import type { Caisse, SessionCaisse, Paiement } from '../../api/caisse';
 import { hotelApi } from '../../api/hotel';
 import type { FactureSejour } from '../../api/hotel';
+import { useAuthStore } from '../../store/auth';
 
 export default function CaisseHotelPage() {
   const { message } = App.useApp();
   const { err } = useMsg();
   const queryClient = useQueryClient();
+  const { hasPermission } = useAuthStore();
   const [ouvrirModalOpen, setOuvrirModalOpen] = useState(false);
   const [fermerModalOpen, setFermerModalOpen] = useState(false);
   const [encaisserModal, setEncaisserModal] = useState<FactureSejour | null>(null);
@@ -84,8 +86,8 @@ export default function CaisseHotelPage() {
   });
 
   const fermerMutation = useMutation({
-    mutationFn: ({ totalReel, notes }: { totalReel: number; notes?: string }) =>
-      caisseApi.fermerSession((session as SessionCaisse).id, totalReel, notes),
+    mutationFn: ({ totalReel, notes, motifEcart }: { totalReel: number; notes?: string; motifEcart?: string }) =>
+      caisseApi.fermerSession((session as SessionCaisse).id, totalReel, notes, motifEcart),
     onSuccess: () => {
       setClosedSessionId((session as SessionCaisse)?.id ?? null);
       message.success('Caisse cloturee');
@@ -436,9 +438,24 @@ export default function CaisseHotelPage() {
             {(Number((session as SessionCaisse)?.fondInitial || 0) + totalEncaisse).toLocaleString()} FCFA
           </Descriptions.Item>
         </Descriptions>
-        <Form form={fermerForm} layout="vertical" onFinish={(v) => fermerMutation.mutate({ totalReel: v.totalReel, notes: v.notes })}>
+        <Form form={fermerForm} layout="vertical" onFinish={(v) => fermerMutation.mutate({ totalReel: v.totalReel, notes: v.notes, motifEcart: v.motifEcart })}>
           <Form.Item name="totalReel" label="Montant reel en caisse (FCFA)" rules={[{ required: true, message: 'Requis' }]}>
             <InputNumber min={0} style={{ width: '100%' }} />
+          </Form.Item>
+          <Form.Item noStyle shouldUpdate={(prev, cur) => prev.totalReel !== cur.totalReel}>
+            {({ getFieldValue }) => {
+              const totalTheorique = Number((session as SessionCaisse)?.fondInitial || 0) + totalEncaisse;
+              const ecart = (getFieldValue('totalReel') ?? 0) - totalTheorique;
+              return Math.abs(ecart) > 0 ? (
+                <Form.Item
+                  name="motifEcart"
+                  label={`Motif de l'ecart (${ecart > 0 ? '+' : ''}${ecart.toLocaleString()} FCFA)`}
+                  rules={[{ required: true, message: 'Justifiez l\'ecart constate' }]}
+                >
+                  <Input.TextArea rows={2} placeholder="Expliquez la difference entre le montant theorique et le montant reel" />
+                </Form.Item>
+              ) : null;
+            }}
           </Form.Item>
           <Form.Item name="notes" label="Notes (optionnel)">
             <Input.TextArea rows={2} />
@@ -512,8 +529,10 @@ export default function CaisseHotelPage() {
             <Select
               options={[
                 { value: 'APPORT', label: 'Apport (entree de fonds)' },
-                { value: 'RETRAIT', label: 'Retrait' },
-                { value: 'DEPENSE', label: 'Depense cash' },
+                ...(hasPermission('caisse', 'sortie') ? [
+                  { value: 'RETRAIT', label: 'Retrait' },
+                  { value: 'DEPENSE', label: 'Depense cash' },
+                ] : []),
               ]}
             />
           </Form.Item>

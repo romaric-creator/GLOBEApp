@@ -68,8 +68,8 @@ export const caisseApi = {
   ouvrirSession: (caisseId: string, fondInitial: number) =>
     axios.post(`/caisse/${caisseId}/ouvrir`, { fondInitial }).then((r) => r.data),
 
-  fermerSession: (sessionId: string, totalReel: number, notes?: string) =>
-    axios.post(`/caisse/sessions/${sessionId}/fermer`, { totalReel, notes }).then((r) => r.data),
+  fermerSession: (sessionId: string, totalReel: number, notes?: string, motifEcart?: string) =>
+    axios.post(`/caisse/sessions/${sessionId}/fermer`, { totalReel, notes, motifEcart }).then((r) => r.data),
 
   encaisserHotel: (data: { factureId: string; sessionId: string; montant: number; moyen: string }) =>
     axios.post('/caisse/encaisser/hotel', data).then((r) => r.data),
