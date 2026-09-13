@@ -23,10 +23,13 @@
     "axios": "^1.19.0",
     "dayjs": "^1.11.21",
     "driver.js": "^1.8.0",
+    "jspdf": "^4.2.1",
+    "jspdf-autotable": "^5.0.8",
     "react": "^19.2.8",
     "react-dom": "^19.2.8",
     "react-router-dom": "^7.18.2",
     "socket.io-client": "^4.8.3",
+    "xlsx": "^0.18.5",
     "zustand": "^5.0.14"
   },
   "devDependencies": {

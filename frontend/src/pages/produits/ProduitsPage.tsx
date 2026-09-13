@@ -19,6 +19,7 @@ import {
   Statistic,
   Row,
   Col,
+  Dropdown,
 } from "antd";
 import {
   PlusOutlined,
@@ -30,7 +31,9 @@ import {
   SearchOutlined,
   CoffeeOutlined,
   ShoppingOutlined,
+  DownloadOutlined,
 } from "@ant-design/icons";
+import { exportToExcel, exportToPDF } from '../../utils/export';
 import { produitsApi } from "../../api/produits";
 import type { Produit, CreateProduitDto } from "../../api/produits";
 import CategoriesTab from "./CategoriesTab";
@@ -245,6 +248,51 @@ export default function ProduitsPage() {
             { value: 'table', icon: <UnorderedListOutlined /> },
           ]}
         />
+        <Dropdown
+          menu={{
+            items: [
+              {
+                key: 'excel',
+                label: 'Exporter Excel',
+                onClick: () => exportToExcel(
+                  (activeProduits).map((p) => ({
+                    Nom: p.nom,
+                    Categorie: p.categorie?.nom ?? '',
+                    'Stock actuel': p.stockActuel,
+                    'Seuil alerte': p.seuilAlerte,
+                    'Prix vente': p.prixVente,
+                    Unite: p.unite ?? '',
+                  })),
+                  'liste-produits',
+                  'Produits',
+                ),
+              },
+              {
+                key: 'pdf',
+                label: 'Exporter PDF',
+                onClick: () => exportToPDF(
+                  [
+                    { header: 'Nom', dataKey: 'nom' },
+                    { header: 'Categorie', dataKey: 'categorie' },
+                    { header: 'Stock', dataKey: 'stockActuel' },
+                    { header: 'Seuil alerte', dataKey: 'seuilAlerte' },
+                    { header: 'Prix vente', dataKey: 'prixVente' },
+                    { header: 'Unite', dataKey: 'unite' },
+                  ],
+                  activeProduits.map((p) => ({
+                    ...p,
+                    categorie: p.categorie?.nom ?? '',
+                    unite: p.unite ?? '',
+                  })) as Record<string, unknown>[],
+                  'liste-produits',
+                  'Liste des produits et stocks',
+                ),
+              },
+            ],
+          }}
+        >
+          <Button icon={<DownloadOutlined />}>Exporter</Button>
+        </Dropdown>
         <Button type="primary" icon={<PlusOutlined />} onClick={openCreate}>
           Nouveau
         </Button>

@@ -1,9 +1,10 @@
 import { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
-import { Card, Row, Col, Statistic, Table, DatePicker, Select, Tabs, Button, Tooltip } from 'antd';
+import { Card, Row, Col, Statistic, Table, DatePicker, Select, Tabs, Button, Tooltip, Dropdown } from 'antd';
 import { TeamOutlined, HomeOutlined, RiseOutlined, DownloadOutlined, PrinterOutlined } from '@ant-design/icons';
 import { rapportsApi } from '../../api/rapports';
 import dayjs from 'dayjs';
+import { exportToExcel, exportToPDF } from '../../utils/export';
 
 function exportCSV(filename: string, rows: Record<string, unknown>[]) {
   if (!rows || rows.length === 0) return;
@@ -69,20 +70,36 @@ export default function RapportsPage() {
                 }
               }}
             />
-            <Tooltip title="Exporter CSV">
-              <Button
-                icon={<DownloadOutlined />}
-                onClick={() => exportCSV('ca.csv', [
+            <Dropdown menu={{ items: [
+              { key: 'csv', label: 'CSV', onClick: () => exportCSV('ca.csv', [
+                { Module: 'Hotel', CA: ca?.hotel || 0 },
+                { Module: 'Restaurant', CA: ca?.restaurant || 0 },
+                { Module: 'Piscine', CA: ca?.piscine || 0 },
+                { Module: 'Salle de fete', CA: ca?.salle_fete || 0 },
+                { Module: 'Total', CA: ca?.total || 0 },
+              ])},
+              { key: 'excel', label: 'Excel', onClick: () => exportToExcel([
+                { Module: 'Hotel', CA: ca?.hotel || 0 },
+                { Module: 'Restaurant', CA: ca?.restaurant || 0 },
+                { Module: 'Piscine', CA: ca?.piscine || 0 },
+                { Module: 'Salle de fete', CA: ca?.salle_fete || 0 },
+                { Module: 'Total', CA: ca?.total || 0 },
+              ], 'chiffre-affaires', 'CA')},
+              { key: 'pdf', label: 'PDF', onClick: () => exportToPDF(
+                [{ header: 'Module', dataKey: 'Module' }, { header: 'CA (FCFA)', dataKey: 'CA' }],
+                [
                   { Module: 'Hotel', CA: ca?.hotel || 0 },
                   { Module: 'Restaurant', CA: ca?.restaurant || 0 },
                   { Module: 'Piscine', CA: ca?.piscine || 0 },
                   { Module: 'Salle de fete', CA: ca?.salle_fete || 0 },
                   { Module: 'Total', CA: ca?.total || 0 },
-                ])}
-              >
-                CSV
-              </Button>
-            </Tooltip>
+                ],
+                'chiffre-affaires',
+                `Chiffre d'affaires — ${caDateDebut} au ${caDateFin}`,
+              )},
+            ]}}>
+              <Button icon={<DownloadOutlined />}>Exporter</Button>
+            </Dropdown>
           </div>
           <Row gutter={16}>
             <Col span={5}><Card><Statistic title="Hotel" value={ca?.hotel || 0} suffix="FCFA" prefix={<HomeOutlined />} /></Card></Col>
@@ -117,18 +134,17 @@ export default function RapportsPage() {
       children: (
         <>
           <div className="flex justify-end mb-3">
-            <Tooltip title="Exporter CSV">
-              <Button
-                icon={<DownloadOutlined />}
-                onClick={() => exportCSV('top-produits.csv', (topProduits || []).map((p, i) => ({
-                  Rang: i + 1,
-                  Produit: p.nom,
-                  'Quantite vendue': p.quantiteVendue,
-                })))}
-              >
-                CSV
-              </Button>
-            </Tooltip>
+            <Dropdown menu={{ items: [
+              { key: 'csv', label: 'CSV', onClick: () => exportCSV('top-produits.csv', (topProduits || []).map((p, i) => ({ Rang: i + 1, Produit: p.nom, 'Quantite vendue': p.quantiteVendue })))},
+              { key: 'excel', label: 'Excel', onClick: () => exportToExcel((topProduits || []).map((p, i) => ({ Rang: i + 1, Produit: p.nom, 'Quantite vendue': p.quantiteVendue })), 'top-produits', 'Top Produits')},
+              { key: 'pdf', label: 'PDF', onClick: () => exportToPDF(
+                [{ header: 'Rang', dataKey: 'Rang' }, { header: 'Produit', dataKey: 'Produit' }, { header: 'Quantite vendue', dataKey: 'Quantite vendue' }],
+                (topProduits || []).map((p, i) => ({ Rang: i + 1, Produit: p.nom, 'Quantite vendue': p.quantiteVendue })),
+                'top-produits', 'Top 10 produits vendus',
+              )},
+            ]}}>
+              <Button icon={<DownloadOutlined />}>Exporter</Button>
+            </Dropdown>
           </div>
           <Table
             dataSource={topProduits || []}
@@ -185,20 +201,18 @@ export default function RapportsPage() {
                 label: `${now.year() - 2 + i}`,
               }))}
             />
-            <Tooltip title="Exporter CSV">
-              <Button
-                icon={<DownloadOutlined />}
-                onClick={() => exportCSV(`resume-${annee}-${mois}.csv`, resumeMensuel ? [{
-                  'CA Total': resumeMensuel.caTotal,
-                  'Depenses': resumeMensuel.depenses,
-                  'Benefice': resumeMensuel.benefice,
-                  'Nb Commandes': resumeMensuel.nbCommandes,
-                  'Reservations': resumeMensuel.nbReservations,
-                }] : [])}
-              >
-                CSV
-              </Button>
-            </Tooltip>
+            <Dropdown menu={{ items: [
+              { key: 'csv', label: 'CSV', onClick: () => exportCSV(`resume-${annee}-${mois}.csv`, resumeMensuel ? [{ 'CA Total': resumeMensuel.caTotal, 'Depenses': resumeMensuel.depenses, 'Benefice': resumeMensuel.benefice, 'Nb Commandes': resumeMensuel.nbCommandes, 'Reservations': resumeMensuel.nbReservations }] : [])},
+              { key: 'excel', label: 'Excel', onClick: () => exportToExcel(resumeMensuel ? [{ 'CA Total': resumeMensuel.caTotal, 'Depenses': resumeMensuel.depenses, 'Benefice': resumeMensuel.benefice, 'Nb Commandes': resumeMensuel.nbCommandes, 'Reservations': resumeMensuel.nbReservations }] : [], `resume-${annee}-${String(mois).padStart(2, '0')}`, 'Resume')},
+              { key: 'pdf', label: 'PDF', onClick: () => exportToPDF(
+                [{ header: 'CA Total', dataKey: 'CA Total' }, { header: 'Depenses', dataKey: 'Depenses' }, { header: 'Benefice', dataKey: 'Benefice' }, { header: 'Commandes', dataKey: 'Nb Commandes' }, { header: 'Reservations', dataKey: 'Reservations' }],
+                resumeMensuel ? [{ 'CA Total': resumeMensuel.caTotal, 'Depenses': resumeMensuel.depenses, 'Benefice': resumeMensuel.benefice, 'Nb Commandes': resumeMensuel.nbCommandes, 'Reservations': resumeMensuel.nbReservations }] : [],
+                `resume-${annee}-${String(mois).padStart(2, '0')}`,
+                `Resume mensuel — ${mois}/${annee}`,
+              )},
+            ]}}>
+              <Button icon={<DownloadOutlined />}>Exporter</Button>
+            </Dropdown>
             <Tooltip title="Imprimer cette page">
               <Button icon={<PrinterOutlined />} onClick={() => window.print()}>Imprimer</Button>
             </Tooltip>

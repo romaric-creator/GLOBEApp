@@ -1,11 +1,12 @@
 import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { Table, Button, Modal, Form, Input, Select, Space, Popconfirm, Tag, App } from 'antd';
-import { PlusOutlined, EditOutlined, DeleteOutlined, SearchOutlined } from '@ant-design/icons';
+import { Table, Button, Modal, Form, Input, Select, Space, Popconfirm, Tag, App, Dropdown } from 'antd';
+import { PlusOutlined, EditOutlined, DeleteOutlined, SearchOutlined, DownloadOutlined } from '@ant-design/icons';
 import { clientsApi } from '../../api/clients';
 import type { Client, CreateClientDto } from '../../api/clients';
 import EmptyState from '../../components/EmptyState';
 import { useMsg } from '../../hooks/useMsg';
+import { exportToExcel, exportToPDF } from '../../utils/export';
 
 export default function ClientsPage() {
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -131,6 +132,47 @@ export default function ClientsPage() {
             allowClear
             style={{ width: 220 }}
           />
+          <Dropdown
+            menu={{
+              items: [
+                {
+                  key: 'excel',
+                  label: 'Exporter Excel',
+                  onClick: () => exportToExcel(
+                    (filteredClients ?? []).map((c) => ({
+                      Type: c.type,
+                      Nom: c.nom,
+                      Prenom: c.prenom,
+                      Email: c.email ?? '',
+                      Telephone: c.telephone ?? '',
+                      'Points fidélité': c.pointsFidelite,
+                    })),
+                    'liste-clients',
+                    'Clients',
+                  ),
+                },
+                {
+                  key: 'pdf',
+                  label: 'Exporter PDF',
+                  onClick: () => exportToPDF(
+                    [
+                      { header: 'Type', dataKey: 'type' },
+                      { header: 'Nom', dataKey: 'nom' },
+                      { header: 'Prenom', dataKey: 'prenom' },
+                      { header: 'Email', dataKey: 'email' },
+                      { header: 'Telephone', dataKey: 'telephone' },
+                      { header: 'Fidelite', dataKey: 'pointsFidelite' },
+                    ],
+                    (filteredClients ?? []) as unknown as Record<string, unknown>[],
+                    'liste-clients',
+                    'Liste des clients',
+                  ),
+                },
+              ],
+            }}
+          >
+            <Button icon={<DownloadOutlined />}>Exporter</Button>
+          </Dropdown>
           <Button type="primary" icon={<PlusOutlined />} onClick={openCreate}>
             Nouveau client
           </Button>
