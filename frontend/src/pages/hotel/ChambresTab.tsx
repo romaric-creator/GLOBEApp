@@ -144,8 +144,8 @@ export default function ChambresTab() {
               ].filter(Boolean).join(' · ')}>
                 <Card
                   size="small"
-                  className={`border-2 cursor-pointer transition-all hover:shadow-md ${STATUT_BG[chambre.statut] || ''}`}
-                  onClick={() => openEdit(chambre)}
+                  className={`border-2 transition-all hover:shadow-md ${STATUT_BG[chambre.statut] || ''} ${isAdmin ? 'cursor-pointer' : ''}`}
+                  onClick={() => isAdmin && openEdit(chambre)}
                 >
                   <div className="text-center">
                     <div className="text-lg font-bold">{chambre.numero}</div>
@@ -154,7 +154,7 @@ export default function ChambresTab() {
                       <div className="text-xs text-slate-400 mt-1 leading-tight">{chambre.description}</div>
                     )}
                     <div className="text-xs text-slate-500 mt-1">{chambre.capacite} pers.</div>
-                    {chambre.statut === 'DISPONIBLE' && (
+                    {isAdmin && chambre.statut === 'DISPONIBLE' && (
                       <Tooltip title="Mettre en maintenance">
                         <Button
                           type="link"
@@ -165,7 +165,7 @@ export default function ChambresTab() {
                         />
                       </Tooltip>
                     )}
-                    {chambre.statut === 'MAINTENANCE' && (
+                    {isAdmin && chambre.statut === 'MAINTENANCE' && (
                       <Tooltip title="Marquer disponible">
                         <Button
                           type="link"

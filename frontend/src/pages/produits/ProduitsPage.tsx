@@ -34,6 +34,7 @@ import {
   DownloadOutlined,
 } from "@ant-design/icons";
 import { exportToExcel, exportToPDF } from '../../utils/export';
+import { useAuthStore } from '../../store/auth';
 import { produitsApi } from "../../api/produits";
 import type { Produit, CreateProduitDto } from "../../api/produits";
 import CategoriesTab from "./CategoriesTab";
@@ -41,6 +42,8 @@ import MouvementsTab from "./MouvementsTab";
 import BoissonsGrid from "./BoissonsGrid";
 
 export default function ProduitsPage() {
+  const { user } = useAuthStore();
+  const isAdmin = user?.role === 'admin';
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingProduit, setEditingProduit] = useState<Produit | null>(null);
   const [viewMode, setViewMode] = useState<'table' | 'grid'>('grid');
@@ -193,7 +196,7 @@ export default function ProduitsPage() {
         )
       ),
     },
-    {
+    ...(isAdmin ? [{
       title: "",
       key: "actions",
       width: 80,
@@ -213,7 +216,7 @@ export default function ProduitsPage() {
           </Popconfirm>
         </Space>
       ),
-    },
+    }] : []),
   ];
 
   const filterBar = (subCatIds: Set<string>) => (
@@ -293,9 +296,11 @@ export default function ProduitsPage() {
         >
           <Button icon={<DownloadOutlined />}>Exporter</Button>
         </Dropdown>
-        <Button type="primary" icon={<PlusOutlined />} onClick={openCreate}>
-          Nouveau
-        </Button>
+        {isAdmin && (
+          <Button type="primary" icon={<PlusOutlined />} onClick={openCreate}>
+            Nouveau
+          </Button>
+        )}
       </div>
     </div>
   );
@@ -319,7 +324,7 @@ export default function ProduitsPage() {
         produits={filtered}
         categories={categories || []}
         loading={isLoading}
-        onEdit={openEdit}
+        onEdit={isAdmin ? openEdit : undefined}
       />
     );
   };

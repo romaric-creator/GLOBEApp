@@ -8,7 +8,7 @@ interface BoissonsGridProps {
   produits: Produit[];
   categories: Categorie[];
   loading?: boolean;
-  onEdit: (produit: Produit) => void;
+  onEdit?: (produit: Produit) => void;
 }
 
 export default function BoissonsGrid({ produits, categories, loading, onEdit }: BoissonsGridProps) {
@@ -75,15 +75,14 @@ export default function BoissonsGrid({ produits, categories, loading, onEdit }: 
           return (
             <Tooltip key={produit.id} title={produit.nom} mouseEnterDelay={0.4}>
               <div
-                role="button"
-                tabIndex={0}
-                aria-label={`${produit.nom}, ${produit.prixVente} FCFA, stock : ${produit.stockActuel} ${produit.unite}`}
-                onClick={() => onEdit(produit)}
-                onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') onEdit(produit); }}
-                className="relative group cursor-pointer rounded-xl border border-gray-200 bg-white p-4
+                role={onEdit ? "button" : undefined}
+                tabIndex={onEdit ? 0 : undefined}
+                aria-label={onEdit ? `${produit.nom}, ${produit.prixVente} FCFA, stock : ${produit.stockActuel} ${produit.unite}` : undefined}
+                onClick={() => onEdit?.(produit)}
+                onKeyDown={(e) => { if (onEdit && (e.key === 'Enter' || e.key === ' ')) onEdit(produit); }}
+                className={`relative group rounded-xl border border-gray-200 bg-white p-4
                            flex flex-col items-center transition-all duration-200 outline-none
-                           hover:shadow-lg hover:border-amber-300 hover:-translate-y-1
-                           focus-visible:ring-2 focus-visible:ring-amber-400 focus-visible:border-amber-400"
+                           ${onEdit ? 'cursor-pointer hover:shadow-lg hover:border-amber-300 hover:-translate-y-1 focus-visible:ring-2 focus-visible:ring-amber-400 focus-visible:border-amber-400' : ''}`}
               >
                 {isLowStock && (
                   <div className="absolute top-2 right-2">

@@ -8,12 +8,14 @@ import {
 } from 'antd';
 import {
   PlusOutlined, CalendarOutlined, EditOutlined, DeleteOutlined,
-  CheckCircleOutlined, InfoCircleOutlined,
+  CheckCircleOutlined, InfoCircleOutlined, DownloadOutlined,
 } from '@ant-design/icons';
+import { exportToExcel, exportToPDF } from '../../utils/export';
 import { salleFeteApi } from '../../api/salle-fete';
 import { clientsApi } from '../../api/clients';
 import type { ReservationSalle, TypeReservationSalle } from '../../api/salle-fete';
 import type { Client } from '../../api/clients';
+import { useAuthStore } from '../../store/auth';
 
 const STATUT_COLORS: Record<string, string> = {
   EN_ATTENTE: 'orange',
@@ -36,6 +38,8 @@ function TypesTab() {
   const { message } = App.useApp();
   const { err } = useMsg();
   const queryClient = useQueryClient();
+  const { user } = useAuthStore();
+  const isAdmin = user?.role === 'admin';
   const [modalOpen, setModalOpen] = useState(false);
   const [editingType, setEditingType] = useState<TypeReservationSalle | null>(null);
   const [form] = Form.useForm();
@@ -118,7 +122,7 @@ function TypesTab() {
       width: 140,
       render: (v: number) => `${Number(v).toLocaleString()} FCFA`,
     },
-    {
+    ...(isAdmin ? [{
       title: 'Actions',
       key: 'actions',
       width: 100,
@@ -130,16 +134,18 @@ function TypesTab() {
           </Popconfirm>
         </Space>
       ),
-    },
+    }] : []),
   ];
 
   return (
     <>
-      <div className="flex justify-end mb-3">
-        <Button type="primary" icon={<PlusOutlined />} onClick={() => setModalOpen(true)}>
-          Nouveau type
-        </Button>
-      </div>
+      {isAdmin && (
+        <div className="flex justify-end mb-3">
+          <Button type="primary" icon={<PlusOutlined />} onClick={() => setModalOpen(true)}>
+            Nouveau type
+          </Button>
+        </div>
+      )}
 
       <Table
         columns={columns}
@@ -364,22 +370,74 @@ function ReservationsTab() {
         </Col>
       </Row>
 
-      <div className="mb-3 flex gap-3">
-        <Select
-          placeholder="Filtrer par statut"
-          allowClear
-          style={{ width: 160 }}
-          onChange={(v) => setFilterStatut(v || undefined)}
-          options={[
-            { value: 'EN_ATTENTE', label: 'En attente' },
-            { value: 'CONFIRMEE', label: 'Confirmee' },
-            { value: 'TERMINEE', label: 'Terminee' },
-            { value: 'ANNULEE', label: 'Annulee' },
-          ]}
-        />
-        <Button type="primary" icon={<PlusOutlined />} onClick={() => setModalOpen(true)}>
-          Nouvelle reservation
-        </Button>
+      <div className="mb-3 flex items-center justify-between">
+        <div className="flex gap-3">
+          <Select
+            placeholder="Filtrer par statut"
+            allowClear
+            style={{ width: 160 }}
+            onChange={(v) => setFilterStatut(v || undefined)}
+            options={[
+              { value: 'EN_ATTENTE', label: 'En attente' },
+              { value: 'CONFIRMEE', label: 'Confirmee' },
+              { value: 'TERMINEE', label: 'Terminee' },
+              { value: 'ANNULEE', label: 'Annulee' },
+            ]}
+          />
+          <Button type="primary" icon={<PlusOutlined />} onClick={() => setModalOpen(true)}>
+            Nouvelle reservation
+          </Button>
+        </div>
+        <Dropdown menu={{
+          items: [
+            {
+              key: 'excel',
+              label: 'Exporter Excel',
+              onClick: () => exportToExcel(
+                (reservations || []).map((r) => ({
+                  Date: new Date(r.dateEvent).toLocaleDateString('fr-FR'),
+                  Horaire: `${r.heureDebut} - ${r.heureFin}`,
+                  Client: `${r.client.nom} ${r.client.prenom}`,
+                  Type: r.type?.nom ?? '',
+                  Motif: r.motif,
+                  Invites: r.nbInvites,
+                  'Montant (FCFA)': Number(r.montant),
+                  Statut: STATUT_LABELS[r.statut] ?? r.statut,
+                })),
+                'reservations-salle-fete',
+                'Reservations Salle de Fete',
+              ),
+            },
+            {
+              key: 'pdf',
+              label: 'Exporter PDF',
+              onClick: () => exportToPDF(
+                [
+                  { header: 'Date', dataKey: 'date' },
+                  { header: 'Horaire', dataKey: 'horaire' },
+                  { header: 'Client', dataKey: 'client' },
+                  { header: 'Motif', dataKey: 'motif' },
+                  { header: 'Invites', dataKey: 'invites' },
+                  { header: 'Montant', dataKey: 'montant' },
+                  { header: 'Statut', dataKey: 'statut' },
+                ],
+                (reservations || []).map((r) => ({
+                  date: new Date(r.dateEvent).toLocaleDateString('fr-FR'),
+                  horaire: `${r.heureDebut} - ${r.heureFin}`,
+                  client: `${r.client.nom} ${r.client.prenom}`,
+                  motif: r.motif,
+                  invites: r.nbInvites,
+                  montant: `${Number(r.montant).toLocaleString()} FCFA`,
+                  statut: STATUT_LABELS[r.statut] ?? r.statut,
+                })) as Record<string, unknown>[],
+                'reservations-salle-fete',
+                'Reservations Salle de Fete',
+              ),
+            },
+          ],
+        }}>
+          <Button icon={<DownloadOutlined />}>Exporter</Button>
+        </Dropdown>
       </div>
 
       <Table

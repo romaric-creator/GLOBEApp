@@ -5,6 +5,7 @@ import { PlusOutlined, DeleteOutlined } from '@ant-design/icons';
 import { produitsApi } from '../../api/produits';
 import type { Categorie } from '../../api/produits';
 import { useMsg } from '../../hooks/useMsg';
+import { useAuthStore } from '../../store/auth';
 
 export default function CategoriesTab() {
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -12,6 +13,8 @@ export default function CategoriesTab() {
   const queryClient = useQueryClient();
   const { message } = App.useApp();
   const { err } = useMsg();
+  const { user } = useAuthStore();
+  const isAdmin = user?.role === 'admin';
 
   const { data: categories, isLoading } = useQuery({
     queryKey: ['categories'],
@@ -46,7 +49,7 @@ export default function CategoriesTab() {
       key: 'count',
       render: (_: unknown, record: Categorie) => record._count?.produits ?? 0,
     },
-    {
+    ...(isAdmin ? [{
       title: 'Actions',
       key: 'actions',
       render: (_: unknown, record: Categorie) => (
@@ -54,16 +57,18 @@ export default function CategoriesTab() {
           <Button type="link" danger icon={<DeleteOutlined />} />
         </Popconfirm>
       ),
-    },
+    }] : []),
   ];
 
   return (
     <>
       <div className="flex justify-between items-center mb-4">
         <h2 className="text-xl font-semibold">Categories</h2>
-        <Button type="primary" icon={<PlusOutlined />} onClick={() => setIsModalOpen(true)}>
-          Nouvelle categorie
-        </Button>
+        {isAdmin && (
+          <Button type="primary" icon={<PlusOutlined />} onClick={() => setIsModalOpen(true)}>
+            Nouvelle categorie
+          </Button>
+        )}
       </div>
       <Table columns={columns} dataSource={categories} rowKey="id" loading={isLoading} pagination={false} />
 
