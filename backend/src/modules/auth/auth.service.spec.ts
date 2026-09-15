@@ -101,7 +101,7 @@ describe('AuthService', () => {
         prenom: 'User',
         actif: true,
         tentativesEchouees: 0,
-        role: { nom: 'admin' },
+        role: { nom: 'admin', permissions: [] },
       });
       mockPrisma.user.update.mockResolvedValue({});
       mockPrisma.session.create.mockResolvedValue({});

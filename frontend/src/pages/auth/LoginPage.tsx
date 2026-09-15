@@ -24,7 +24,8 @@ export default function LoginPage() {
       } else {
         localStorage.removeItem(SAVED_EMAIL_KEY);
       }
-      const { data } = await authApi.login(values);
+      const { rememberMe: _, ...loginData } = values;
+      const { data } = await authApi.login(loginData);
       localStorage.setItem("accessToken", data.accessToken);
       localStorage.setItem("refreshToken", data.refreshToken);
       queryClient.removeQueries({ queryKey: ['profile'] });
