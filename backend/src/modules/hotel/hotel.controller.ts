@@ -33,8 +33,11 @@ export class HotelController {
   }
 
   @Post('chambres')
-  createChambre(@Body() dto: CreateChambreDto) {
-    return this.hotelService.createChambre(dto);
+  createChambre(
+    @Body() dto: CreateChambreDto,
+    @CurrentUser() user: { id: string; role: string },
+  ) {
+    return this.hotelService.createChambre(dto, user.role);
   }
 
   @Patch('chambres/:id')
@@ -47,8 +50,11 @@ export class HotelController {
   }
 
   @Delete('chambres/:id')
-  deleteChambre(@Param('id') id: string) {
-    return this.hotelService.deleteChambre(id);
+  deleteChambre(
+    @Param('id') id: string,
+    @CurrentUser() user: { id: string; role: string },
+  ) {
+    return this.hotelService.deleteChambre(id, user.role);
   }
 
   // Reservations

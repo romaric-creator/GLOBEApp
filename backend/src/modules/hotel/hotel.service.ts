@@ -47,7 +47,10 @@ export class HotelService {
     return chambre;
   }
 
-  async createChambre(dto: CreateChambreDto) {
+  async createChambre(dto: CreateChambreDto, userRole?: string) {
+    if (userRole !== 'admin') {
+      throw new ForbiddenException("Seul l'administrateur peut créer des chambres");
+    }
     const existing = await this.prisma.chambre.findUnique({
       where: { numero: dto.numero },
     });
@@ -68,12 +71,10 @@ export class HotelService {
   }
 
   async updateChambre(id: string, dto: UpdateChambreDto, userRole?: string) {
-    await this.findOneChambre(id);
-
-    const hasPrixChange = dto.prixNuit !== undefined || dto.prixSieste !== undefined || dto.prixJournee !== undefined;
-    if (hasPrixChange && userRole !== 'admin') {
-      throw new ForbiddenException("Seul l'administrateur peut modifier les prix des chambres");
+    if (userRole !== 'admin') {
+      throw new ForbiddenException("Seul l'administrateur peut modifier les chambres");
     }
+    await this.findOneChambre(id);
 
     return this.prisma.chambre.update({
       where: { id },
@@ -81,7 +82,10 @@ export class HotelService {
     });
   }
 
-  async deleteChambre(id: string) {
+  async deleteChambre(id: string, userRole?: string) {
+    if (userRole !== 'admin') {
+      throw new ForbiddenException("Seul l'administrateur peut supprimer des chambres");
+    }
     const chambre = await this.prisma.chambre.findUnique({
       where: { id },
       include: {

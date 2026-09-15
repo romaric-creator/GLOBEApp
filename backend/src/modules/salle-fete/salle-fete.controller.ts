@@ -8,8 +8,10 @@ import {
   Body,
   Query,
   UseGuards,
+  ForbiddenException,
 } from '@nestjs/common';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
+import { CurrentUser } from '../auth/decorators/current-user.decorator';
 import { SalleFeteService } from './salle-fete.service';
 import { CreateReservationSalleDto } from './dto/create-reservation-salle.dto';
 import { CreateTypeReservationDto } from './dto/create-type-reservation.dto';
@@ -26,17 +28,30 @@ export class SalleFeteController {
   }
 
   @Post('types')
-  createType(@Body() dto: CreateTypeReservationDto) {
+  createType(
+    @Body() dto: CreateTypeReservationDto,
+    @CurrentUser() user: { id: string; role: string },
+  ) {
+    if (user.role !== 'admin') throw new ForbiddenException("Seul l'administrateur peut créer des types de réservation");
     return this.salleFeteService.createType(dto);
   }
 
   @Patch('types/:id')
-  updateType(@Param('id') id: string, @Body() dto: CreateTypeReservationDto) {
+  updateType(
+    @Param('id') id: string,
+    @Body() dto: CreateTypeReservationDto,
+    @CurrentUser() user: { id: string; role: string },
+  ) {
+    if (user.role !== 'admin') throw new ForbiddenException("Seul l'administrateur peut modifier les types de réservation");
     return this.salleFeteService.updateType(id, dto);
   }
 
   @Delete('types/:id')
-  deleteType(@Param('id') id: string) {
+  deleteType(
+    @Param('id') id: string,
+    @CurrentUser() user: { id: string; role: string },
+  ) {
+    if (user.role !== 'admin') throw new ForbiddenException("Seul l'administrateur peut supprimer des types de réservation");
     return this.salleFeteService.deleteType(id);
   }
 
