@@ -114,7 +114,7 @@ export default function FactureSejoursTab() {
               key: 'excel',
               label: 'Exporter Excel',
               onClick: () => exportToExcel(
-                (factures || []).map((f) => ({
+                (factures || []).map((f: FactureSejour) => ({
                   'N° Facture': f.numero,
                   Client: `${f.reservation.client.nom} ${f.reservation.client.prenom}`,
                   Chambre: f.reservation.chambre.numero,
@@ -140,7 +140,7 @@ export default function FactureSejoursTab() {
                   { header: 'Reste', dataKey: 'reste' },
                   { header: 'Statut', dataKey: 'statut' },
                 ],
-                (factures || []).map((f) => ({
+                (factures || []).map((f: FactureSejour) => ({
                   numero: f.numero,
                   client: `${f.reservation.client.nom} ${f.reservation.client.prenom}`,
                   chambre: f.reservation.chambre.numero,
