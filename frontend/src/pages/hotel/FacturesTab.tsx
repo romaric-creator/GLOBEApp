@@ -1,11 +1,12 @@
 import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { Table, Tag, Button, Modal, Form, InputNumber, Select, Input, Descriptions, App, Space } from 'antd';
-import { DollarOutlined, HistoryOutlined } from '@ant-design/icons';
+import { Table, Tag, Button, Modal, Form, InputNumber, Select, Input, Descriptions, App, Space, Dropdown } from 'antd';
+import { DollarOutlined, HistoryOutlined, DownloadOutlined } from '@ant-design/icons';
 import { hotelApi } from '../../api/hotel';
 import type { FactureSejour } from '../../api/hotel';
 import { caisseApi, MOYEN_OPTIONS } from '../../api/caisse';
 import { useMsg } from '../../hooks/useMsg';
+import { exportToExcel, exportToPDF } from '../../utils/export';
 
 
 export default function FactureSejoursTab() {
@@ -106,6 +107,57 @@ export default function FactureSejoursTab() {
 
   return (
     <>
+      <div className="flex justify-end mb-3">
+        <Dropdown menu={{
+          items: [
+            {
+              key: 'excel',
+              label: 'Exporter Excel',
+              onClick: () => exportToExcel(
+                (factures || []).map((f) => ({
+                  'N° Facture': f.numero,
+                  Client: `${f.reservation.client.nom} ${f.reservation.client.prenom}`,
+                  Chambre: f.reservation.chambre.numero,
+                  'Total (FCFA)': Number(f.total),
+                  'Paye (FCFA)': Number(f.montantPaye),
+                  'Reste (FCFA)': Number(f.reste),
+                  Statut: f.payee ? 'Payee' : 'En cours',
+                })),
+                'factures-hotel',
+                'Factures Hotel',
+              ),
+            },
+            {
+              key: 'pdf',
+              label: 'Exporter PDF',
+              onClick: () => exportToPDF(
+                [
+                  { header: 'N° Facture', dataKey: 'numero' },
+                  { header: 'Client', dataKey: 'client' },
+                  { header: 'Chambre', dataKey: 'chambre' },
+                  { header: 'Total', dataKey: 'total' },
+                  { header: 'Paye', dataKey: 'paye' },
+                  { header: 'Reste', dataKey: 'reste' },
+                  { header: 'Statut', dataKey: 'statut' },
+                ],
+                (factures || []).map((f) => ({
+                  numero: f.numero,
+                  client: `${f.reservation.client.nom} ${f.reservation.client.prenom}`,
+                  chambre: f.reservation.chambre.numero,
+                  total: `${Number(f.total).toLocaleString()} FCFA`,
+                  paye: `${Number(f.montantPaye).toLocaleString()} FCFA`,
+                  reste: `${Number(f.reste).toLocaleString()} FCFA`,
+                  statut: f.payee ? 'Payee' : 'En cours',
+                })) as Record<string, unknown>[],
+                'factures-hotel',
+                'Factures de sejour Hotel',
+              ),
+            },
+          ],
+        }}>
+          <Button icon={<DownloadOutlined />}>Exporter</Button>
+        </Dropdown>
+      </div>
       <Table
         dataSource={factures || []}
         columns={columns}

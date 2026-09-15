@@ -1,10 +1,11 @@
 import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { Table, Button, Modal, Form, InputNumber, Select, Input, Tag, App } from 'antd';
-import { PlusOutlined } from '@ant-design/icons';
+import { Table, Button, Modal, Form, InputNumber, Select, Input, Tag, App, Dropdown } from 'antd';
+import { PlusOutlined, DownloadOutlined } from '@ant-design/icons';
 import { produitsApi } from '../../api/produits';
 import type { CreateMouvementDto, Produit } from '../../api/produits';
 import { useMsg } from '../../hooks/useMsg';
+import { exportToExcel, exportToPDF } from '../../utils/export';
 
 const typeColors: Record<string, string> = {
   ENTREE: 'green',
@@ -65,9 +66,57 @@ export default function MouvementsTab() {
     <>
       <div className="flex justify-between items-center mb-4">
         <h2 className="text-xl font-semibold">Mouvements de stock</h2>
-        <Button type="primary" icon={<PlusOutlined />} onClick={() => setIsModalOpen(true)}>
-          Nouveau mouvement
-        </Button>
+        <div className="flex gap-2">
+          <Dropdown menu={{
+            items: [
+              {
+                key: 'excel',
+                label: 'Exporter Excel',
+                onClick: () => exportToExcel(
+                  (mouvements || []).map((m) => ({
+                    Date: new Date(m.date).toLocaleDateString('fr-FR', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' }),
+                    Type: m.type,
+                    Produit: m.produit?.nom ?? '',
+                    Reference: m.produit?.reference ?? '',
+                    Quantite: m.quantite,
+                    Motif: m.motif ?? '',
+                  })),
+                  'mouvements-stock',
+                  'Mouvements de stock',
+                ),
+              },
+              {
+                key: 'pdf',
+                label: 'Exporter PDF',
+                onClick: () => exportToPDF(
+                  [
+                    { header: 'Date', dataKey: 'date' },
+                    { header: 'Type', dataKey: 'type' },
+                    { header: 'Produit', dataKey: 'produit' },
+                    { header: 'Ref', dataKey: 'reference' },
+                    { header: 'Quantite', dataKey: 'quantite' },
+                    { header: 'Motif', dataKey: 'motif' },
+                  ],
+                  (mouvements || []).map((m) => ({
+                    date: new Date(m.date).toLocaleDateString('fr-FR'),
+                    type: m.type,
+                    produit: m.produit?.nom ?? '',
+                    reference: m.produit?.reference ?? '',
+                    quantite: m.quantite,
+                    motif: m.motif ?? '',
+                  })) as Record<string, unknown>[],
+                  'mouvements-stock',
+                  'Historique des mouvements de stock',
+                ),
+              },
+            ],
+          }}>
+            <Button icon={<DownloadOutlined />}>Exporter</Button>
+          </Dropdown>
+          <Button type="primary" icon={<PlusOutlined />} onClick={() => setIsModalOpen(true)}>
+            Nouveau mouvement
+          </Button>
+        </div>
       </div>
       <Table columns={columns} dataSource={mouvements} rowKey="id" loading={isLoading} pagination={{ pageSize: 15 }} />
 

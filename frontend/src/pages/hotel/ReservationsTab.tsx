@@ -1,7 +1,8 @@
 import { useState, useRef } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { Table, Button, Modal, Form, Select, InputNumber, DatePicker, Input, Tag, Space, App, Popconfirm, TimePicker, Row, Col, Empty, Descriptions, Divider, Spin } from 'antd';
-import { PlusOutlined, LoginOutlined, LogoutOutlined, UserAddOutlined, PrinterOutlined, CreditCardOutlined, EyeOutlined } from '@ant-design/icons';
+import { Table, Button, Modal, Form, Select, InputNumber, DatePicker, Input, Tag, Space, App, Popconfirm, TimePicker, Row, Col, Empty, Descriptions, Divider, Spin, Dropdown } from 'antd';
+import { PlusOutlined, LoginOutlined, LogoutOutlined, UserAddOutlined, PrinterOutlined, CreditCardOutlined, EyeOutlined, DownloadOutlined } from '@ant-design/icons';
+import { exportToExcel, exportToPDF } from '../../utils/export';
 import { hotelApi } from '../../api/hotel';
 import { ticketsApi } from '../../api/caisse';
 import { clientsApi } from '../../api/clients';
@@ -304,10 +305,60 @@ export default function ReservationsTab() {
 
   return (
     <>
-      <div className="mb-3 flex gap-3">
+      <div className="mb-3 flex items-center justify-between">
         <Button type="primary" icon={<PlusOutlined />} onClick={() => setModalOpen(true)}>
           Nouvelle reservation
         </Button>
+        <Dropdown menu={{
+          items: [
+            {
+              key: 'excel',
+              label: 'Exporter Excel',
+              onClick: () => exportToExcel(
+                (reservations || []).map((r) => ({
+                  Type: TYPE_LABELS[r.typeReservation as TypeReservation] ?? r.typeReservation,
+                  Chambre: `${r.chambre.numero} (${r.chambre.type})`,
+                  Client: `${r.client.nom} ${r.client.prenom}`,
+                  'Date arrivee': new Date(r.dateArrivee).toLocaleDateString('fr-FR'),
+                  'Date depart': new Date(r.dateDepart).toLocaleDateString('fr-FR'),
+                  Personnes: r.nbPersonnes,
+                  'Montant (FCFA)': Number(r.montantTotal),
+                  Statut: r.statut.replace('_', ' '),
+                })),
+                'reservations-hotel',
+                'Reservations Hotel',
+              ),
+            },
+            {
+              key: 'pdf',
+              label: 'Exporter PDF',
+              onClick: () => exportToPDF(
+                [
+                  { header: 'Type', dataKey: 'type' },
+                  { header: 'Chambre', dataKey: 'chambre' },
+                  { header: 'Client', dataKey: 'client' },
+                  { header: 'Arrivee', dataKey: 'arrivee' },
+                  { header: 'Depart', dataKey: 'depart' },
+                  { header: 'Montant', dataKey: 'montant' },
+                  { header: 'Statut', dataKey: 'statut' },
+                ],
+                (reservations || []).map((r) => ({
+                  type: TYPE_LABELS[r.typeReservation as TypeReservation] ?? r.typeReservation,
+                  chambre: `${r.chambre.numero} (${r.chambre.type})`,
+                  client: `${r.client.nom} ${r.client.prenom}`,
+                  arrivee: new Date(r.dateArrivee).toLocaleDateString('fr-FR'),
+                  depart: new Date(r.dateDepart).toLocaleDateString('fr-FR'),
+                  montant: `${Number(r.montantTotal).toLocaleString()} FCFA`,
+                  statut: r.statut.replace('_', ' '),
+                })) as Record<string, unknown>[],
+                'reservations-hotel',
+                'Liste des reservations Hotel',
+              ),
+            },
+          ],
+        }}>
+          <Button icon={<DownloadOutlined />}>Exporter</Button>
+        </Dropdown>
       </div>
 
       <Table dataSource={reservations || []} columns={columns} rowKey="id" loading={isLoading} size="small" />
